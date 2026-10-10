@@ -1,0 +1,11 @@
+{
+  "name": "tiny-legion",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "python3 -m http.server 4173 --bind 127.0.0.1 --directory dist",
+    "test": "node --test tests/*.test.js",
+    "check": "node --check dist/src/main.js && node --check dist/src/renderer.js && node --check dist/src/account.js"
+  }
+}

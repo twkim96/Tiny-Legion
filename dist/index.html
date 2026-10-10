@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#eeeddf" />
+    <meta name="description" content="Tiny Legion" />
+    <title>Tiny Legion</title>
+    <link rel="icon" type="image/svg+xml" href="./assets/favicon.svg" />
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <main class="game" id="game" aria-label="Tiny Legion">
+      <header class="topbar">
+        <a class="brand" href="./" aria-label="Tiny Legion"
+          ><span id="brand-icon"></span
+          ><span>Tiny Legion<span class="brand-dot">✦</span></span></a
+        >
+        <div class="resources">
+          <div class="resource" data-tip="캐릭터를 성장시키는 데 사용합니다.">
+            <span data-icon="coin"></span><strong id="gold">0</strong>
+          </div>
+          <div
+            class="resource gem-resource"
+            data-tip="새로운 동료를 만날 수 있습니다."
+          >
+            <span data-icon="gem"></span><strong id="diamonds">0</strong>
+          </div>
+          <button
+            class="icon-button"
+            id="settings"
+            aria-label="설정"
+            data-tip="설정"
+          >
+            <span data-icon="settings"></span>
+          </button>
+        </div>
+      </header>
+      <section class="battle-controls" aria-label="전투 선택">
+        <button class="stage-button" id="stage-select">
+          <span data-icon="map"></span><strong id="stage-number">1-1</strong
+          ><span id="stage-name">초원</span><span class="chevron">⌄</span>
+        </button>
+        <div class="mode-tabs" role="tablist" aria-label="전투">
+          <button role="tab" aria-selected="true" data-mode="idle">
+            <span data-icon="leaf"></span>방치
+          </button>
+          <button role="tab" aria-selected="false" data-mode="challenge">
+            <span data-icon="swords"></span>도전
+          </button>
+          <button role="tab" aria-selected="false" data-mode="speedrun">
+            <span data-icon="bolt"></span>속공
+          </button>
+        </div>
+        <button
+          class="income-button"
+          id="income"
+          data-tip="기록한 성적에 따라 골드와 다이아가 쌓입니다."
+        >
+          <span data-icon="coin"></span
+          ><span id="income-rate">0<span class="muted"> / 시간</span></span
+          ><span class="income-dot"></span>
+        </button>
+      </section>
+      <section class="battlefield" aria-label="전장">
+        <canvas
+          id="battle-canvas"
+          aria-label="아군과 적이 맞서는 가로 전장"
+        ></canvas>
+        <div class="castle-health player-health">
+          <span data-icon="castle"></span>
+          <div class="health-track"><div id="player-health"></div></div>
+          <span id="player-health-text">100%</span>
+        </div>
+        <div class="battle-clock">
+          <span data-icon="clock"></span><span id="battle-time">02:00</span
+          ><button id="pause" aria-label="일시 정지">
+            <span data-icon="pause"></span>
+          </button>
+        </div>
+        <div class="castle-health enemy-health">
+          <span id="enemy-health-label" data-icon="shield"></span>
+          <div class="health-track"><div id="enemy-health"></div></div>
+          <span id="enemy-health-text">1 / 3</span>
+        </div>
+        <div class="field-note" id="field-note">
+          <span class="small-dot"></span
+          ><span id="field-note-text">자동 소환 중</span>
+        </div>
+        <button
+          class="skill-button"
+          id="skill"
+          aria-label="대포"
+          data-tip="대포 · 적을 밀어내고 피해를 줍니다."
+        >
+          <span data-icon="cannon"></span
+          ><span class="skill-cooldown" id="skill-cooldown"></span>
+        </button>
+        <div class="battle-ready" id="battle-ready" hidden>
+          <span id="ready-stage">1-1</span>
+          <h1 id="ready-title">초원</h1>
+          <button class="primary-button" id="start-battle">
+            <span data-icon="play"></span>시작
+          </button>
+        </div>
+        <div class="battle-result" id="battle-result" hidden></div>
+      </section>
+      <section class="summon-bar" aria-label="동료 소환">
+        <div
+          class="battle-wallet"
+          data-tip="시간에 따라 쌓이는 전투용 골드입니다. 육성 골드와 별개입니다."
+        >
+          <span data-icon="purse"></span><strong id="battle-gold">220</strong>
+          <div class="wallet-track"><div id="wallet-fill"></div></div>
+        </div>
+        <div class="unit-hand" id="unit-hand"></div>
+        <button
+          class="sequence-button"
+          id="edit-sequence"
+          aria-label="소환 순서"
+        >
+          <span data-icon="sequence"></span><span>순서</span>
+        </button>
+      </section>
+      <nav class="bottom-nav" aria-label="메뉴">
+        <button class="nav-item active" id="nav-battle">
+          <span data-icon="swords"></span><span>전투</span
+          ><span class="active-dot"></span>
+        </button>
+        <button class="nav-item" id="nav-units">
+          <span data-icon="units"></span><span>동료</span
+          ><span class="nav-badge" id="upgrade-dot" hidden></span>
+        </button>
+        <button class="nav-item" id="nav-recruit">
+          <span data-icon="envelope"></span><span>모집</span>
+        </button>
+        <button class="nav-item" id="nav-codex">
+          <span data-icon="book"></span><span>도감</span>
+        </button>
+        <div class="nav-spacer"></div>
+        <button class="speed-button" id="speed" data-tip="전투 속도">
+          <span data-icon="forward"></span><span id="speed-text">1×</span>
+        </button>
+        <button
+          class="icon-button sound-button"
+          id="sound"
+          aria-label="소리 켜기"
+          aria-pressed="false"
+          data-tip="소리"
+        >
+          <span data-icon="sound-off"></span>
+        </button>
+      </nav>
+    </main>
+    <div class="rotate-hint" id="rotate-hint">
+      <div class="rotate-art"><span data-icon="rotate"></span></div>
+      <strong>가로로 돌려주세요</strong><span>Tiny Legion</span>
+    </div>
+    <div class="modal-backdrop" id="modal-backdrop" hidden>
+      <section
+        class="modal"
+        id="modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modal-title"
+      >
+        <header class="modal-header">
+          <h2 id="modal-title"></h2>
+          <button class="icon-button" id="close-modal" aria-label="닫기">
+            <span data-icon="close"></span>
+          </button>
+        </header>
+        <div class="modal-content" id="modal-content"></div>
+      </section>
+    </div>
+    <div class="tooltip" id="tooltip" role="tooltip" hidden></div>
+    <div class="toast" id="toast" role="status" hidden></div>
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>
