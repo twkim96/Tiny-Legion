@@ -17,6 +17,7 @@ npm run dev
 | `dist/index.html`, `dist/style.css` | 화면과 반응형 스타일 |
 | `dist/src/data.js` | 동료·적·스테이지·웨이브 데이터 |
 | `dist/src/engine.js` | 화면과 독립된 결정적 전투 계산 |
+| `dist/src/onboarding.js` | 신규 0스테이지·첫 1-1·재도전 전투 구성 |
 | `dist/src/account.js` | 성장·재화·진행·기록·저장 |
 | `dist/src/character-art.js`, `dist/src/art.js`, `dist/src/renderer.js` | 계열별 캐릭터 SVG·아이콘과 Canvas 렌더링 |
 | `dist/src/recruitment-ui.js` | 동료 모집·확률·카드 공개 연출 |

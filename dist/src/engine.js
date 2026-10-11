@@ -1,5 +1,6 @@
 import { ENEMIES, STAGES, UNITS } from "./data.js";
 import { resolveDamage, specializationBonus } from "./combat-rules.js";
+import { onboardingEncounter } from "./onboarding.js";
 
 const WORLD_MIN = 0;
 const WORLD_MAX = 1200;
@@ -162,7 +163,7 @@ function setFinished(state, won) {
     state.mode === "idle"
       ? calculateIdleReward(state.stageId, survival, hpRatio)
       : won
-        ? STAGE_BY_ID.get(state.stageId).baseReward
+        ? state._baseReward
         : 0;
   state.result = {
     won,
@@ -195,12 +196,14 @@ export function createBattle(options = {}) {
     duration = 120,
     modifiers = {},
     ownedUnits = null,
+    onboardingPhase = null,
   } = options ?? {};
-  const stage = STAGE_BY_ID.get(Number(stageId)) ?? STAGES[0];
   const battleMode = ["idle", "challenge", "speedrun"].includes(mode)
     ? mode
     : "idle";
-  const durationSeconds = Math.max(0, finiteNumber(duration, 120));
+  const encounter = battleMode === "challenge" ? onboardingEncounter(onboardingPhase) : null;
+  const stage = encounter ?? STAGE_BY_ID.get(Number(stageId)) ?? STAGES[0];
+  const durationSeconds = Math.max(0, finiteNumber(encounter?.duration ?? duration, 120));
   const stageEnemyHp = Math.max(1, finiteNumber(stage.enemyHp, 2000));
   const enemyMaxHp =
     battleMode === "speedrun" ? Math.round(stageEnemyHp * 0.65) : stageEnemyHp;
@@ -227,6 +230,7 @@ export function createBattle(options = {}) {
     result: null,
     events: [],
     _enemyAttackMultiplier: Math.max(0, finiteNumber(stage.enemyAttack, 1)),
+    _baseReward: stage.baseReward,
     _spawnSchedule: makeSpawnSchedule(stage),
     _spawnIndex: 0,
     _nextUid: 1,

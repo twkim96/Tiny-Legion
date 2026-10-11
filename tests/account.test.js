@@ -15,12 +15,25 @@ import {
   battleLevels,
   gemModifiers,
   ownsUnit,
+  advanceOnboardingBattle,
+  recruitOnboardingCompanion,
+  finishOnboarding,
+  isOnboarding,
+  saveAccount,
+  loadAccount,
 } from "../dist/src/account.js";
 import { createBattle, summonUnit } from "../dist/src/engine.js";
-import { UNITS } from "../dist/src/data.js";
+import { STARTER_UNIT_IDS, UNITS } from "../dist/src/data.js";
 const now = Date.UTC(2026, 9, 11, 3);
+function completedAccount() {
+  const account = newAccount(now);
+  account.onboarding.phase = "complete";
+  for (const id of STARTER_UNIT_IDS) account.owned[id] = true;
+  account.sequence = [...STARTER_UNIT_IDS];
+  return account;
+}
 test("combat power follows summoned stats after growth and combat gems", () => {
-  const a = newAccount(now);
+  const a = completedAccount();
   const baseline = combatPower(a);
   growUnit(a, "sheep");
   a.special.rabbit = 3;
@@ -84,7 +97,7 @@ test("a new record settles the old rate and freezes its verified gold bonus", ()
   assert.equal(a.gold, 838);
 });
 test("level refund restores spent gold and invalidates production records", () => {
-  const a = newAccount(now);
+  const a = completedAccount();
   const start = a.gold;
   assert.ok(growUnit(a, "sheep"));
   assert.ok(growUnit(a, "sheep"));
@@ -116,7 +129,7 @@ test("Korean daily boundary resets records and reward state", () => {
   assert.equal(a.tickets, 5);
 });
 test("first challenge reward is not paid twice and gem draw consumes the right currency", () => {
-  const a = newAccount(now);
+  const a = completedAccount();
   completeChallenge(a, 1);
   const gold = a.gold;
   completeChallenge(a, 1);
@@ -154,4 +167,68 @@ test("a truncated imported sequence restores five usable summon slots and preser
   assert.equal(a.sequence.length, 5);
   assert.deepEqual(a.sequence.slice(0, 2), ["sheep", "sheep"]);
   assert.ok(a.sequence.every((id) => Object.hasOwn(a.levels, id)));
+});
+
+test("onboarding battles, guaranteed companion and idle completion survive reload", () => {
+  const account = newAccount(now);
+  assert.deepEqual(account.onboarding, { phase: "intro" });
+  assert.equal(Object.values(account.owned).filter(Boolean).length, 1);
+  assert.deepEqual(account.sequence, Array(5).fill("sheep"));
+  assert.equal(advanceOnboardingBattle(account, false), false);
+  assert.equal(advanceOnboardingBattle(account, true), true);
+  assert.equal(account.onboarding.phase, "first-battle");
+  assert.equal(advanceOnboardingBattle(account, true), false);
+  assert.equal(advanceOnboardingBattle(account, false), true);
+  assert.equal(account.onboarding.phase, "recruit");
+
+  const recruitmentBefore = structuredClone(account.recruitment);
+  const balances = [account.gold, account.diamonds, account.tickets];
+  const result = recruitOnboardingCompanion(account);
+  assert.equal(result.unit.id, "squirrel");
+  assert.equal(result.isNew, true);
+  assert.equal(result.fragments, 0);
+  assert.equal(result.guaranteed, true);
+  assert.deepEqual(account.recruitment, recruitmentBefore);
+  assert.deepEqual([account.gold, account.diamonds, account.tickets], balances);
+  assert.deepEqual(account.sequence, ["sheep", "squirrel", "sheep", "squirrel", "sheep"]);
+  assert.equal(recruitOnboardingCompanion(account), null);
+
+  let saved;
+  const storage = {
+    setItem: (_, value) => (saved = value),
+    getItem: () => saved,
+  };
+  saveAccount(account, storage);
+  const restored = loadAccount(storage, now).account;
+  assert.equal(restored.onboarding.phase, "retry-battle");
+  const rewardBefore = [restored.gold, restored.diamonds];
+  assert.equal(advanceOnboardingBattle(restored, false), false);
+  assert.equal(advanceOnboardingBattle(restored, true), true);
+  assert.equal(restored.onboarding.phase, "idle-guide");
+  assert.deepEqual(restored.challengeRewards, [1]);
+  assert.equal(advanceOnboardingBattle(restored, true), false);
+  assert.equal(restored.challengeRewards.length, 1);
+  assert.ok(restored.gold > rewardBefore[0]);
+  assert.ok(restored.diamonds > rewardBefore[1]);
+  assert.equal(finishOnboarding(restored), true);
+  assert.equal(restored.onboarding.phase, "complete");
+  assert.equal(restored.idleStage, 1);
+  assert.equal(finishOnboarding(restored), false);
+  assert.equal(isOnboarding(restored), false);
+});
+
+test("onboarding normalization repairs phases and preserves its owned roster", () => {
+  const malformed = normalizeAccount(
+    { ...newAccount(now), owned: { sheep: true, squirrel: true }, onboarding: { phase: "recruit" } },
+    now,
+  );
+  assert.equal(malformed.onboarding.phase, "retry-battle");
+  assert.deepEqual(malformed.sequence, ["sheep", "squirrel", "sheep", "squirrel", "sheep"]);
+  const missingCompanion = normalizeAccount(
+    { ...newAccount(now), onboarding: { phase: "idle-guide" } },
+    now,
+  );
+  assert.equal(missingCompanion.onboarding.phase, "recruit");
+  assert.deepEqual(missingCompanion.sequence, Array(5).fill("sheep"));
+  assert.deepEqual(normalizeAccount(malformed, now), malformed);
 });

@@ -34,6 +34,35 @@ test("opening waves enter from the enemy castle and walk left in every mode", ()
   }
 });
 
+test("first journey wins stage zero, loses with shields and wins with a ranged ally", () => {
+  function play(phase, sequence) {
+    const state = createBattle({ mode: "challenge", onboardingPhase: phase, ownedUnits: sequence });
+    let index = 0;
+    while (!state.finished) {
+      if (summonUnit(state, sequence[index])) index = (index + 1) % sequence.length;
+      stepBattle(state, FIXED_STEP);
+    }
+    return state;
+  }
+  const intro = play("intro", ["sheep"]);
+  assert.equal(intro.stageId, 0);
+  assert.equal(intro.result.won, true);
+  assert.equal(intro.result.reward, 0);
+  const first = play("first-battle", ["sheep"]);
+  assert.equal(first.stageId, 1);
+  assert.equal(first.result.won, false);
+  assert.ok(first.enemyHp > 0);
+  const retry = play("retry-battle", ["sheep", "squirrel"]);
+  assert.equal(retry.result.won, true);
+  assert.equal(retry.enemyHp, 0);
+  // Intro settings cannot alter ordinary encounters or idle production.
+  const idle = createBattle({ mode: "idle", onboardingPhase: "intro", stageId: 1 });
+  const normal = createBattle({ mode: "challenge", stageId: 1 });
+  assert.equal(idle.stageId, 1);
+  assert.equal(idle.duration, 120);
+  assert.equal(normal.enemyMaxHp, STAGES[0].enemyHp);
+});
+
 test("every companion can be afforded by saving and spends its full price", () => {
   for (const unit of UNITS) {
     const state = createBattle({ mode: "challenge", sequence: [] });

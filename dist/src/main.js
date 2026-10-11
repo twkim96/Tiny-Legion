@@ -18,6 +18,7 @@ import {
   rarityOf,
 } from "./recruitment-ui.js";
 import { battlefieldLayout } from "./combat-visuals.js";
+import { onboardingEncounter } from "./onboarding.js";
 import {
   GEMS,
   newAccount,
@@ -40,6 +41,10 @@ import {
   recruitUnits,
   ownsUnit,
   recruitGem,
+  isOnboarding,
+  advanceOnboardingBattle,
+  recruitOnboardingCompanion,
+  finishOnboarding,
 } from "./account.js";
 
 const $ = (id) => document.getElementById(id);
@@ -223,8 +228,8 @@ let recruitReceipt = null;
 let codexRarity = "all",
   codexOwned = "all";
 const earned = accrue(account);
-let mode = "idle",
-  stageId = account.idleStage,
+let mode = isOnboarding(account) ? "challenge" : "idle",
+  stageId = onboardingEncounter(account.onboarding?.phase)?.id ?? account.idleStage,
   battle = null,
   battleSnapshot = null,
   paused = false,
@@ -290,7 +295,7 @@ function chirp(type = "tap") {
   } catch {}
 }
 function createHand() {
-  const hand = account.sequence
+  const hand = handUnits()
     .map((id, index) => {
       const unit = unitById[id];
       const tip = [
@@ -308,7 +313,21 @@ function createHand() {
     .querySelectorAll("[data-unit]")
     .forEach((btn) => (btn.onclick = () => manualSummon(btn.dataset.unit)));
 }
+function handUnits() {
+  return isOnboarding(account) ? [...new Set(account.sequence)] : account.sequence;
+}
+function currentStage() {
+  return onboardingEncounter(account.onboarding?.phase) ?? STAGES[stageId - 1] ?? STAGES[0];
+}
 function startBattle() {
+  if (isOnboarding(account) && !onboardingEncounter(account.onboarding.phase)) {
+    resumeOnboarding();
+    return;
+  }
+  if (isOnboarding(account)) {
+    mode = "challenge";
+    stageId = currentStage().id;
+  }
   const levels = battleLevels(account);
   battle = createBattle({
     mode,
@@ -317,6 +336,7 @@ function startBattle() {
     sequence: account.sequence,
     modifiers: gemModifiers(account),
     ownedUnits: UNITS.filter((u) => ownsUnit(account, u.id)).map((u) => u.id),
+    onboardingPhase: isOnboarding(account) ? account.onboarding.phase : null,
   });
   battleSnapshot = {
     stageId,
@@ -349,6 +369,7 @@ function readyBattle() {
   updateUi();
 }
 function setMode(next) {
+  if (isOnboarding(account)) return;
   if (next === "speedrun" && account.highestCleared < 3) {
     toast("1-3을 완료하면 열립니다.");
     return;
@@ -417,7 +438,7 @@ function manualSummon(id) {
     return;
   }
   if (waiting) startBattle();
-  if (paused || !battle || battle.finished) return;
+  if (paused || !battle || battle.finished || !$("modal-backdrop").hidden) return;
   const eventCount = battle.events.length;
   if (summonUnit(battle, id)) {
     renderer.consumeEvents(battle.events.slice(eventCount), battle);
@@ -436,6 +457,10 @@ function finishBattle() {
   if (resultHandled || !battle?.result) return;
   resultHandled = true;
   const r = battle.result;
+  if (isOnboarding(account)) {
+    finishOnboardingBattle(r);
+    return;
+  }
   chirp("win");
   if (mode === "idle") {
     const improved = recordIdle(account, r, battleSnapshot);
@@ -463,6 +488,94 @@ function finishBattle() {
   }
   persist();
   showResult(r, rewards);
+  updateUi();
+}
+function onboardingMessage(title, text, label, action, companion = "sheep") {
+  openModal(title, "onboarding", () => {
+    $("modal-content").innerHTML = `<div class="onboarding-message">${portrait(companion)}<p>${text}</p><button class="primary-button" id="onboarding-next">${label}</button></div>`;
+    $("onboarding-next").onclick = action;
+  });
+  $("onboarding-next").focus();
+}
+function enterOnboardingBattle() {
+  closeModal(true);
+  createHand();
+  startBattle();
+}
+function showOnboardingDraw() {
+  onboardingMessage("동료 모집", "양 방패가 앞을 지키는 동안 공격해 줄 동료를 만나 보세요.", "무료 1회", () => {
+    const result = recruitOnboardingCompanion(account);
+    if (!result) {
+      resumeOnboarding();
+      return;
+    }
+    // Persist the grant before revealing; reloading cannot draw it again.
+    persist();
+    createHand();
+    updateUi();
+    recruitCleanup = revealRecruit($("modal-content"), [result], {
+      done: showOnboardingRetry,
+      inspect: () => {},
+      sound: () => chirp("win"),
+    });
+    $("draw-again").hidden = true;
+    $("draw-done").textContent = "함께 출정";
+    $("draw-skip").focus();
+  }, "squirrel");
+}
+function showOnboardingRetry() {
+  recruitCleanup?.();
+  recruitCleanup = null;
+  onboardingMessage("다시 출정", "양 방패를 먼저 소환하고, 골드를 모아 씨앗 다람쥐를 소환하세요. 방패 뒤에서 적을 공격합니다.", "1-1 출정", enterOnboardingBattle, "squirrel");
+}
+function showIdleGuide() {
+  onboardingMessage("방치", "1-1을 돌파했어요! 이제 동료가 자동으로 소환되어 120초 동안 성을 지킵니다.<br>전투가 끝나면 생산 기록이 생겨요. 그 기록으로 게임을 꺼도 골드와 다이아가 쌓입니다.", "방치 시작", () => {
+    if (!finishOnboarding(account)) return;
+    persist();
+    closeModal(true);
+    mode = "idle";
+    stageId = 1;
+    createHand();
+    startBattle();
+  }, "squirrel");
+}
+function resumeOnboarding() {
+  if (!isOnboarding(account)) return;
+  mode = "challenge";
+  stageId = onboardingEncounter(account.onboarding.phase)?.id ?? 1;
+  battle = null;
+  restartAt = 0;
+  createHand();
+  switch (account.onboarding.phase) {
+    case "intro":
+    case "first-battle":
+      startBattle();
+      break;
+    case "recruit":
+      showOnboardingDraw();
+      break;
+    case "retry-battle":
+      showOnboardingRetry();
+      break;
+    case "idle-guide":
+      showIdleGuide();
+      break;
+  }
+  updateUi();
+}
+function finishOnboardingBattle(result) {
+  const phase = account.onboarding.phase;
+  advanceOnboardingBattle(account, result.won);
+  persist();
+  if (phase === "intro" && result.won) {
+    onboardingMessage("첫 승리", "적 성을 무너뜨렸어요. 이번에는 적이 지키고 있는 숲길로 가 볼까요?", "1-1 출정", enterOnboardingBattle);
+  } else if (phase === "first-battle" && !result.won) {
+    onboardingMessage("동료가 필요해요", "양 방패는 잘 버티지만 공격이 부족해요. 뒤에서 공격할 동료를 모집해 보세요.", "동료 모집", showOnboardingDraw);
+  } else if (phase === "retry-battle" && result.won) {
+    showIdleGuide();
+  } else {
+    onboardingMessage("다시 한 번", phase === "intro" ? "아래 양 방패 카드를 눌러 소환하세요. 시간이 지나면 전투 골드가 모입니다." : "양 방패와 씨앗 다람쥐를 함께 소환해 보세요. 다람쥐를 위한 골드도 모아 주세요.", "다시 출정", enterOnboardingBattle);
+  }
   updateUi();
 }
 function showResult(r, rewards) {
@@ -500,7 +613,7 @@ function updateUi() {
   const record = account.records[account.idleStage];
   $("income-rate").innerHTML =
     `${fmt((record?.gold || 0) * 30)}<span class="muted"> / 시간</span>`;
-  $("stage-number").textContent = mode === "speedrun" ? "일일" : `1-${stageId}`;
+  $("stage-number").textContent = mode === "speedrun" ? "일일" : stageId === 0 ? "0" : `1-${stageId}`;
   $("stage-name").textContent = "초원";
   $("current-mode").textContent = {
     idle: "방치",
@@ -521,7 +634,7 @@ function updateUi() {
   const layout = battlefieldLayout(renderer.width, renderer.height);
   const enemyMax =
     battle?.enemyMaxHp ??
-    Math.round(STAGES[stageId - 1].enemyHp * (mode === "speedrun" ? 0.65 : 1));
+    Math.round(currentStage().enemyHp * (mode === "speedrun" ? 0.65 : 1));
   for (const [team, x, max, current] of [
     [
       "player",
@@ -559,6 +672,12 @@ function updateUi() {
     note = `${names[next.id]} · ${Math.ceil(Math.max(0, next.cost - battle.gold) / 35)}초`;
   }
   if (mode === "idle" && battle?.finished) note = "기록 저장";
+  if (isOnboarding(account) && !battle?.finished) {
+    const phase = account.onboarding.phase;
+    if (phase === "intro") note = battle?.units.some((u) => u.team === "player") ? "적 성을 무너뜨리세요" : "양 방패 카드를 눌러 소환하세요";
+    else if (phase === "first-battle") note = "양 방패로 적 성에 도전하세요";
+    else if (phase === "retry-battle") note = battle?.units.some((u) => u.id === "sheep" && u.team === "player" && !u.dead) ? "골드를 모아 다람쥐도 소환하세요" : "양 방패를 먼저 소환하세요";
+  }
   $("field-note-text").textContent = note;
   $("unit-hand")
     .querySelectorAll(".unit-card")
@@ -577,7 +696,7 @@ function updateUi() {
         cd > 0.01 ? `${cd.toFixed(1)}` : "";
     });
   $("skill").disabled =
-    mode === "idle" ||
+    isOnboarding(account) || mode === "idle" ||
     !battle ||
     battle.finished ||
     paused ||
@@ -585,6 +704,9 @@ function updateUi() {
   $("skill-cooldown").textContent =
     skillRemaining > 0 ? Math.ceil(skillRemaining) : "";
   $("edit-sequence").style.visibility = "visible";
+  for (const id of ["stage-select", "mode-select", "profile-button", "edit-sequence", "nav-battle", "nav-units", "nav-recruit", "income"]) {
+    $(id).disabled = isOnboarding(account);
+  }
   $("speed-text").textContent = `${account.settings.speed}×`;
   $("sound").innerHTML = icon(account.settings.sound ? "sound" : "sound-off");
   $("sound").setAttribute("aria-pressed", String(account.settings.sound));
@@ -600,6 +722,8 @@ function updateUi() {
   );
 }
 function openModal(title, kind, render) {
+  if (isOnboarding(account) && !["onboarding", "settings", "import", "codex"].includes(kind)) return;
+  if (modalKind === "onboarding" && kind !== "onboarding") return;
   recruitCleanup?.();
   recruitCleanup = null;
   hideTooltip();
@@ -608,15 +732,18 @@ function openModal(title, kind, render) {
   modalRender = render;
   $("modal-title").textContent = title;
   $("modal-backdrop").hidden = false;
+  $("close-modal").hidden = kind === "onboarding";
   render();
-  $("close-modal").focus();
+  if (kind !== "onboarding") $("close-modal").focus();
 }
-function closeModal() {
+function closeModal(force = false) {
+  if (modalKind === "onboarding" && force !== true) return;
   if ($("modal-backdrop").hidden) return;
   $("modal-backdrop").hidden = true;
   recruitCleanup?.();
   recruitCleanup = null;
   modalKind = null;
+  $("close-modal").hidden = false;
   modalRender = null;
   lastFocused?.focus?.();
   hideTooltip();
@@ -1108,11 +1235,14 @@ function renderSettings() {
           account = imported;
           accrue(account);
           persist();
-          mode = "idle";
-          stageId = account.idleStage;
-          createHand();
-          startBattle();
-          closeModal();
+          closeModal(true);
+          if (isOnboarding(account)) resumeOnboarding();
+          else {
+            mode = "idle";
+            stageId = account.idleStage;
+            createHand();
+            startBattle();
+          }
           toast("저장 파일을 불러왔습니다.");
         };
       });
@@ -1173,7 +1303,7 @@ document.addEventListener("keydown", (e) => {
         ...$("modal").querySelectorAll(
           "button:not(:disabled),a[href],input:not([hidden])",
         ),
-      ];
+      ].filter((element) => element.getClientRects().length > 0);
       if (!focusables.length) return;
       const first = focusables[0],
         last = focusables.at(-1);
@@ -1192,9 +1322,9 @@ document.addEventListener("keydown", (e) => {
     setPaused();
   }
   if (/^[1-5]$/.test(e.key) && !e.repeat)
-    manualSummon(account.sequence[Number(e.key) - 1]);
+    manualSummon(handUnits()[Number(e.key) - 1]);
 });
-$("close-modal").onclick = closeModal;
+$("close-modal").onclick = () => closeModal();
 $("modal-backdrop").onclick = (e) => {
   if (e.target === $("modal-backdrop")) closeModal();
 };
@@ -1232,7 +1362,7 @@ $("sound").onclick = () => {
 };
 $("skill").onclick = () => {
   if (
-    !battle ||
+    isOnboarding(account) || !battle ||
     battle.finished ||
     mode === "idle" ||
     paused ||
@@ -1262,7 +1392,8 @@ const renderer = new Renderer($("battle-canvas"));
 hydrateIcons();
 $("brand-icon").innerHTML = portrait("sheep");
 createHand();
-startBattle();
+if (isOnboarding(account)) resumeOnboarding();
+else startBattle();
 persist();
 if (loadError)
   setTimeout(

@@ -8,6 +8,10 @@ import {
   growUnit,
   enhanceUnit,
   combatPower,
+  recruitGem,
+  refundLevels,
+  recruitOnboardingCompanion,
+  advanceOnboardingBattle,
   saveAccount,
   loadAccount,
 } from "../dist/src/account.js";
@@ -18,11 +22,19 @@ const rolls = (...values) => {
   let index = 0;
   return () => values[index++ % values.length];
 };
+function completedAccount() {
+  const account = newAccount(now);
+  account.onboarding.phase = "complete";
+  for (const id of STARTER_UNIT_IDS) account.owned[id] = true;
+  account.sequence = [...STARTER_UNIT_IDS];
+  return account;
+}
 
 test("legacy saves preserve progress and starter ownership without granting new companions", () => {
   const legacy = newAccount(now);
   delete legacy.owned;
   delete legacy.recruitment;
+  delete legacy.onboarding;
   legacy.levels.sheep = 12;
   legacy.fragments.rabbit = 4;
   legacy.special.rabbit = 2;
@@ -46,7 +58,7 @@ test("legacy saves preserve progress and starter ownership without granting new 
 });
 
 test("first draw unlocks, subsequent duplicate yields one fragment and supports enhancement", () => {
-  const account = newAccount(now);
+  const account = completedAccount();
   account.diamonds = 300;
   const power = combatPower(account);
   const first = recruitUnits(account, 1, { random: rolls(0.7, 0) })[0];
@@ -68,7 +80,7 @@ test("first draw unlocks, subsequent duplicate yields one fragment and supports 
 });
 
 test("ten draws charge once and apply guarantees across batches and single draws", () => {
-  const account = newAccount(now);
+  const account = completedAccount();
   account.diamonds = 2000;
   const batch = recruitUnits(account, 10, { random: () => 0 });
   assert.equal(batch.length, 10);
@@ -94,14 +106,14 @@ test("natural higher rarities survive guarantees and all rarity pools are reacha
   ]) {
     const pool = UNITS.filter((u) => u.rarity === rarity);
     for (let i = 0; i < pool.length; i++) {
-      const account = newAccount(now);
+      const account = completedAccount();
       const result = recruitUnits(account, 1, {
         random: rolls(roll, (i + 0.5) / pool.length),
       })[0];
       assert.equal(result.unit.id, pool[i].id);
     }
   }
-  const account = newAccount(now);
+  const account = completedAccount();
   account.recruitment.sinceEpic = 49;
   account.recruitment.sinceRare = 9;
   const result = recruitUnits(account, 1, { random: rolls(0.995, 0) })[0];
@@ -111,7 +123,7 @@ test("natural higher rarities survive guarantees and all rarity pools are reacha
 });
 
 test("insufficient funds, invalid count or interrupted batch never charge or grant", () => {
-  const account = newAccount(now);
+  const account = completedAccount();
   const snapshot = JSON.stringify(account);
   assert.equal(recruitUnits(account, 10), null);
   assert.equal(recruitUnits(account, 3), null);
@@ -126,7 +138,7 @@ test("insufficient funds, invalid count or interrupted batch never charge or gra
 });
 
 test("welcome draw and ownership survive storage round trip without a second free grant", () => {
-  const account = newAccount(now);
+  const account = completedAccount();
   const result = recruitUnits(account, 10, {
     free: true,
     random: rolls(0.7, 0),
@@ -149,7 +161,7 @@ test("welcome draw and ownership survive storage round trip without a second fre
 });
 
 test("unowned companions cannot grow, enhance, summon or affect power", () => {
-  const account = newAccount(now);
+  const account = completedAccount();
   const locked = UNITS.find((u) => !ownsUnit(account, u.id));
   const power = combatPower(account);
   account.levels[locked.id] = 100;
@@ -181,4 +193,60 @@ test("idle queue skips a locked entry instead of blocking the usable lineup", ()
     battle.units.map((u) => u.id),
     ["sheep"],
   );
+});
+
+test("onboarding keeps ordinary economy and growth APIs locked until the idle guide", () => {
+  const account = newAccount(now);
+  account.gold = 10000;
+  account.diamonds = 1000;
+  account.tickets = 20;
+  account.fragments.sheep = 3;
+  account.highestCleared = 3;
+  const snapshot = JSON.stringify(account);
+  assert.equal(recruitUnits(account, 1, { random: () => 0 }), null);
+  assert.equal(growUnit(account, "sheep"), false);
+  assert.equal(enhanceUnit(account, "sheep"), false);
+  assert.equal(refundLevels(account, now), 0);
+  assert.equal(recruitGem(account, "tickets", () => 0), null);
+  assert.equal(JSON.stringify(account), snapshot);
+  assert.equal(recruitOnboardingCompanion(account), null);
+
+  account.onboarding.phase = "recruit";
+  assert.ok(recruitOnboardingCompanion(account));
+  advanceOnboardingBattle(account, true);
+  account.onboarding.phase = "idle-guide";
+  assert.equal(growUnit(account, "sheep"), false);
+  account.onboarding.phase = "complete";
+  assert.equal(growUnit(account, "sheep"), true);
+});
+
+test("complete onboarding saves do not regain the legacy starter roster", () => {
+  const account = normalizeAccount(
+    { ...newAccount(now), onboarding: { phase: "complete" }, owned: { sheep: true } },
+    now,
+  );
+  assert.deepEqual(
+    UNITS.filter((unit) => ownsUnit(account, unit.id)).map((unit) => unit.id),
+    ["sheep"],
+  );
+  assert.deepEqual(account.sequence, Array(5).fill("sheep"));
+});
+
+test("completed new-format save retains exactly its sheep and squirrel owners", () => {
+  const source = newAccount(now);
+  source.onboarding = { phase: "complete" };
+  source.owned.squirrel = true;
+  source.sequence = ["sheep", "squirrel", "sheep", "squirrel", "sheep"];
+  let saved;
+  const storage = {
+    setItem: (_, value) => (saved = value),
+    getItem: () => saved,
+  };
+  assert.equal(saveAccount(source, storage), true);
+  const restored = loadAccount(storage, now).account;
+  assert.deepEqual(
+    UNITS.filter((unit) => ownsUnit(restored, unit.id)).map((unit) => unit.id),
+    ["sheep", "squirrel"],
+  );
+  assert.deepEqual(restored.sequence, source.sequence);
 });

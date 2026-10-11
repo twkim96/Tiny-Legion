@@ -3032,3 +3032,21 @@ html:fullscreen .game {
     animation: none;
   }
 }
+
+.onboarding-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 12px;
+  text-align: center;
+}
+.onboarding-message > .portrait {
+  width: 104px;
+  height: 98px;
+}
+.onboarding-message p {
+  margin: 0;
+  max-width: 420px;
+  line-height: 1.7;
+}

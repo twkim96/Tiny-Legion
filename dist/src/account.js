@@ -1,6 +1,14 @@
 import { UNITS, STAGES, RARITIES, STARTER_UNIT_IDS } from "./data.js";
 import { UNIT_LEVEL_GROWTH } from "./engine.js";
 export const SAVE_KEY = "tiny-legion.save.v1";
+const ONBOARDING_PHASES = new Set([
+  "intro",
+  "first-battle",
+  "recruit",
+  "retry-battle",
+  "idle-guide",
+  "complete",
+]);
 export const GEMS = [
   {
     id: "attack",
@@ -39,16 +47,15 @@ export function newAccount(now = Date.now()) {
     levels: Object.fromEntries(UNITS.map((u) => [u.id, 1])),
     fragments: Object.fromEntries(UNITS.map((u) => [u.id, 0])),
     special: Object.fromEntries(UNITS.map((u) => [u.id, 0])),
-    owned: Object.fromEntries(
-      UNITS.map((u) => [u.id, STARTER_UNIT_IDS.includes(u.id)]),
-    ),
+    owned: Object.fromEntries(UNITS.map((u) => [u.id, u.id === "sheep"])),
     recruitment: {
       total: 0,
       sinceRare: 0,
       sinceEpic: 0,
       welcomeClaimed: false,
     },
-    sequence: [...STARTER_UNIT_IDS],
+    sequence: Array(5).fill("sheep"),
+    onboarding: { phase: "intro" },
     highestCleared: 0,
     records: {},
     idleStage: 1,
@@ -63,17 +70,37 @@ export function newAccount(now = Date.now()) {
 export function normalizeAccount(raw, now = Date.now()) {
   const a = newAccount(now);
   if (!raw || raw.version !== 1) return a;
+  const hasOnboarding = Object.hasOwn(raw, "onboarding");
+  const rawPhase = raw.onboarding?.phase;
+  a.onboarding = {
+    phase: ONBOARDING_PHASES.has(rawPhase) ? rawPhase : hasOnboarding ? "intro" : "complete",
+  };
   for (const k of ["gold", "diamonds", "tickets"]) a[k] = cap(raw[k], 0, 1e12);
   for (const u of UNITS) {
     a.owned[u.id] =
-      STARTER_UNIT_IDS.includes(u.id) || raw.owned?.[u.id] === true;
+      u.id === "sheep" ||
+      (!hasOnboarding && STARTER_UNIT_IDS.includes(u.id)) ||
+      raw.owned?.[u.id] === true;
     a.levels[u.id] = Math.floor(cap(raw.levels?.[u.id] ?? 1, 1, 100));
     a.fragments[u.id] = Math.floor(cap(raw.fragments?.[u.id], 0, 1e6));
     a.special[u.id] = Math.floor(cap(raw.special?.[u.id], 0, 20));
   }
-  if (Array.isArray(raw.sequence)) {
-    const ids = raw.sequence.filter((id) => ownsUnit(a, id));
-    if (ids.length) a.sequence = [...ids, ...STARTER_UNIT_IDS].slice(0, 5);
+  const ownedIds = hasOnboarding
+    ? UNITS.filter((u) => ownsUnit(a, u.id)).map((u) => u.id)
+    : STARTER_UNIT_IDS.filter((id) => ownsUnit(a, id));
+  const sequence = Array.isArray(raw.sequence)
+    ? raw.sequence.filter((id) => ownsUnit(a, id))
+    : [];
+  a.sequence = [...(sequence.length ? sequence : []), ...ownedIds].slice(0, 5);
+  while (a.sequence.length < 5) a.sequence.push(ownedIds[0] ?? "sheep");
+  if (a.onboarding.phase === "recruit" && ownsUnit(a, "squirrel")) {
+    a.onboarding.phase = "retry-battle";
+    a.sequence = ["sheep", "squirrel", "sheep", "squirrel", "sheep"];
+  } else if (
+    ["retry-battle", "idle-guide"].includes(a.onboarding.phase) &&
+    !ownsUnit(a, "squirrel")
+  ) {
+    a.onboarding.phase = "recruit";
   }
   a.recruitment = {
     total: Math.floor(cap(raw.recruitment?.total, 0, 1e9)),
@@ -157,6 +184,7 @@ export function accrue(a, now = Date.now()) {
   return { gold, diamonds, seconds };
 }
 export function growUnit(a, id) {
+  if (isOnboarding(a)) return false;
   if (!ownsUnit(a, id) || a.levels[id] >= 100) return false;
   const cost = levelCost(a.levels[id]);
   if (a.gold < cost) return false;
@@ -165,6 +193,7 @@ export function growUnit(a, id) {
   return true;
 }
 export function enhanceUnit(a, id) {
+  if (isOnboarding(a)) return false;
   if (!ownsUnit(a, id) || (a.fragments[id] ?? 0) < 3 || a.special[id] >= 20)
     return false;
   a.fragments[id] -= 3;
@@ -172,6 +201,7 @@ export function enhanceUnit(a, id) {
   return true;
 }
 export function refundLevels(a, now = Date.now()) {
+  if (isOnboarding(a)) return 0;
   accrue(a, now);
   let refunded = 0;
   for (const u of UNITS) {
@@ -266,6 +296,44 @@ export const RECRUIT_COSTS = { 1: 30, 10: 270 };
 export function ownsUnit(a, id) {
   return UNITS.some((unit) => unit.id === id) && a.owned?.[id] === true;
 }
+export function isOnboarding(a) {
+  return (
+    ONBOARDING_PHASES.has(a?.onboarding?.phase) &&
+    a.onboarding.phase !== "complete"
+  );
+}
+export function advanceOnboardingBattle(a, won) {
+  const phase = a?.onboarding?.phase;
+  if (phase === "intro" && won) {
+    a.onboarding.phase = "first-battle";
+    return true;
+  }
+  if (phase === "first-battle" && !won) {
+    a.onboarding.phase = "recruit";
+    return true;
+  }
+  if (phase === "retry-battle" && won) {
+    completeChallenge(a, 1);
+    a.onboarding.phase = "idle-guide";
+    return true;
+  }
+  return false;
+}
+export function recruitOnboardingCompanion(a) {
+  if (a?.onboarding?.phase !== "recruit" || ownsUnit(a, "squirrel")) return null;
+  const unit = UNITS.find((entry) => entry.id === "squirrel");
+  if (!unit) return null;
+  a.owned.squirrel = true;
+  a.onboarding.phase = "retry-battle";
+  a.sequence = ["sheep", "squirrel", "sheep", "squirrel", "sheep"];
+  return { unit, isNew: true, fragments: 0, guaranteed: true };
+}
+export function finishOnboarding(a) {
+  if (a?.onboarding?.phase !== "idle-guide") return false;
+  a.onboarding.phase = "complete";
+  a.idleStage = 1;
+  return true;
+}
 const randomValue = (random) => {
   const value = random();
   if (!Number.isFinite(value)) throw new Error("Invalid random value");
@@ -276,6 +344,7 @@ export function recruitUnits(
   count = 1,
   { free = false, random = Math.random } = {},
 ) {
+  if (isOnboarding(a)) return null;
   if (![1, 10].includes(count)) return null;
   if (free && (count !== 10 || a.recruitment.welcomeClaimed)) return null;
   const cost = free ? 0 : RECRUIT_COSTS[count];
@@ -329,6 +398,7 @@ export function recruitUnit(a, random = Math.random) {
   return recruitUnits(a, 1, { random })?.[0].unit ?? null;
 }
 export function recruitGem(a, payment = "tickets", random = Math.random) {
+  if (isOnboarding(a)) return null;
   if (a.highestCleared < 3) return null;
   const cost = payment === "tickets" ? 5 : 30;
   if (!["tickets", "diamonds"].includes(payment) || a[payment] < cost)
