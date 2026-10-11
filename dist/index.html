@@ -56,6 +56,12 @@
       >
         <span data-icon="swords"></span><strong id="combat-power">0</strong>
       </div>
+      <button class="guide-mission" id="guide-mission" hidden aria-label="미션">
+        <strong id="mission-heading">미션</strong>
+        <span id="mission-title"></span>
+        <span id="mission-progress"></span>
+        <span class="mission-rewards" id="mission-rewards"></span>
+      </button>
       <div class="stage-hud">
         <button
           class="stage-button"
@@ -72,7 +78,7 @@
           <button
             class="mode-indicator"
             id="mode-select"
-            aria-label="전투 선택"
+            aria-label="현재 전투 모드"
           >
             <span id="current-mode-icon" data-icon="leaf"></span
             ><span id="current-mode">방치</span>
@@ -84,16 +90,6 @@
         </div>
       </div>
       <nav class="game-menus" aria-label="게임 메뉴">
-        <button
-          class="game-menu menu-battle"
-          id="nav-battle"
-          aria-label="전투 선택"
-          aria-haspopup="dialog"
-          data-tip="전투 선택"
-        >
-          <span class="menu-medallion"><span data-icon="swords"></span></span
-          ><span class="menu-label">전투</span>
-        </button>
         <button
           class="game-menu menu-units"
           id="nav-units"
@@ -135,13 +131,13 @@
         </button>
         <button
           class="game-menu menu-settings"
-          id="settings"
-          aria-label="설정"
+          id="menu"
+          aria-label="메뉴"
           aria-haspopup="dialog"
-          data-tip="설정"
+          data-tip="메뉴"
         >
-          <span class="menu-medallion"><span data-icon="settings"></span></span
-          ><span class="menu-label">설정</span>
+          <span class="menu-medallion"><span data-icon="menu"></span></span
+          ><span class="menu-label">메뉴</span>
         </button>
       </nav>
       <div
@@ -174,6 +170,15 @@
         <span class="small-dot"></span
         ><span id="field-note-text">자동 소환 중</span>
       </div>
+      <button class="challenge-start" id="challenge-start" aria-label="도전 전투 시작">
+        <span data-icon="swords"></span><strong>전투 시작</strong>
+      </button>
+      <section class="idle-result-popup" id="idle-result-popup" role="dialog" aria-modal="false" aria-labelledby="idle-result-title" hidden>
+        <header><h2 id="idle-result-title"></h2><button class="icon-button" id="close-idle-result" aria-label="방치 결과 닫기"><span data-icon="close"></span></button></header>
+        <div id="idle-result-content"></div>
+        <label class="idle-result-dismiss"><input type="checkbox" id="hide-idle-result">이 스테이지에서 다시 보지 않기</label>
+        <button class="primary-button" id="confirm-idle-result">확인</button>
+      </section>
       <section class="summon-bar" aria-label="동료 소환">
         <div
           class="battle-wallet"

@@ -10,6 +10,9 @@ import {
   growUnit,
   normalizeAccount,
   completeChallenge,
+  currentMission,
+  recordMissionBattle,
+  claimMission,
   recruitGem,
   combatPower,
   battleLevels,
@@ -25,7 +28,7 @@ import {
   SAVE_KEY,
 } from "../dist/src/account.js";
 import { createBattle, summonUnit } from "../dist/src/engine.js";
-import { STARTER_UNIT_IDS, UNITS } from "../dist/src/data.js";
+import { STARTER_UNIT_IDS, STAGES, UNITS } from "../dist/src/data.js";
 const now = Date.UTC(2026, 9, 11, 3);
 test("account reset persists only a fresh intro account and preserves saves on write failure", () => {
   const previous = newAccount(now);
@@ -265,4 +268,208 @@ test("onboarding normalization repairs phases and preserves its owned roster", (
   assert.equal(missingCompanion.onboarding.phase, "recruit");
   assert.deepEqual(missingCompanion.sequence, ["sheep", ...Array(9).fill(null)]);
   assert.deepEqual(normalizeAccount(malformed, now), malformed);
+});
+
+test("idle mission requires a stage-one idle win and ignores losses or other battles", () => {
+  const account = completedAccount();
+  assert.deepEqual(currentMission(account), {
+    id: "idle-intro",
+    kind: "idle",
+    stageId: 1,
+    title: "1-1 방치 클리어",
+    gold: 120,
+    diamonds: 10,
+    completed: false,
+  });
+  for (const result of [
+    { mode: "idle", stageId: 1, won: false },
+    { mode: "challenge", stageId: 1, won: true },
+    { mode: "idle", stageId: 2, won: true },
+  ]) {
+    recordMissionBattle(account, result);
+    assert.equal(currentMission(account).completed, false);
+  }
+  recordMissionBattle(account, { mode: "idle", stageId: 1, won: true });
+  assert.equal(currentMission(account).completed, true);
+  recordMissionBattle(account, { mode: "idle", stageId: 1, won: true });
+  assert.equal(currentMission(account).completed, true);
+  assert.equal(currentMission(newAccount(now)), null);
+});
+
+test("missions claim sequentially once, survive reload, and remain separate from first-clear rewards", () => {
+  const account = completedAccount();
+  recordMissionBattle(account, { mode: "idle", stageId: 1, won: true });
+  assert.deepEqual(claimMission(account), { id: "idle-intro", gold: 120, diamonds: 10 });
+  assert.equal(claimMission(account), null);
+
+  assert.deepEqual(currentMission(account), {
+    id: "challenge-2",
+    kind: "challenge",
+    stageId: 2,
+    title: "도전 1-2 클리어",
+    gold: STAGES[1].baseReward,
+    diamonds: 10,
+    completed: false,
+  });
+  recordMissionBattle(account, { mode: "challenge", stageId: 2, won: true });
+  assert.equal(currentMission(account).completed, false);
+
+  const goldBeforeFirstClear = account.gold;
+  const diamondsBeforeFirstClear = account.diamonds;
+  assert.deepEqual(completeChallenge(account, 2), {
+    gold: STAGES[1].baseReward * 2,
+    diamonds: 10,
+  });
+  assert.equal(currentMission(account).completed, true);
+  const goldBeforeMission = account.gold;
+  const diamondsBeforeMission = account.diamonds;
+  assert.deepEqual(claimMission(account), {
+    id: "challenge-2",
+    gold: STAGES[1].baseReward,
+    diamonds: 10,
+  });
+  assert.equal(account.gold - goldBeforeMission, STAGES[1].baseReward);
+  assert.equal(account.diamonds - diamondsBeforeMission, 10);
+  assert.equal(account.gold - goldBeforeFirstClear, STAGES[1].baseReward * 3);
+  assert.equal(account.diamonds - diamondsBeforeFirstClear, 20);
+  assert.deepEqual(completeChallenge(account, 2), { gold: 0, diamonds: 0 });
+  assert.equal(claimMission(account), null);
+
+  let saved;
+  const storage = {
+    getItem: () => saved,
+    setItem: (_, value) => (saved = value),
+  };
+  assert.equal(saveAccount(account, storage), true);
+  let restored = loadAccount(storage, now).account;
+  assert.deepEqual(restored.missions, {
+    idleCompleted: true,
+    claimed: ["idle-intro", "challenge-2"],
+  });
+  assert.equal(currentMission(restored).id, "challenge-3");
+  assert.equal(claimMission(restored), null);
+
+  completeChallenge(restored, 3);
+  assert.deepEqual(claimMission(restored), {
+    id: "challenge-3",
+    gold: STAGES[2].baseReward,
+    diamonds: 10,
+  });
+  saveAccount(restored, storage);
+  restored = loadAccount(storage, now).account;
+  assert.equal(currentMission(restored).id, "challenge-4");
+  assert.deepEqual(restored.missions.claimed, [
+    "idle-intro",
+    "challenge-2",
+    "challenge-3",
+  ]);
+});
+
+test("legacy mission migration avoids retroactive rewards and respects onboarding", () => {
+  const legacyCleared = {
+    ...newAccount(now),
+    highestCleared: 5,
+    onboarding: { phase: "complete" },
+  };
+  delete legacyCleared.missions;
+  const migratedCleared = normalizeAccount(legacyCleared, now);
+  assert.deepEqual(migratedCleared.missions, {
+    idleCompleted: true,
+    claimed: [
+      "idle-intro",
+      "challenge-2",
+      "challenge-3",
+      "challenge-4",
+      "challenge-5",
+    ],
+  });
+  assert.deepEqual(currentMission(migratedCleared), {
+    id: "challenge-6",
+    kind: "challenge",
+    stageId: 6,
+    title: "도전 1-6 클리어",
+    gold: STAGES[5].baseReward,
+    diamonds: 10,
+    completed: false,
+  });
+
+  const legacyIdle = {
+    ...newAccount(now),
+    highestCleared: 1,
+    onboarding: { phase: "complete" },
+    records: { 1: { gold: 100, diamonds: 1, survival: 120, hpRatio: 0.25 } },
+  };
+  delete legacyIdle.missions;
+  const migratedIdle = normalizeAccount(legacyIdle, now);
+  assert.deepEqual(migratedIdle.missions, { idleCompleted: true, claimed: [] });
+  assert.equal(currentMission(migratedIdle).id, "idle-intro");
+  assert.equal(currentMission(migratedIdle).completed, true);
+
+  for (const record of [
+    { gold: 100, diamonds: 1, survival: 119, hpRatio: 0.25 },
+    { gold: 100, diamonds: 1, survival: 120, hpRatio: 0 },
+  ]) {
+    const incompleteLegacy = {
+      ...legacyIdle,
+      records: { 1: record },
+    };
+    delete incompleteLegacy.missions;
+    assert.equal(normalizeAccount(incompleteLegacy, now).missions.idleCompleted, false);
+  }
+
+  const onboarding = {
+    ...newAccount(now),
+    highestCleared: 1,
+    records: { 1: { gold: 100, diamonds: 1, survival: 120, hpRatio: 0.25 } },
+  };
+  delete onboarding.missions;
+  const migratedOnboarding = normalizeAccount(onboarding, now);
+  assert.equal(migratedOnboarding.missions.idleCompleted, false);
+  assert.equal(currentMission(migratedOnboarding), null);
+  migratedOnboarding.onboarding.phase = "complete";
+  assert.equal(currentMission(migratedOnboarding).completed, false);
+
+  const explicit = normalizeAccount(
+    {
+      ...legacyCleared,
+      missions: {
+        idleCompleted: false,
+        claimed: ["challenge-2", "invalid", "challenge-2", "challenge-99"],
+      },
+    },
+    now,
+  );
+  assert.deepEqual(explicit.missions, {
+    idleCompleted: false,
+    claimed: ["challenge-2"],
+  });
+  assert.equal(currentMission(explicit).id, "idle-intro");
+  assert.equal(currentMission(explicit).completed, false);
+});
+
+test("hidden idle-result stages normalize uniquely while sound and speed persist", () => {
+  const account = normalizeAccount(
+    {
+      ...newAccount(now),
+      settings: {
+        sound: true,
+        speed: 2,
+        hiddenIdleResults: [1, 1, 0, 2, 20, 21, -1, "3", 1.5],
+      },
+    },
+    now,
+  );
+  assert.deepEqual(account.settings, {
+    sound: true,
+    speed: 2,
+    hiddenIdleResults: [1, 2, 20],
+  });
+  assert.deepEqual(normalizeAccount(account, now).settings, account.settings);
+  let saved;
+  const storage = {
+    getItem: () => saved,
+    setItem: (_, value) => (saved = value),
+  };
+  assert.equal(saveAccount(account, storage), true);
+  assert.deepEqual(loadAccount(storage, now).account.settings, account.settings);
 });

@@ -1,4 +1,4 @@
-import { UNITS, STAGES, RARITIES, STARTER_UNIT_IDS, bannerById, bannerPool, bannerRarities } from "./data.js";
+import { UNITS, STAGES, RARITIES, STARTER_UNIT_IDS, bannerById, bannerPool, bannerRarities, stageLabel } from "./data.js";
 import { UNIT_LEVEL_GROWTH } from "./engine.js";
 export const SAVE_KEY = "tiny-legion.save.v1";
 const ONBOARDING_PHASES = new Set([
@@ -8,6 +8,10 @@ const ONBOARDING_PHASES = new Set([
   "retry-battle",
   "idle-guide",
   "complete",
+]);
+const MISSION_IDS = new Set([
+  "idle-intro",
+  ...STAGES.slice(1).map((stage) => `challenge-${stage.id}`),
 ]);
 export const GEMS = [
   {
@@ -63,8 +67,9 @@ export function newAccount(now = Date.now()) {
     gems: { attack: 0, hp: 0, gold: 0 },
     equippedGem: null,
     daily: { key: dailyKey(now), best: null, practice: null, claimed: false },
-    settings: { sound: false, speed: 1 },
+    settings: { sound: false, speed: 1, hiddenIdleResults: [] },
     challengeRewards: [],
+    missions: { idleCompleted: false, claimed: [] },
   };
 }
 export function normalizeAccount(raw, now = Date.now()) {
@@ -145,6 +150,11 @@ export function normalizeAccount(raw, now = Date.now()) {
   a.settings.speed = [1, 2].includes(raw.settings?.speed)
     ? raw.settings.speed
     : 1;
+  a.settings.hiddenIdleResults = Array.isArray(raw.settings?.hiddenIdleResults)
+    ? [...new Set(raw.settings.hiddenIdleResults.filter(
+        (id) => Number.isInteger(id) && id >= 1 && id <= STAGES.length,
+      ))]
+    : [];
   a.challengeRewards = Array.isArray(raw.challengeRewards)
     ? [
         ...new Set(
@@ -154,6 +164,35 @@ export function normalizeAccount(raw, now = Date.now()) {
         ),
       ]
     : [];
+  if (Object.hasOwn(raw, "missions")) {
+    a.missions = {
+      idleCompleted: raw.missions?.idleCompleted === true,
+      claimed: Array.isArray(raw.missions?.claimed)
+        ? [...new Set(raw.missions.claimed.filter((id) => MISSION_IDS.has(id)))]
+        : [],
+    };
+  } else {
+    a.missions = { idleCompleted: false, claimed: [] };
+    if (!isOnboarding(a)) {
+      if (a.highestCleared >= 2) {
+        a.missions.idleCompleted = true;
+        a.missions.claimed = [
+          "idle-intro",
+          ...STAGES.slice(1, a.highestCleared).map((stage) => `challenge-${stage.id}`),
+        ];
+      } else if (a.highestCleared === 1) {
+        const introRecord = a.records[1];
+        if (
+          Number.isFinite(introRecord?.survival) &&
+          introRecord.survival >= 120 &&
+          Number.isFinite(introRecord?.hpRatio) &&
+          introRecord.hpRatio > 0
+        ) {
+          a.missions.idleCompleted = true;
+        }
+      }
+    }
+  }
   return a;
 }
 export function levelCost(level) {
@@ -267,6 +306,54 @@ export function completeChallenge(a, stageId) {
   a.gold += gold;
   a.diamonds += diamonds;
   return { gold, diamonds };
+}
+export function currentMission(account) {
+  if (!account || isOnboarding(account)) return null;
+  const missions = account.missions ?? { idleCompleted: false, claimed: [] };
+  const claimed = new Set(Array.isArray(missions.claimed) ? missions.claimed : []);
+  if (!claimed.has("idle-intro")) {
+    return {
+      id: "idle-intro",
+      kind: "idle",
+      stageId: 1,
+      title: "1-1 방치 클리어",
+      gold: 120,
+      diamonds: 10,
+      completed: missions.idleCompleted === true,
+    };
+  }
+  for (const stage of STAGES.slice(1)) {
+    const id = `challenge-${stage.id}`;
+    if (claimed.has(id)) continue;
+    return {
+      id,
+      kind: "challenge",
+      stageId: stage.id,
+      title: `도전 ${stageLabel(stage.id)} 클리어`,
+      gold: stage.baseReward,
+      diamonds: 10,
+      completed: account.highestCleared >= stage.id,
+    };
+  }
+  return null;
+}
+export function recordMissionBattle(account, { mode, stageId, won } = {}) {
+  if (!account || mode !== "idle" || stageId !== 1 || won !== true) return false;
+  account.missions ??= { idleCompleted: false, claimed: [] };
+  const changed = account.missions.idleCompleted !== true;
+  account.missions.idleCompleted = true;
+  return changed;
+}
+export function claimMission(account) {
+  const mission = currentMission(account);
+  if (!mission?.completed) return null;
+  account.missions ??= { idleCompleted: false, claimed: [] };
+  if (!Array.isArray(account.missions.claimed)) account.missions.claimed = [];
+  if (account.missions.claimed.includes(mission.id)) return null;
+  account.missions.claimed.push(mission.id);
+  account.gold += mission.gold;
+  account.diamonds += mission.diamonds;
+  return { gold: mission.gold, diamonds: mission.diamonds, id: mission.id };
 }
 export function recordSpeedrun(a, time, now = Date.now()) {
   accrue(a, now);

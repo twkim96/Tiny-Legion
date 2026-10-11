@@ -12,6 +12,12 @@
 - 일반 레벨·특별강화와 보석은 속성에 관계없는 기본 능력치를 올립니다. 역할별 속성 특화와 기믹 대응은 [전투](battle.md)의 계약을 따릅니다. 현재 특별강화는 특화 배율을 추가로 높이지 않습니다.
 - 일반 동료 모집·강화·특별강화·초기화는 신규 첫 방치 안내를 마친 뒤 사용 가능하고, 1-3 완료 뒤 속공·보석을 엽니다. 원본 기획의 진행도 기반 성장 해금 확대와 상위 10명 동기화는 [확장 설계](expansion.md)의 미구현 방향입니다.
 
+## 미션
+
+- 첫 방치 안내 종료 뒤 1-1 방치 승리를 한 번 안내하며 완료 보상은 도토리 120·다이아 10입니다. 수령 뒤 도전 1-2부터 2-10까지 스테이지 순서대로 미션을 제공합니다. 도전 미션은 각 스테이지 기본 보상만큼의 도토리와 다이아 10을 추가로 지급합니다. 수치는 초기 조정값입니다.
+- 미션 보상은 기존 도전 첫 완료 보상과 별도로 직접 수령하며 미션 ID별 한 번만 지급합니다. 앞 미션을 수령하기 전에 이후 도전을 완료해도 도전 진행도를 통해 완료 상태를 유지합니다. 방치 실패·다른 방치 스테이지·다른 모드는 첫 방치 미션을 완료하지 않습니다.
+- 버전 1 저장에 `missions`의 첫 방치 완료·수령 ID와 `settings.hiddenIdleResults`의 스테이지 목록을 추가합니다. 미션 필드가 없는 기존 계정에서 1-2 이상 완료한 경우 지난 미션은 수령 완료로 이주하며 재화를 소급 지급하지 않습니다. 1-1까지만 완료한 경우 기존 1-1 완주 기록으로 첫 방치 완료를 인정합니다. 기존 동료·재화·성장·진행도·기록은 보존합니다. 이후 콘텐츠 안내는 이 미션 구조를 확장하며 현재는 도전 클리어 미션을 구현합니다.
+
 ## 동료 모집
 
 - 첫 안내 중 1-1 실패 뒤 씨앗 다람쥐 무료 확정 1회를 제공합니다. 지급과 재도전 단계 전환을 연출 전에 저장하며 반복 호출·재접속에 추가 동료나 조각을 주지 않습니다. 일반 모집의 누적 횟수·희귀/영웅 보장·무료 10회 상태와 다이아를 소모하지 않습니다. 자동 편성은 첫 두 칸에 양 방패·다람쥐를 넣고 나머지 8칸을 비웁니다.
@@ -51,8 +57,8 @@
 
 ## 코드와 기존 검증
 
-- `dist/src/account.js`: `newAccount`, `normalizeAccount`, `isOnboarding`, `advanceOnboardingBattle`, `recruitOnboardingCompanion`, `finishOnboarding`, `growUnit`, `enhanceUnit`, `refundLevels`, `combatPower`, `completeChallenge`, `recruitUnits`, `ownsUnit`, `recruitGem`, `loadAccount`, `saveAccount`.
+- `dist/src/account.js`: `newAccount`, `normalizeAccount`, `isOnboarding`, `advanceOnboardingBattle`, `recruitOnboardingCompanion`, `finishOnboarding`, `growUnit`, `enhanceUnit`, `refundLevels`, `combatPower`, `completeChallenge`, `currentMission`, `recordMissionBattle`, `claimMission`, `recruitUnits`, `ownsUnit`, `recruitGem`, `loadAccount`, `saveAccount`.
 - `dist/src/main.js`: `persist`, `renderGrowth`, `renderRecruit`, `renderSettings`.
-- `tests/account.test.js`: 첫 안내 단계 전환·재접속·확정 지급·1-1 보상 중복 방지, 환급·기록 무효화, 보석 모집, 손상 입력·짧은 순서 정규화. 파일 다이얼로그·저장 불가 안내·실기기 수명주기 검증은 자동 테스트와 별도입니다.
+- `tests/account.test.js`: 첫 안내 단계 전환·재접속·확정 지급·1-1 보상 중복 방지, 환급·기록 무효화, 보석 모집, 손상 입력·짧은 순서 정규화. 미션 완료·수령 중복 방지·레거시 이주·스테이지별 결과창 설정 보존도 검증합니다. 파일 다이얼로그·저장 불가 안내·실기기 수명주기 검증은 자동 테스트와 별도입니다.
 
 - `tests/recruitment.test.js`: 이전 저장 호환·첫 획득/중복·10회 비용·연속 보장·전체 모집 풀·실패 시 변경 방지·무료 모집 저장·미보유 성장/소환 제한.
