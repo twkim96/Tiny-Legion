@@ -90,6 +90,16 @@ body {
   height: 100%;
   display: block;
 }
+/* Fade the scene behind the HUD without framing individual labels. */
+.battlefield::after {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 200px;
+  background: linear-gradient(180deg, #0e1b18b3, #0e1b1866 55%, #0e1b1800);
+  pointer-events: none;
+  z-index: 0;
+}
 .account-hud {
   position: absolute;
   top: 22px;
@@ -128,7 +138,7 @@ body {
   display: flex;
   align-items: center;
   gap: 7px;
-  font-size: 15px;
+  font-size: 16px;
   font-variant-numeric: tabular-nums;
   font-weight: 800;
   background: none;
@@ -140,8 +150,9 @@ body {
   backdrop-filter: none;
   color: #fff;
   text-shadow:
-    0 1px 2px #18251c,
-    0 0 4px #18251ca6;
+    0 1px 2px #08110e,
+    0 0 4px #08110e,
+    0 2px 8px #08110ecc;
 }
 .resource .icon {
   width: 18px;
@@ -175,21 +186,23 @@ body {
   align-items: center;
   justify-content: center;
   gap: 7px;
-  font-size: 13px;
+  font-size: 15px;
   min-width: 190px;
   padding: 4px 0;
   border-radius: 10px;
   background: none;
   border: 0;
   text-shadow:
-    0 1px 2px #18251c,
-    0 0 4px #18251ca6;
+    0 1px 2px #08110e,
+    0 0 4px #08110e,
+    0 2px 8px #08110ecc;
   box-shadow: none;
   backdrop-filter: none;
   color: #fff;
+  font-weight: 700;
 }
 .stage-button strong {
-  font-size: 17px;
+  font-size: 19px;
   letter-spacing: -0.4px;
 }
 .stage-button .icon {
@@ -213,8 +226,8 @@ body {
   display: flex;
   align-items: center;
   gap: 5px;
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 700;
   padding: 5px 8px;
   color: #fff;
   background: none;
@@ -223,8 +236,9 @@ body {
   box-shadow: none;
   backdrop-filter: none;
   text-shadow:
-    0 1px 2px #18251c,
-    0 0 4px #18251ca6;
+    0 1px 2px #08110e,
+    0 0 4px #08110e,
+    0 2px 8px #08110ecc;
 }
 .mode-indicator .icon {
   width: 14px;
@@ -234,8 +248,8 @@ body {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
   padding: 5px 8px;
   background: none;
@@ -245,8 +259,9 @@ body {
   backdrop-filter: none;
   color: #fff;
   text-shadow:
-    0 1px 2px #18251c,
-    0 0 4px #18251ca6;
+    0 1px 2px #08110e,
+    0 0 4px #08110e,
+    0 2px 8px #08110ecc;
 }
 .battle-clock .icon {
   width: 14px;
@@ -311,8 +326,9 @@ body {
   font-weight: 700;
   color: #fff;
   text-shadow:
-    0 1px 2px #18251c,
-    0 0 4px #18251ca6;
+    0 1px 2px #08110e,
+    0 0 4px #08110e,
+    0 2px 8px #08110ecc;
 }
 .menu-battle .menu-medallion {
   background: linear-gradient(145deg, #f9e5c4, #d5b890);
@@ -381,8 +397,9 @@ body {
   box-shadow: none;
   backdrop-filter: none;
   text-shadow:
-    0 1px 2px #18251c,
-    0 0 4px #18251ca6;
+    0 1px 2px #08110e,
+    0 0 4px #08110e,
+    0 2px 8px #08110ecc;
 }
 .castle-health .icon {
   width: 15px;
@@ -435,8 +452,9 @@ body {
   box-shadow: none;
   backdrop-filter: none;
   text-shadow:
-    0 1px 2px #18251c,
-    0 0 4px #18251ca6;
+    0 1px 2px #08110e,
+    0 0 4px #08110e,
+    0 2px 8px #08110ecc;
 }
 .income-button .icon {
   width: 14px;
@@ -472,13 +490,20 @@ body {
   gap: 6px;
   color: #fff;
   text-shadow:
-    0 1px 2px #18251c,
-    0 0 4px #18251ca6;
+    0 1px 2px #08110e,
+    0 0 4px #08110e,
+    0 2px 8px #08110ecc;
   font-size: 11px;
   font-weight: 500;
   padding: 5px 11px;
-  background: none;
-  border-radius: 12px;
+  background: linear-gradient(
+    90deg,
+    #0e1b1800,
+    #0e1b1880 18%,
+    #0e1b1880 82%,
+    #0e1b1800
+  );
+  border-radius: 0;
   pointer-events: none;
   border: 0;
   box-shadow: none;
@@ -489,12 +514,12 @@ body {
   bottom: 23px;
   left: 50%;
   transform: translateX(-50%);
-  width: min(600px, calc(100% - 230px));
+  width: min(480px, calc(100% - 230px));
   height: 86px;
   padding: 0;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 0;
   background: none;
   border: 0;
   border-radius: 17px;
@@ -503,16 +528,27 @@ body {
   backdrop-filter: none;
   color: #fff;
   text-shadow:
-    0 1px 2px #18251c,
-    0 0 4px #18251ca6;
+    0 1px 2px #08110e,
+    0 0 4px #08110e,
+    0 2px 8px #08110ecc;
 }
 .battle-wallet {
-  width: 59px;
+  width: auto;
   flex-shrink: 0;
-  display: flex;
+  display: grid;
   flex-direction: column;
   align-items: center;
-  gap: 3px;
+  gap: 4px 8px;
+  position: absolute;
+  right: 24px;
+  bottom: 125px;
+  grid-template-columns: 24px auto;
+  color: #fff;
+  z-index: 3;
+  text-shadow:
+    0 1px 2px #08110e,
+    0 0 4px #08110e,
+    0 2px 8px #08110ecc;
 }
 .battle-wallet .icon {
   width: 25px;
@@ -532,6 +568,8 @@ body {
   border-radius: 10px;
   margin-top: 2px;
   overflow: hidden;
+  grid-column: 2;
+  justify-self: start;
 }
 .wallet-track > div {
   height: 100%;
@@ -684,8 +722,13 @@ body {
   font-size: 10px;
   color: #fff;
   text-shadow:
-    0 1px 2px #18251c,
-    0 0 4px #18251ca6;
+    0 1px 2px #08110e,
+    0 0 4px #08110e,
+    0 2px 8px #08110ecc;
+  position: absolute;
+  right: -49px;
+  top: 50%;
+  transform: translateY(-50%);
 }
 .sequence-button .icon {
   width: 24px;
@@ -716,8 +759,9 @@ body {
   box-shadow: none;
   backdrop-filter: none;
   text-shadow:
-    0 1px 2px #18251c,
-    0 0 4px #18251ca6;
+    0 1px 2px #08110e,
+    0 0 4px #08110e,
+    0 2px 8px #08110ecc;
 }
 .speed-button .icon {
   width: 17px;
@@ -732,8 +776,9 @@ body {
   box-shadow: none;
   backdrop-filter: none;
   text-shadow:
-    0 1px 2px #18251c,
-    0 0 4px #18251ca6;
+    0 1px 2px #08110e,
+    0 0 4px #08110e,
+    0 2px 8px #08110ecc;
 }
 .sound-button:hover {
   background: none;
@@ -758,8 +803,9 @@ body {
   z-index: 3;
   backdrop-filter: none;
   text-shadow:
-    0 1px 2px #18251c,
-    0 0 4px #18251ca6;
+    0 1px 2px #08110e,
+    0 0 4px #08110e,
+    0 2px 8px #08110ecc;
 }
 .skill-button .icon {
   width: 35px;
@@ -784,8 +830,9 @@ body {
   font-weight: 700;
   pointer-events: none;
   text-shadow:
-    0 1px 2px #18251c,
-    0 0 4px #18251ca6;
+    0 1px 2px #08110e,
+    0 0 4px #08110e,
+    0 2px 8px #08110ecc;
 }
 .skill-cooldown:empty {
   display: none;
@@ -2018,6 +2065,9 @@ html:fullscreen .game {
     --safe-left: max(12px, env(safe-area-inset-left));
     --safe-right: max(12px, env(safe-area-inset-right));
   }
+  .battlefield::after {
+    height: 150px;
+  }
   .account-hud {
     top: max(12px, env(safe-area-inset-top));
     left: var(--safe-left);
@@ -2033,7 +2083,7 @@ html:fullscreen .game {
     gap: 3px;
   }
   .resource {
-    font-size: 11px;
+    font-size: 12px;
     padding: 2px 0;
     gap: 4px;
     min-width: 65px;
@@ -2054,11 +2104,11 @@ html:fullscreen .game {
     min-width: 150px;
     gap: 5px;
     padding: 4px 8px;
-    font-size: 10px;
+    font-size: 12px;
     border-radius: 7px;
   }
   .stage-button strong {
-    font-size: 13px;
+    font-size: 15px;
   }
   .stage-button .icon {
     width: 13px;
@@ -2068,7 +2118,7 @@ html:fullscreen .game {
     gap: 5px;
   }
   .mode-indicator {
-    font-size: 9px;
+    font-size: 10px;
     padding: 3px 6px;
     gap: 4px;
     border-radius: 6px;
@@ -2078,7 +2128,7 @@ html:fullscreen .game {
     height: 12px;
   }
   .battle-clock {
-    font-size: 10px;
+    font-size: 11px;
     padding: 3px 6px;
     gap: 4px;
     border-radius: 6px;
@@ -2168,7 +2218,7 @@ html:fullscreen .game {
     width: calc(
       100% - 195px - env(safe-area-inset-left) - env(safe-area-inset-right)
     );
-    max-width: 570px;
+    max-width: 460px;
     height: 70px;
     padding: 0;
     gap: 7px;
@@ -2176,15 +2226,18 @@ html:fullscreen .game {
     border-width: 1.5px;
   }
   .battle-wallet {
-    width: 39px;
-    gap: 2px;
+    width: auto;
+    right: var(--safe-right);
+    bottom: max(96px, calc(env(safe-area-inset-bottom) + 86px));
+    grid-template-columns: 18px auto;
+    gap: 3px 6px;
   }
   .battle-wallet .icon {
     width: 18px;
     height: 18px;
   }
   .battle-wallet strong {
-    font-size: 14px;
+    font-size: 15px;
   }
   .wallet-track {
     width: 30px;
@@ -2232,6 +2285,7 @@ html:fullscreen .game {
     text-align: center;
   }
   .sequence-button {
+    right: -37px;
     width: 29px;
     font-size: 9px;
     gap: 4px;
@@ -2402,12 +2456,13 @@ html:fullscreen .game {
     height: 8px;
   }
   .battle-wallet {
-    width: 33px;
+    width: auto;
   }
   .battle-wallet strong {
-    font-size: 12px;
+    font-size: 14px;
   }
   .sequence-button {
+    right: -31px;
     width: 23px;
     font-size: 8px;
   }
@@ -2458,6 +2513,15 @@ html:fullscreen .game {
   }
 }
 @media (max-height: 340px) and (orientation: landscape) {
+  .stage-button {
+    padding-block: 2px;
+  }
+  .stage-button strong {
+    font-size: 13px;
+  }
+  .battle-wallet {
+    bottom: 86px;
+  }
   .unit-hand {
     height: 50px;
   }
