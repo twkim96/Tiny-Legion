@@ -30,11 +30,24 @@ const SPRITE_IDS = new Set(
     .flatMap((definition) => [definition.id, definition.artId])
     .filter(Boolean),
 );
+const ENEMY_IDS = new Set(ENEMIES.map(({ id }) => id));
 for (const id of SPRITE_IDS) {
   const im = new Image();
   im.src =
     "data:image/svg+xml;charset=utf-8," + encodeURIComponent(spriteSvg(id));
   SPRITES[id] = im;
+}
+function enemySprite(id, attribute) {
+  if (!ENEMY_IDS.has(id) || attribute == null) return SPRITES[id];
+  const cacheKey = `${id}::${attribute}`;
+  if (!SPRITES[cacheKey]) {
+    const im = new Image();
+    im.src =
+      "data:image/svg+xml;charset=utf-8," +
+      encodeURIComponent(spriteSvg(id, attribute));
+    SPRITES[cacheKey] = im;
+  }
+  return SPRITES[cacheKey];
 }
 function path(ctx, coords, fill, stroke = null, line = 1) {
   ctx.beginPath();
@@ -1000,7 +1013,11 @@ export class Renderer {
     const baseSize = Math.min(82, h * 0.29, w * 0.078);
     for (const u of units) {
       const artId = u.artId ?? u.id;
-      const sprite = SPRITES[u.id] ?? SPRITES[artId];
+      const enemyVariant =
+        u.team === "enemy"
+          ? (enemySprite(u.id, u.attribute) ?? enemySprite(artId, u.attribute))
+          : null;
+      const sprite = enemyVariant ?? SPRITES[u.id] ?? SPRITES[artId];
       if (!sprite?.complete || !sprite.naturalWidth) continue;
       const visualUnit = artId === u.id ? u : { ...u, id: artId };
       const uid =

@@ -290,6 +290,8 @@ function isolatedFight(allyId = "sheep", enemyId = "beetle", distance = 40) {
   const definition = ENEMIES.find((enemy) => enemy.id === enemyId);
   const enemy = {
     ...definition,
+    // These fixtures isolate timing and motion; specialization is tested separately.
+    attribute: "normal",
     uid: "e-test",
     team: "enemy",
     x: ally.x + distance,

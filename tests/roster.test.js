@@ -89,6 +89,30 @@ test("every companion and enemy has unique, well-formed portrait and battle SVG 
   }
 });
 
+test("enemy accent variants follow requested attributes while preserving fur and ally art", () => {
+  const wild = spriteSvg("beetle", "wild");
+  const spirit = spriteSvg("beetle", "spirit");
+  const normal = spriteSvg("beetle", "unsupported");
+
+  assert.notEqual(wild, spirit);
+  assert.match(wild, /fill="#72b54b"/);
+  assert.match(spirit, /fill="#69c8ed"/);
+  assert.match(normal, /fill="#f2f1e8"/);
+  assert.match(spirit, /#ae7d51/, "attribute accents must retain tanned fur");
+  assert.equal(spriteSvg("beetle"), wild, "enemy default uses its base attribute");
+  assert.equal(
+    spriteSvg("sheep", "spirit"),
+    spriteSvg("sheep"),
+    "ally artwork ignores enemy attribute accents",
+  );
+  assert.equal(
+    spriteSvg("unknown-enemy", "spirit"),
+    spriteSvg("unknown-enemy"),
+    "unsupported art IDs retain the sheep fallback",
+  );
+  assert.match(portrait("beetle", "roster-check", "spirit"), /fill="#69c8ed"/);
+});
+
 test("every companion is summonable within battle gold limits", () => {
   for (const unit of UNITS) {
     const battle = createBattle({ mode: "challenge", sequence: [] });
@@ -201,27 +225,54 @@ test("renderer draws every roster companion and uses distinct enemy art with ali
           uid: `enemy${index + 1}`,
           id: definition.id,
           artId: definition.artId,
+          attribute: definition.attribute,
           team: "enemy",
           x: 820 + index * 100,
           moving: true,
         }),
       ),
+      {
+        uid: "wave-wild",
+        id: "beetle",
+        attribute: "wild",
+        team: "enemy",
+        x: 1080,
+        moving: true,
+      },
+      {
+        uid: "wave-spirit",
+        id: "beetle",
+        attribute: "spirit",
+        team: "enemy",
+        x: 1120,
+        moving: true,
+      },
     ];
     renderer.render({ time: 1, units, projectiles: [], finished: false });
     const spriteDraws = contexts[0].calls.filter(
       ([name]) => name === "drawImage",
     );
     assert.equal(spriteDraws.length, units.length + 1);
-    for (const unit of units.filter((u) => u.artId && u.artId !== u.id)) {
+    for (const unit of units.filter((u) => u.team === "enemy")) {
       const source =
         "data:image/svg+xml;charset=utf-8," +
-        encodeURIComponent(spriteSvg(unit.id));
+        encodeURIComponent(spriteSvg(unit.id, unit.attribute));
       assert.ok(
         spriteDraws.some(([, image]) => image.src === source),
-        `${unit.id} lost its distinct art`,
+        `${unit.id} lost its requested ${unit.attribute} sprite`,
       );
-      assert.notEqual(spriteSvg(unit.id), spriteSvg(unit.artId));
+      if (unit.artId && unit.artId !== unit.id)
+        assert.notEqual(
+          spriteSvg(unit.id, unit.attribute),
+          spriteSvg(unit.artId, unit.attribute),
+          `${unit.id} lost its distinct art`,
+        );
     }
+    assert.notEqual(
+      spriteSvg("beetle", "wild"),
+      spriteSvg("beetle", "spirit"),
+      "same-ID wave overrides need separate attribute cache variants",
+    );
   } finally {
     for (const key of keys) {
       const descriptor = original.get(key);

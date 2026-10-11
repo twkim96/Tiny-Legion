@@ -6,6 +6,8 @@ import {
   ROLE_SPECIALIZATION,
   BALANCE_VERSION,
   RARITIES,
+  stageLabel,
+  bannerById,
 } from "./data.js";
 import { createBattle, fireCannon, stepBattle, summonUnit } from "./engine.js";
 import { icon, portrait } from "./art.js";
@@ -21,6 +23,8 @@ import { battlefieldLayout } from "./combat-visuals.js";
 import { onboardingEncounter } from "./onboarding.js";
 import {
   GEMS,
+  canUseUnit,
+  playableSequence,
   resetAccount,
   loadAccount,
   saveAccount,
@@ -78,7 +82,7 @@ const attributeById = Object.fromEntries(
 const percent = (value) => `${Math.round(value * 100)}%`;
 function attributeName(id) {
   const attribute = attributeById[id];
-  return attribute ? `${attribute.symbol} ${attribute.name}` : "미분류";
+  return attribute ? `${attribute.name}(${attribute.colorName})` : "무속성(흰색)";
 }
 function unitSpecialtyText(unit) {
   const specialties = Array.isArray(unit.specialties) ? unit.specialties : [];
@@ -93,8 +97,8 @@ function unitSpecialtyText(unit) {
     );
   if (Number.isFinite(bonuses.duration))
     effects.push(`방해 지속시간 +${percent(bonuses.duration)}`);
-  const attributes = specialties.map(attributeName).join(" · ");
-  return `${attributes} 특화${effects.length ? ` · ${effects.join(" · ")}` : ""} · 다른 속성 페널티 없음`;
+  const attributes = specialties.map((id) => `${attributeById[id]?.name ?? id} 특화(${attributeById[id]?.colorName ?? "흰색"})`).join(" · ");
+  return `${attributes}${effects.length ? ` · ${effects.join(" · ")}` : ""} · 다른 속성 페널티 없음`;
 }
 function unitAbilityLines(unit) {
   const lines = [];
@@ -168,7 +172,7 @@ function stageIntelMarkup(stage) {
       const share = composition.totalCount
         ? ` ${((count / composition.totalCount) * 100).toLocaleString("ko-KR", { maximumFractionDigits: 1 })}%`
         : "";
-      return `${symbol} ${name}${share}`;
+      return `${attributeName(id)}${share}`;
     })
     .concat(
       composition.unclassified
@@ -225,6 +229,7 @@ let { account, error: loadError } = loadAccount();
 let sequenceDraft = null;
 let recruitCleanup = null;
 let recruitReceipt = null;
+let recruitBanner = "forest";
 let codexRarity = "all",
   codexOwned = "all";
 const earned = accrue(account);
@@ -317,8 +322,8 @@ function createHand() {
 function handUnits() {
   const sequence = isOnboarding(account)
     ? [...new Set(account.sequence.filter(Boolean))]
-    : account.sequence;
-  return [...sequence, ...Array(10).fill(null)].slice(0, 10);
+    : playableSequence(account);
+  return [...sequence.map((id) => canUseUnit(account, id) ? id : null), ...Array(10).fill(null)].slice(0, 10);
 }
 function currentStage() {
   return onboardingEncounter(account.onboarding?.phase) ?? STAGES[stageId - 1] ?? STAGES[0];
@@ -337,16 +342,16 @@ function startBattle() {
     mode,
     stageId,
     levels,
-    sequence: account.sequence,
+    sequence: playableSequence(account),
     modifiers: gemModifiers(account),
-    ownedUnits: UNITS.filter((u) => ownsUnit(account, u.id)).map((u) => u.id),
+    ownedUnits: UNITS.filter((u) => canUseUnit(account, u.id)).map((u) => u.id),
     onboardingPhase: isOnboarding(account) ? account.onboarding.phase : null,
   });
   battleSnapshot = {
     stageId,
     balanceVersion: BALANCE_VERSION,
     levels: { ...levels },
-    sequence: [...account.sequence],
+    sequence: playableSequence(account),
     gem: account.equippedGem,
     dailyKey: account.daily.key,
   };
@@ -368,7 +373,7 @@ function readyBattle() {
   restartAt = 0;
   $("battle-result").hidden = true;
   $("battle-ready").hidden = false;
-  $("ready-stage").textContent = mode === "speedrun" ? "일일" : `1-${stageId}`;
+  $("ready-stage").textContent = mode === "speedrun" ? "일일" : stageLabel(stageId);
   $("ready-title").textContent = STAGES[stageId - 1].name;
   updateUi();
 }
@@ -384,7 +389,7 @@ function setMode(next) {
       ? 1
       : mode === "idle"
         ? account.idleStage
-        : Math.min(10, account.highestCleared + 1);
+        : Math.min(STAGES.length, account.highestCleared + 1);
   if (mode === "idle") startBattle();
   else readyBattle();
   chirp();
@@ -471,7 +476,7 @@ function finishBattle() {
     persist();
     if (improved)
       toast(
-        `1-${stageId} 기록 · ${Math.round(r.hpRatio * 100)}% · ${fmt(account.records[stageId].gold * 30)} / 시간`,
+        `${stageLabel(stageId)} 기록 · ${Math.round(r.hpRatio * 100)}% · ${fmt(account.records[stageId].gold * 30)} / 시간`,
       );
     restartAt = performance.now() + 3000;
     updateUi();
@@ -480,7 +485,12 @@ function finishBattle() {
   let rewards = { gold: 0, diamonds: 0 };
   if (mode === "challenge" && r.won) {
     const wasLocked = account.highestCleared < 3;
+    const newRegion = account.highestCleared < 10;
     rewards = completeChallenge(account, stageId);
+    if (newRegion && account.highestCleared >= 10) {
+      createHand();
+      toast("2-1 개방 · 공방과 별빛 모집이 열렸습니다.");
+    }
     if (wasLocked && account.highestCleared >= 3)
       setTimeout(() => toast("보석과 속공이 열렸습니다."), 900);
   }
@@ -591,12 +601,12 @@ function showResult(r, rewards) {
           ? `<span>${icon("acorn")}+${fmt(rewards.gold)}</span><span>${icon("gem")}+${rewards.diamonds}</span>`
           : "";
   $("battle-result").innerHTML =
-    `<div class="result-card">${icon(r.won ? "trophy" : "shield")}<h2>${r.won ? "완료" : "다시 한 번"}</h2><div class="result-time">${precise(r.time)}</div>${rewardMarkup ? `<div class="result-rewards">${rewardMarkup}</div>` : ""}<div class="result-actions"><button class="secondary-button" id="retry-battle">${daily && account.daily.claimed ? "연습하기" : "다시 도전"}</button>${daily && r.won && !account.daily.claimed ? '<button class="primary-button" id="claim-speedrun">보상받기</button>' : !daily && r.won && stageId < 10 ? '<button class="primary-button" id="next-battle">다음</button>' : ""}</div>${daily && account.daily.claimed ? '<div class="new-record">오늘 보상 수령 완료</div>' : ""}</div>`;
+    `<div class="result-card">${icon(r.won ? "trophy" : "shield")}<h2>${r.won ? "완료" : "다시 한 번"}</h2><div class="result-time">${precise(r.time)}</div>${rewardMarkup ? `<div class="result-rewards">${rewardMarkup}</div>` : ""}<div class="result-actions"><button class="secondary-button" id="retry-battle">${daily && account.daily.claimed ? "연습하기" : "다시 도전"}</button>${daily && r.won && !account.daily.claimed ? '<button class="primary-button" id="claim-speedrun">보상받기</button>' : !daily && r.won && stageId < STAGES.length ? '<button class="primary-button" id="next-battle">다음</button>' : ""}</div>${daily && account.daily.claimed ? '<div class="new-record">오늘 보상 수령 완료</div>' : ""}</div>`;
   $("battle-result").hidden = false;
   $("retry-battle").onclick = startBattle;
   if ($("next-battle"))
     $("next-battle").onclick = () => {
-      stageId = Math.min(10, stageId + 1);
+      stageId = Math.min(STAGES.length, stageId + 1);
       startBattle();
     };
   if ($("claim-speedrun"))
@@ -623,8 +633,8 @@ function updateUi() {
   const record = account.records[account.idleStage];
   $("income-rate").innerHTML =
     `${fmt((record?.gold || 0) * 30)}<span class="muted"> / 시간</span>`;
-  $("stage-number").textContent = mode === "speedrun" ? "일일" : stageId === 0 ? "0" : `1-${stageId}`;
-  $("stage-name").textContent = "초원";
+  $("stage-number").textContent = mode === "speedrun" ? "일일" : stageId === 0 ? "0" : stageLabel(stageId);
+  $("stage-name").textContent = currentStage().regionName ?? "초원";
   $("current-mode").textContent = {
     idle: "방치",
     challenge: "도전",
@@ -754,9 +764,9 @@ function closeModal(force = false) {
   hideTooltip();
 }
 function renderStages() {
-  const unlocked = Math.min(10, account.highestCleared + 1);
+  const unlocked = Math.min(STAGES.length, account.highestCleared + 1);
   $("modal-content").innerHTML =
-    `<div class="stage-grid">${STAGES.map((s) => `<div style="position:relative"><button class="stage-tile ${s.id === stageId ? "selected" : ""}" data-stage="${s.id}" ${s.id > unlocked ? "disabled" : ""} style="width:100%"><strong>1-${s.id}</strong><span class="stage-tile-name">${s.name}</span>${icon(s.id > unlocked ? "lock" : s.id <= account.highestCleared ? "check" : "flag")}${account.records[s.id] ? `<span class="stage-rate">${icon("acorn")}${fmt(account.records[s.id].gold * 30)} / 시간</span>` : ""}</button><button class="stage-info-button" data-stage-info="${s.id}" aria-label="${s.name} 전장 정보" title="${s.name} 전장 정보" style="position:absolute;left:5px;bottom:5px;padding:2px 4px;border:0;background:transparent;color:#7b9463;line-height:0">${icon("book")}</button></div>`).join("")}</div>`;
+    `<div class="stage-grid">${STAGES.map((s) => `<div style="position:relative"><button class="stage-tile ${s.id === stageId ? "selected" : ""}" data-stage="${s.id}" ${s.id > unlocked ? "disabled" : ""} style="width:100%"><strong>${stageLabel(s.id)}</strong><span class="stage-tile-name">${s.name}</span>${icon(s.id > unlocked ? "lock" : s.id <= account.highestCleared ? "check" : "flag")}${account.records[s.id] ? `<span class="stage-rate">${icon("acorn")}${fmt(account.records[s.id].gold * 30)} / 시간</span>` : ""}</button><button class="stage-info-button" data-stage-info="${s.id}" aria-label="${s.name} 전장 정보" title="${s.name} 전장 정보" style="position:absolute;left:5px;bottom:5px;padding:2px 4px;border:0;background:transparent;color:#7b9463;line-height:0">${icon("book")}</button></div>`).join("")}</div>`;
   $("modal-content")
     .querySelectorAll("[data-stage]")
     .forEach(
@@ -849,7 +859,7 @@ function renderGrowth() {
 function renderSequence() {
   sequenceDraft ??= [...account.sequence];
   $("modal-content").innerHTML =
-    `<div class="sequence-list">${sequenceDraft.map((id, i) => `<article class="sequence-slot"><span class="slot-index">${i + 1}</span>${id ? portrait(id) : '<div class="empty-sequence-art"></div>'}<strong>${names[id] || "빈 슬롯"}</strong><div class="sequence-arrows"><button data-move="${i}" data-direction="-1" aria-label="${names[id] || "빈 슬롯"} 앞으로" ${i === 0 ? "disabled" : ""}>${icon("up")}</button><button data-move="${i}" data-direction="1" aria-label="${names[id] || "빈 슬롯"} 뒤로" ${i === sequenceDraft.length - 1 ? "disabled" : ""}>${icon("down")}</button></div><button class="inspect-button secondary-button" data-replace="${i}" style="font-size:10px;padding:5px 8px;margin-top:7px">교체</button></article>`).join("")}</div><p class="sequence-hint">골드가 모이면 차례대로 소환합니다. 쿨타임 중인 동료는 건너뜁니다.</p><div class="modal-footer"><span class="hint">같은 동료를 여러 번 넣을 수 있습니다.</span><button class="primary-button" id="apply-sequence">적용</button></div>`;
+    `<div class="sequence-list">${sequenceDraft.map((id, i) => `<article class="sequence-slot"><span class="slot-index">${i + 1}</span>${id ? portrait(id) : '<div class="empty-sequence-art"></div>'}<strong>${names[id] || "빈 슬롯"}</strong>${id && !canUseUnit(account, id) ? "<small>2-1에서 사용</small>" : ""}<div class="sequence-arrows"><button data-move="${i}" data-direction="-1" aria-label="${names[id] || "빈 슬롯"} 앞으로" ${i === 0 ? "disabled" : ""}>${icon("up")}</button><button data-move="${i}" data-direction="1" aria-label="${names[id] || "빈 슬롯"} 뒤로" ${i === sequenceDraft.length - 1 ? "disabled" : ""}>${icon("down")}</button></div><button class="inspect-button secondary-button" data-replace="${i}" style="font-size:10px;padding:5px 8px;margin-top:7px">교체</button></article>`).join("")}</div><p class="sequence-hint">골드가 모이면 차례대로 소환합니다. 쿨타임 중인 동료는 건너뜁니다.</p><div class="modal-footer"><span class="hint">같은 동료를 여러 번 넣을 수 있습니다.</span><button class="primary-button" id="apply-sequence">적용</button></div>`;
   $("modal-content")
     .querySelectorAll("[data-move]")
     .forEach(
@@ -873,7 +883,7 @@ function renderSequence() {
           openModal("동료 선택", "sequence-pick", () => {
             $("modal-content").innerHTML =
               `<div class="collection-grid">${UNITS.filter((u) =>
-                ownsUnit(account, u.id),
+                canUseUnit(account, u.id),
               )
                 .map(
                   (u) =>
@@ -897,7 +907,10 @@ function renderSequence() {
         }),
     );
   $("apply-sequence").onclick = () => {
-    if (!sequenceDraft.every((id) => id === null || ownsUnit(account, id))) return;
+    if (!sequenceDraft.every((id) => id === null || canUseUnit(account, id))) {
+      toast("숲속 이외 동료는 2-1에서 사용할 수 있습니다.");
+      return;
+    }
     if (!sequenceDraft.some((id) => ownsUnit(account, id))) {
       toast("동료를 한 명 이상 넣어 주세요.");
       return;
@@ -1057,8 +1070,12 @@ function renderRecruit(tab = "units") {
     return;
   }
   const unlocked = account.highestCleared >= 3;
+  if (account.highestCleared < (bannerById(recruitBanner)?.unlock ?? Infinity)) recruitBanner = "forest";
   $("modal-content").innerHTML =
-    `<div class="modal-subnav"><button class="${tab === "units" ? "selected" : ""}" id="recruit-units">동료</button><button class="${tab === "gems" ? "selected" : ""}" id="recruit-gems" ${unlocked ? "" : 'data-tip="1-3을 완료하면 열립니다."'}>${unlocked ? "" : icon("lock")}보석</button></div>${tab === "units" ? recruitPanel(account) : `<div class="gem-grid">${GEMS.map((g) => `<button class="gem-card ${account.equippedGem === g.id ? "equipped" : ""}" data-equip="${g.id}" ${account.gems[g.id] ? "" : "disabled"} data-tip="${g.description}"><span class="gem-art" style="color:${g.color}">${icon("gem")}</span><strong>${g.name}</strong><span>${account.gems[g.id] || "미보유"}</span>${account.equippedGem === g.id ? "<small>장착 중</small>" : ""}</button>`).join("")}</div><div class="gem-draw-actions"><button class="primary-button" id="draw-gem-tickets" ${account.tickets < 5 ? "disabled" : ""}>${icon("gem")}조각 5 · 모집</button><button class="secondary-button" id="draw-gem-diamonds" ${account.diamonds < 30 ? "disabled" : ""}>${icon("gem")}30 · 모집</button></div>`}<div class="modal-footer"><span class="resource-inline">${icon("gem")}${fmt(account.diamonds)}</span>${unlocked ? `<span class="hint">보석 조각 ${fmt(account.tickets)}</span>` : ""}<button class="secondary-button" id="draw-info">확률</button></div>`;
+    `<div class="modal-subnav"><button class="${tab === "units" ? "selected" : ""}" id="recruit-units">동료</button><button class="${tab === "gems" ? "selected" : ""}" id="recruit-gems" ${unlocked ? "" : 'data-tip="1-3을 완료하면 열립니다."'}>${unlocked ? "" : icon("lock")}보석</button></div>${tab === "units" ? recruitPanel(account, recruitBanner) : `<div class="gem-grid">${GEMS.map((g) => `<button class="gem-card ${account.equippedGem === g.id ? "equipped" : ""}" data-equip="${g.id}" ${account.gems[g.id] ? "" : "disabled"} data-tip="${g.description}"><span class="gem-art" style="color:${g.color}">${icon("gem")}</span><strong>${g.name}</strong><span>${account.gems[g.id] || "미보유"}</span>${account.equippedGem === g.id ? "<small>장착 중</small>" : ""}</button>`).join("")}</div><div class="gem-draw-actions"><button class="primary-button" id="draw-gem-tickets" ${account.tickets < 5 ? "disabled" : ""}>${icon("gem")}조각 5 · 모집</button><button class="secondary-button" id="draw-gem-diamonds" ${account.diamonds < 30 ? "disabled" : ""}>${icon("gem")}30 · 모집</button></div>`}<div class="modal-footer"><span class="resource-inline">${icon("gem")}${fmt(account.diamonds)}</span>${unlocked ? `<span class="hint">보석 조각 ${fmt(account.tickets)}</span>` : ""}<button class="secondary-button" id="draw-info">확률</button></div>`;
+  $("modal-content").querySelectorAll("[data-banner]").forEach((button) => {
+    button.onclick = () => { recruitBanner = button.dataset.banner; renderRecruit("units"); };
+  });
   $("recruit-units").onclick = () => renderRecruit("units");
   $("recruit-gems").onclick = () =>
     unlocked ? renderRecruit("gems") : toast("1-3을 완료하면 열립니다.");
@@ -1098,7 +1115,7 @@ function renderRecruit(tab = "units") {
     openModal("확률", "probability", () => {
       $("modal-content").innerHTML =
         tab === "units"
-          ? probabilityPanel(account)
+          ? probabilityPanel(account, recruitBanner)
           : `<div class="income-list">${GEMS.map((g) => `<div class="income-row"><strong>${g.name}</strong><span>33.33%</span></div>`).join("")}</div><div class="modal-footer"><button class="secondary-button" id="rates-back">돌아가기</button></div>`;
       $("rates-back").onclick = () =>
         openModal("모집", "recruit", () => renderRecruit(tab));
@@ -1106,13 +1123,13 @@ function renderRecruit(tab = "units") {
 }
 function drawCompanions(count, free = false) {
   if (recruitReceipt) return;
-  const results = recruitUnits(account, count, { free });
+  const results = recruitUnits(account, count, { free, banner: recruitBanner });
   if (!results) {
-    toast("다이아가 부족합니다.");
+    toast(account.highestCleared < (bannerById(recruitBanner)?.unlock ?? Infinity) ? "2-1에서 열리는 모집입니다." : "다이아가 부족합니다.");
     return;
   }
   persist();
-  recruitReceipt = { results, count };
+  recruitReceipt = { results, count, banner: recruitBanner };
   updateUi();
   showRecruitResult();
 }
@@ -1134,6 +1151,7 @@ function showRecruitResult() {
       recruitCleanup?.();
       recruitCleanup = null;
       recruitReceipt = null;
+      recruitBanner = receipt.banner;
       drawCompanions(receipt.count);
       if (!recruitReceipt) renderRecruit();
     },
@@ -1153,7 +1171,7 @@ function renderIncome() {
           )
             .map(
               (s) =>
-                `<button class="income-row ${s.id === account.idleStage ? "selected" : ""}" data-idle-stage="${s.id}" style="width:100%"><strong>1-${s.id} · ${s.name}</strong><span>${fmt(account.records[s.id].gold * 30)} / 시간 ${s.id === account.idleStage ? "✓" : ""}</span></button>`,
+                `<button class="income-row ${s.id === account.idleStage ? "selected" : ""}" data-idle-stage="${s.id}" style="width:100%"><strong>${stageLabel(s.id)} · ${s.name}</strong><span>${fmt(account.records[s.id].gold * 30)} / 시간 ${s.id === account.idleStage ? "✓" : ""}</span></button>`,
             )
             .join("")}</div>`
         : '<p class="empty-note">방치 전투가 끝나면 기록에 따라 재화가 쌓입니다.</p>'
@@ -1369,7 +1387,7 @@ $("modal-backdrop").onclick = (e) => {
 $("stage-select").onclick = () =>
   mode === "speedrun"
     ? openModal("속공", "daily", renderDaily)
-    : openModal("초원", "stages", renderStages);
+    : openModal("스테이지", "stages", renderStages);
 $("mode-select").onclick = openBattleMenu;
 $("profile-button").onclick = () => openModal("동료", "growth", renderGrowth);
 $("start-battle").onclick = () => {

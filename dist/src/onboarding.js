@@ -12,13 +12,13 @@ const INTRO = {
 const FIRST = {
   id: 1,
   name: "첫 숲길",
-  enemyHp: 300,
+  enemyHp: 600,
   enemyAttack: 1,
   baseReward: 0,
   duration: 60,
   waves: [
     { time: 0.6, enemies: [{ id: "beetle", count: 1, x: 1080 }] },
-    { time: 8, enemies: [{ id: "mushroom", count: 4, interval: 4, x: 1080 }] },
+    { time: 8, enemies: [{ id: "mushroom", count: 4, interval: 4, x: 1080, attribute: "wild", regeneration: false }] },
   ],
 };
 export function onboardingEncounter(phase) {

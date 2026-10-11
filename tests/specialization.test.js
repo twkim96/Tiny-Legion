@@ -38,7 +38,7 @@ function attackOnce(state, attacker) {
   assert.fail("attack was not released");
 }
 
-test("melee specialization raises damage only against its target attribute; generalists have no penalty", () => {
+test("forest specialization raises damage only against wild and has no penalty elsewhere", () => {
   const outcomes = [];
   for (const attribute of ["wild", "machine"]) {
     const { state, ally, enemy } = duel("rabbit", "beetle", { attribute });
@@ -51,7 +51,7 @@ test("melee specialization raises damage only against its target attribute; gene
     const { state, ally, enemy } = duel("squirrel", "beetle", { attribute });
     const before = enemy.hp;
     attackOnce(state, ally);
-    near(before - enemy.hp, ally.attack);
+    near(before - enemy.hp, ally.attack * (attribute === "wild" ? 1.4 : 1));
   }
 });
 
@@ -257,7 +257,7 @@ test("attribute updates preserve version-1 saves and frozen production records",
   assert.equal(loaded.records[1].snapshot.balanceVersion, "attributes-1");
 });
 
-test("a fully grown generalist lineup can clear every challenge without attribute or gimmick specialists", () => {
+test("a fully grown forest lineup can clear other regions without mandatory counter companions", () => {
   for (const stage of STAGES) {
     const state = createBattle({
       mode: "challenge",
@@ -276,4 +276,22 @@ test("a fully grown generalist lineup can clear every challenge without attribut
         .every((u) => u.id === "squirrel"),
     );
   }
+});
+
+
+test("first region teaches wild counters and second region introduces metal before mixing", () => {
+  const definitions = new Map(ENEMIES.map((enemy) => [enemy.id, enemy]));
+  for (const stage of STAGES.filter((stage) => stage.region === 1)) {
+    for (const wave of stage.waves) for (const group of wave.enemies) {
+      assert.equal(group.attribute ?? definitions.get(group.id).attribute, "wild");
+      assert.equal(group.shield, false);
+      assert.equal(group.regeneration, false);
+    }
+  }
+  const entry = createBattle({ mode: "challenge", stageId: 11, sequence: [] });
+  stepBattle(entry, 1.5);
+  assert.ok(entry.units.some((unit) => unit.attribute === "machine"));
+  const opening = createBattle({ mode: "challenge", stageId: 1, sequence: [] });
+  stepBattle(opening, 16);
+  assert.ok(opening.units.filter((unit) => unit.team === "enemy").every((unit) => unit.attribute === "wild" && !unit.regeneration));
 });

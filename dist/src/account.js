@@ -1,4 +1,4 @@
-import { UNITS, STAGES, RARITIES, STARTER_UNIT_IDS } from "./data.js";
+import { UNITS, STAGES, RARITIES, STARTER_UNIT_IDS, bannerById, bannerPool, bannerRarities } from "./data.js";
 import { UNIT_LEVEL_GROWTH } from "./engine.js";
 export const SAVE_KEY = "tiny-legion.save.v1";
 const ONBOARDING_PHASES = new Set([
@@ -25,7 +25,7 @@ export const GEMS = [
   {
     id: "gold",
     name: "풍요",
-    description: "새로 기록하는 방치 골드 수익이 15% 증가합니다.",
+    description: "새로 기록하는 방치 도토리 수익이 15% 증가합니다.",
     color: "#b7a25d",
   },
 ];
@@ -105,9 +105,9 @@ export function normalizeAccount(raw, now = Date.now()) {
     sinceEpic: Math.floor(cap(raw.recruitment?.sinceEpic, 0, 49)),
     welcomeClaimed: raw.recruitment?.welcomeClaimed === true,
   };
-  a.highestCleared = Math.floor(cap(raw.highestCleared, 0, 10));
+  a.highestCleared = Math.floor(cap(raw.highestCleared, 0, STAGES.length));
   a.idleStage = Math.floor(
-    cap(raw.idleStage ?? 1, 1, Math.min(10, a.highestCleared + 1)),
+    cap(raw.idleStage ?? 1, 1, Math.min(STAGES.length, a.highestCleared + 1)),
   );
   for (const s of STAGES) {
     const r = raw.records?.[s.id];
@@ -339,10 +339,14 @@ const randomValue = (random) => {
 export function recruitUnits(
   a,
   count = 1,
-  { free = false, random = Math.random } = {},
+  { free = false, random = Math.random, banner = "forest" } = {},
 ) {
   if (isOnboarding(a)) return null;
   if (![1, 10].includes(count)) return null;
+  const selectedBanner = bannerById(banner);
+  if (!selectedBanner || a.highestCleared < selectedBanner.unlock) return null;
+  const rarities = bannerRarities(banner);
+  const available = bannerPool(banner);
   if (free && (count !== 10 || a.recruitment.welcomeClaimed)) return null;
   const cost = free ? 0 : RECRUIT_COSTS[count];
   if (a.diamonds < cost) return null;
@@ -355,10 +359,10 @@ export function recruitUnits(
     const roll = randomValue(random);
     let cumulative = 0;
     let tier =
-      RARITIES.find((rarity) => {
+      rarities.find((rarity) => {
         cumulative += rarity.rate;
         return roll < cumulative;
-      }) ?? RARITIES.at(-1);
+      }) ?? rarities.at(-1);
     let guaranteed = false;
     if (
       recruitment.sinceEpic >= 49 &&
@@ -370,7 +374,7 @@ export function recruitUnits(
       tier = RARITIES.find((rarity) => rarity.id === "rare");
       guaranteed = true;
     }
-    const pool = UNITS.filter((unit) => unit.rarity === tier.id);
+    const pool = available.filter((unit) => unit.rarity === tier.id);
     if (!pool.length) throw new Error("Empty recruit pool");
     const unit = pool[Math.floor(randomValue(random) * pool.length)];
     const isNew = !owned[unit.id];
@@ -427,4 +431,14 @@ export function saveAccount(a, storage = localStorage) {
 export function resetAccount(storage = localStorage, now = Date.now()) {
   const fresh = newAccount(now);
   return saveAccount(fresh, storage) ? fresh : null;
+}
+
+export function canUseUnit(account, id) {
+  return ownsUnit(account, id) && (account.highestCleared >= 10 || bannerPool("forest").some((unit) => unit.id === id));
+}
+
+export function playableSequence(account) {
+  const sequence = account.sequence.map((id) => canUseUnit(account, id) ? id : null);
+  if (!sequence.some(Boolean)) sequence[0] = "sheep";
+  return sequence;
 }

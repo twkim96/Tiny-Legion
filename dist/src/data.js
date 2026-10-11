@@ -1,11 +1,13 @@
 // Initial tuning, subject to play acceptance. Bonuses of the same kind add.
-export const BALANCE_VERSION = "enemy-entry-1";
+export const BALANCE_VERSION = "regional-banners-1";
 export const ATTRIBUTES = [
-  { id: "wild", name: "야생", symbol: "♧" },
-  { id: "machine", name: "기계", symbol: "⚙" },
-  { id: "spirit", name: "정령", symbol: "◇" },
-  { id: "shadow", name: "그림자", symbol: "☾" },
+  { id: "wild", name: "야생", symbol: "♧", color: "#72b54b", colorName: "초록색" },
+  { id: "machine", name: "기계", symbol: "⚙", color: "#a8b5c5", colorName: "은색" },
+  { id: "spirit", name: "정령", symbol: "◇", color: "#69c8ed", colorName: "하늘색" },
+  { id: "shadow", name: "그림자", symbol: "☾", color: "#9a69cf", colorName: "보라색" },
 ];
+export const NEUTRAL_ATTRIBUTE = { id: "normal", name: "무속성", color: "#f2f1e8", colorName: "흰색" };
+export const stageLabel = (id) => id === 0 ? "0" : `${Math.floor((id - 1) / 10) + 1}-${(id - 1) % 10 + 1}`;
 export const ROLE_SPECIALIZATION = {
   warrior: { attack: 0.2, effectiveHp: 0.2 },
   tank: { effectiveHp: 0.4 },
@@ -77,7 +79,7 @@ export const UNITS = [
     theme: "숲",
     name: "씨앗 다람쥐",
     role: "ranged",
-    specialties: [],
+    specialties: ["wild"],
     hp: 145,
     attack: 34,
     range: 250,
@@ -118,7 +120,7 @@ export const UNITS = [
     theme: "별빛",
     name: "구름",
     role: "support",
-    specialties: ["spirit", "shadow"],
+    specialties: ["spirit"],
     slow: { factor: 0.75, duration: 2 },
     suppressRegen: { factor: 0.5, duration: 3 },
     shieldAura: { bonus: 1, range: 230 },
@@ -144,7 +146,7 @@ export const UNITS = [
     theme: "숲",
     name: "등불 여우",
     role: "warrior",
-    specialties: ["wild", "spirit"],
+    specialties: ["wild"],
     hp: 265,
     attack: 39,
     range: 52,
@@ -245,7 +247,7 @@ export const UNITS = [
     theme: "별빛",
     name: "버섯 마녀",
     role: "splash",
-    specialties: ["shadow"],
+    specialties: ["spirit"],
     hp: 215,
     attack: 36,
     range: 180,
@@ -266,7 +268,7 @@ export const UNITS = [
     theme: "숲",
     name: "숲 사슴 기사",
     role: "warrior",
-    specialties: ["spirit"],
+    specialties: ["wild"],
     hp: 315,
     attack: 37,
     range: 54,
@@ -285,7 +287,7 @@ export const UNITS = [
     theme: "겨울",
     name: "눈꽃 펭귄",
     role: "fast",
-    specialties: ["wild", "shadow"],
+    specialties: ["spirit"],
     hp: 185,
     attack: 31,
     range: 48,
@@ -325,7 +327,7 @@ export const UNITS = [
     theme: "공방",
     name: "시계 거북",
     role: "tank",
-    specialties: ["machine"],
+    specialties: ["machine", "wild"],
     hp: 620,
     attack: 21,
     range: 44,
@@ -840,23 +842,55 @@ export const STAGES = [
   },
 ];
 
-// Fixed substitutions preserve each group's timing/count/position. Stage previews
-// derive their composition from these actual waves, including late reinforcements.
-for (const stage of STAGES) {
-  for (const [index, wave] of stage.waves.entries()) {
-    for (const group of wave.enemies) {
-      if (
-        group.id === "beetle" &&
-        stage.id >= 3 &&
-        (stage.id % 3 === 0 || index === stage.waves.length - 1)
-      )
-        group.id = "clock-beetle";
-      if (
-        group.id === "mushroom" &&
-        stage.id >= 4 &&
-        (stage.id % 3 === 1 || index % 2 === 0)
-      )
-        group.id = "shadow-mushroom";
-    }
+// Region one teaches a single weakness; region two gradually mixes counters.
+const firstRegion = [...STAGES];
+for (const stage of firstRegion) {
+  stage.region = 1;
+  stage.regionName = "초원";
+  for (const wave of stage.waves) for (const group of wave.enemies) {
+    group.attribute = "wild";
+    group.shield = false;
+    group.regeneration = false;
   }
 }
+for (const source of firstRegion) {
+  const stage = JSON.parse(JSON.stringify(source));
+  stage.id = source.id + 10;
+  stage.region = 2;
+  stage.regionName = "오래된 공방";
+  stage.name = ["공방 입구", "녹슨 길", "작은 작업장", "빛의 샘", "톱니 언덕", "그늘 통로", "은빛 마당", "뒤섞인 숲", "깊은 공방", "공방의 문"][source.id - 1];
+  stage.description = source.id < 4 ? "야생과 은색 기계 무리가 함께 나타나요." : "여러 색의 적을 보고 알맞은 동료를 골라 보세요.";
+  stage.enemyHp = Math.round(source.enemyHp * 1.55);
+  stage.enemyAttack = source.enemyAttack * 1.15;
+  stage.baseReward = source.baseReward + 120;
+  for (const [index, wave] of stage.waves.entries()) for (const group of wave.enemies) {
+    delete group.attribute;
+    delete group.shield;
+    delete group.regeneration;
+    if (group.id === "beetle" && index % 2 === 0) group.id = "clock-beetle";
+    if (group.id === "mushroom") {
+      if (source.id < 4) { group.attribute = "wild"; group.regeneration = false; }
+      else if (source.id >= 6 && index % 2 === 0) group.id = "shadow-mushroom";
+    }
+  }
+  STAGES.push(stage);
+}
+
+export const RECRUIT_BANNERS = [
+  { id: "forest", name: "숲속 친구들", attribute: "wild", unlock: 0,
+    units: ["sheep", "rabbit", "squirrel", "fox", "chick", "deer"],
+    featured: ["fox", "deer", "chick"], rates: { common: .6, rare: .28, epic: .12 } },
+  { id: "workshop", name: "공방 친구들", attribute: "machine", unlock: 10,
+    units: ["teapot", "hedgehog", "owl", "turtle"], featured: ["hedgehog", "turtle", "owl"] },
+  { id: "starlight", name: "별빛 친구들", attribute: "spirit", unlock: 10,
+    units: ["cloud", "otter", "mushroom-witch", "penguin", "whale"], featured: ["otter", "whale", "mushroom-witch"] },
+];
+export const bannerById = (id) => RECRUIT_BANNERS.find((banner) => banner.id === id);
+export const bannerPool = (id) => {
+  const banner = bannerById(id);
+  return banner ? UNITS.filter((unit) => banner.units.includes(unit.id)) : [];
+};
+export const bannerRarities = (id) => {
+  const banner = bannerById(id);
+  return banner ? RARITIES.map((rarity) => ({ ...rarity, rate: banner.rates ? (banner.rates[rarity.id] ?? 0) : rarity.rate })).filter((rarity) => rarity.rate > 0) : [];
+};

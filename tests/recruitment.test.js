@@ -2,6 +2,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   newAccount,
+  canUseUnit,
+  playableSequence,
+  completeChallenge,
   normalizeAccount,
   recruitUnits,
   ownsUnit,
@@ -15,7 +18,7 @@ import {
   saveAccount,
   loadAccount,
 } from "../dist/src/account.js";
-import { UNITS, STARTER_UNIT_IDS } from "../dist/src/data.js";
+import { UNITS, STARTER_UNIT_IDS, RECRUIT_BANNERS, bannerPool, bannerRarities, stageLabel } from "../dist/src/data.js";
 import { createBattle, summonUnit, stepBattle } from "../dist/src/engine.js";
 const now = Date.UTC(2026, 9, 11, 3);
 const rolls = (...values) => {
@@ -97,29 +100,61 @@ test("ten draws charge once and apply guarantees across batches and single draws
   assert.equal(account.recruitment.sinceEpic, 0);
 });
 
-test("natural higher rarities survive guarantees and all rarity pools are reachable", () => {
-  for (const [roll, rarity] of [
-    [0, "common"],
-    [0.7, "rare"],
-    [0.93, "epic"],
-    [0.995, "legendary"],
-  ]) {
-    const pool = UNITS.filter((u) => u.rarity === rarity);
-    for (let i = 0; i < pool.length; i++) {
-      const account = completedAccount();
-      const result = recruitUnits(account, 1, {
-        random: rolls(roll, (i + 0.5) / pool.length),
-      })[0];
-      assert.equal(result.unit.id, pool[i].id);
+test("each unlocked banner reaches its own complete pool and preserves natural high rarities", () => {
+  for (const banner of RECRUIT_BANNERS) {
+    let cumulative = 0;
+    for (const rarity of bannerRarities(banner.id)) {
+      const roll = cumulative + rarity.rate / 2;
+      cumulative += rarity.rate;
+      const pool = bannerPool(banner.id).filter((u) => u.rarity === rarity.id);
+      for (let i = 0; i < pool.length; i++) {
+        const account = completedAccount();
+        account.highestCleared = 10;
+        const result = recruitUnits(account, 1, {
+          banner: banner.id, random: rolls(roll, (i + 0.5) / pool.length),
+        })[0];
+        assert.equal(result.unit.id, pool[i].id);
+      }
     }
   }
   const account = completedAccount();
+  account.highestCleared = 10;
   account.recruitment.sinceEpic = 49;
   account.recruitment.sinceRare = 9;
-  const result = recruitUnits(account, 1, { random: rolls(0.995, 0) })[0];
+  const result = recruitUnits(account, 1, { banner: "workshop", random: rolls(.995, 0) })[0];
   assert.equal(result.unit.rarity, "legendary");
   assert.equal(result.guaranteed, false);
   assert.equal(account.recruitment.sinceEpic, 0);
+});
+
+test("forest-only opening rejects locked banners atomically and 1-10 opens counters", () => {
+  const account = completedAccount();
+  account.diamonds = 1000;
+  account.owned.teapot = true;
+  assert.equal(canUseUnit(account, "teapot"), false);
+  assert.equal(canUseUnit(account, "sheep"), true);
+  const before = JSON.stringify(account);
+  for (const banner of ["workshop", "starlight", "unknown"]) {
+    assert.equal(recruitUnits(account, 10, { banner, free: true }), null);
+    assert.equal(JSON.stringify(account), before);
+  }
+  const forest = recruitUnits(account, 10, { free: true, random: rolls(.999, 0) });
+  assert.ok(forest.every((result) => bannerPool("forest").includes(result.unit)));
+  assert.equal(forest[0].unit.rarity, "epic");
+  completeChallenge(account, 10);
+  assert.equal(stageLabel(account.highestCleared + 1), "2-1");
+  assert.equal(canUseUnit(account, "teapot"), true);
+  assert.ok(recruitUnits(account, 1, { banner: "workshop", random: () => 0 }));
+  const restored = normalizeAccount(account, now);
+  assert.equal(restored.highestCleared, 10);
+  assert.equal(canUseUnit(restored, "teapot"), true);
+  completeChallenge(restored, 11);
+  restored.idleStage = 11;
+  restored.records[11] = { gold: 100, diamonds: .1 };
+  const roundTrip = normalizeAccount(restored, now);
+  assert.equal(roundTrip.highestCleared, 11);
+  assert.equal(roundTrip.idleStage, 11);
+  assert.deepEqual(roundTrip.records[11], restored.records[11]);
 });
 
 test("insufficient funds, invalid count or interrupted batch never charge or grant", () => {
@@ -249,4 +284,35 @@ test("completed new-format save retains exactly its sheep and squirrel owners", 
     ["sheep", "squirrel"],
   );
   assert.deepEqual(restored.sequence, [...source.sequence, ...Array(5).fill(null)]);
+});
+
+
+test("legacy ownership stays saved while unavailable lineup entries wait for 2-1", () => {
+  const legacy = completedAccount();
+  legacy.sequence = ["teapot", "cloud", ...Array(8).fill(null)];
+  legacy.levels.teapot = 22;
+  legacy.special.cloud = 3;
+  const original = [...legacy.sequence];
+  assert.deepEqual(playableSequence(legacy), ["sheep", ...Array(9).fill(null)]);
+  const state = createBattle({ sequence: playableSequence(legacy), ownedUnits: UNITS.filter((unit) => canUseUnit(legacy, unit.id)).map((unit) => unit.id) });
+  state.gold = 1000;
+  assert.equal(summonUnit(state, "teapot"), false);
+  assert.equal(state.gold, 1000);
+  assert.ok(summonUnit(state, "sheep"));
+  const saved = normalizeAccount(legacy, now);
+  assert.deepEqual(saved.sequence, original);
+  assert.equal(saved.owned.teapot, true);
+  assert.equal(saved.levels.teapot, 22);
+  assert.equal(saved.special.cloud, 3);
+  completeChallenge(saved, 10);
+  assert.deepEqual(playableSequence(saved), original);
+});
+
+
+test("banner companions cover one target except multi-attribute legendary companions", () => {
+  for (const banner of RECRUIT_BANNERS) for (const unit of bannerPool(banner.id)) {
+    assert.ok(unit.specialties.includes(banner.attribute), `${banner.id}: ${unit.id}`);
+    if (unit.rarity === "legendary") assert.ok(unit.specialties.length >= 2 && unit.specialties.length <= 3);
+    else assert.deepEqual(unit.specialties, [banner.attribute]);
+  }
 });

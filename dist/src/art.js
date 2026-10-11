@@ -1,4 +1,5 @@
 import { CHARACTER_ART } from "./character-art.js";
+import { ATTRIBUTES, ENEMIES, NEUTRAL_ATTRIBUTE } from "./data.js";
 
 const iconPaths = {
   acorn: '<g stroke="#705039"><path d="M6 11h12c0 6-3 9-6 10-3-1-6-4-6-10Z" fill="#efb77c"/><path d="M4 11c0-4 3-6 8-6s8 2 8 6H4Z" fill="#a7734c"/><path d="M12 5V2m0 2c1-3 4-3 6-2-1 3-3 4-6 2Z" fill="#a4bd79"/><path d="m7 7 2 4m3-5 2 5m2-4 2 4" opacity=".5"/><path d="M9 14c0 2 1 3 2 4" stroke="#fff2d2"/></g>',
@@ -54,11 +55,23 @@ export function icon(name, cls = "") {
 }
 
 const stroke = "#35372e";
-export function portrait(id, cls = "") {
-  return `<svg class="portrait ${cls}" viewBox="0 0 128 120" fill="none" stroke="${stroke}" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${(CHARACTER_ART[id] || CHARACTER_ART.sheep).body}</svg>`;
+const ENEMY_DEFINITIONS = new Map(ENEMIES.map((enemy) => [enemy.id, enemy]));
+const ATTRIBUTE_COLORS = new Map(
+  ATTRIBUTES.filter(({ color }) => color).map(({ id, color }) => [id, color]),
+);
+ATTRIBUTE_COLORS.set(NEUTRAL_ATTRIBUTE.id, NEUTRAL_ATTRIBUTE.color);
+function bodyFor(id, attribute) {
+  const enemy = ENEMY_DEFINITIONS.get(id);
+  const art = CHARACTER_ART[id] || CHARACTER_ART[enemy?.artId] || CHARACTER_ART.sheep;
+  if (!art.bodyForAttribute || !enemy) return art.body;
+  const attributeId = attribute ?? enemy.attribute ?? NEUTRAL_ATTRIBUTE.id;
+  return art.bodyForAttribute(ATTRIBUTE_COLORS.get(attributeId) ?? NEUTRAL_ATTRIBUTE.color);
 }
-export function spriteSvg(id) {
-  return portrait(id).replace(
+export function portrait(id, cls = "", attribute) {
+  return `<svg class="portrait ${cls}" viewBox="0 0 128 120" fill="none" stroke="${stroke}" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${bodyFor(id, attribute)}</svg>`;
+}
+export function spriteSvg(id, attribute) {
+  return portrait(id, "", attribute).replace(
     'class="portrait "',
     'xmlns="http://www.w3.org/2000/svg"',
   );

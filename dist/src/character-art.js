@@ -6,6 +6,7 @@ const PALETTES = {
     light: "#fff5db",
     trim: "#849967",
     dark: "#8c6949",
+    accent: "#72b54b",
   },
   machine: {
     ink: "#3e4c54",
@@ -13,6 +14,7 @@ const PALETTES = {
     light: "#e3ebdf",
     trim: "#cba365",
     dark: "#697d87",
+    accent: "#a8b5c5",
   },
   spirit: {
     ink: "#427481",
@@ -20,6 +22,7 @@ const PALETTES = {
     light: "#eefcf5",
     trim: "#6bb6c3",
     dark: "#719eb7",
+    accent: "#69c8ed",
   },
   shadow: {
     ink: "#41364f",
@@ -27,6 +30,7 @@ const PALETTES = {
     light: "#d9d3ec",
     trim: "#b2a1cf",
     dark: "#514862",
+    accent: "#9a69cf",
   },
 };
 const p = (d, fill = "none", attrs = "") =>
@@ -59,10 +63,13 @@ function face(x, y, family, gap = 18) {
 const rivets = (points) =>
   points.map(([x, y]) => c(x, y, 2, "#e3ebdf", 'stroke-width="1.5"')).join("");
 const glass = (d) => line(d, "#eefcf5", 3.5);
-function figure(family, body) {
+function figure(family, body, useAttributeAccent = false) {
+  const paint = (accent = PALETTES[family].accent) =>
+    `<g stroke="${PALETTES[family].ink}">${body({ ...PALETTES[family], accent })}</g>`;
   return {
     family,
-    body: `<g stroke="${PALETTES[family].ink}">${body(PALETTES[family])}</g>`,
+    body: paint(),
+    ...(useAttributeAccent ? { bodyForAttribute: (accent) => paint(accent) } : {}),
   };
 }
 
@@ -368,8 +375,9 @@ export const CHARACTER_ART = {
       c(80, 51, 2.6, a.light, 'stroke="none"') +
       e(71, 65, 13, 8, "#d5b18b") +
       p("m68 61 4 3 3-3", a.dark) +
-      p("m44 78 39-4 10 18-17-9-19 10Z", "#9b9c6a") +
+      p("m44 78 39-4 10 18-17-9-19 10Z", a.accent) +
       line("m47 75-17 8m57-9 18 6", "#ae7d51", 9),
+    true,
   ),
   boar: figure(
     "wild",
@@ -385,7 +393,10 @@ export const CHARACTER_ART = {
       c(111, 75, 2, "#624b38", 'stroke="none"') +
       c(80, 55, 3, a.ink, 'stroke="none"') +
       p("m83 83-12-16 17 8Z", "#f1e2bd") +
-      line("m31 60 5-5m-5 17 7-5", "#d5ac75", 2),
+      line("m31 60 5-5m-5 17 7-5", "#d5ac75", 2) +
+      p("M34 45q20-16 44-9l-5 22-10-8-11 12-9-11-10 5Z", a.accent) +
+      p("M76 31l10 5 2 9-8-5Zm27 12 8-9 1 11-7 4Z", a.accent),
+    true,
   ),
   mushroom: figure(
     "spirit",
@@ -401,13 +412,14 @@ export const CHARACTER_ART = {
       ) +
       p("m49 85-16 18 19 1 13-14m16-5 17 18H81L68 88", "#b58a5a") +
       e(68, 77, 25, 27, "#b58a5a") +
-      p("M47 70q25-11 43 1l11 23-15-8-17 15-23-7Z", "#91b5b3") +
+      p("M47 70q25-11 43 1l11 23-15-8-17 15-23-7Z", a.accent) +
       p("M57 71q11-5 21 1l-3 24-15-7Z", "#e2c49f") +
       e(70, 54, 25, 23, "#bb915f") +
       face(70, 52, "spirit") +
       glass("m52 42 6-5m-12 35 11 2") +
       p("M94 48q16-9 20-2-13 3-13 17-8 4-12-2 7-3 5-13Z", "#e8d5af") +
       line("m77 81 18-4", "#bb915f", 9),
+    true,
   ),
   "clock-beetle": figure(
     "machine",
@@ -416,7 +428,7 @@ export const CHARACTER_ART = {
       e(67, 72, 31, 29, "#a9794e") +
       p("M38 65 30 82l-12 1 11 9 18-15m42-12 18 7-3 13-12-4", "#bb956b") +
       line("m21 84 8 4m5-5 4 4m63-8-2 7", "#ead7b6", 3) +
-      p("M42 59 56 50h20l15 14-4 26-19 9-23-11Z", "#9a9690") +
+      p("M42 59 56 50h20l15 14-4 26-19 9-23-11Z", a.accent) +
       line("M64 53v40m-20-18 40 2", "#665d4e", 2) +
       rivets([
         [49, 62],
@@ -428,12 +440,13 @@ export const CHARACTER_ART = {
       e(68, 46, 27, 24, "#b58a60") +
       e(74, 60, 18, 10, "#d0a179") +
       c(84, 57, 4, "#72543e") +
-      p("M42 40q25-15 50 0l-3 13H44Z", "#b39b73") +
+      p("M42 40q25-15 50 0l-3 13H44Z", a.accent) +
       c(57, 42, 8, "#58686c") +
       c(79, 42, 8, "#58686c") +
       c(59, 40, 2.5, "#e3ebdf", 'stroke="none"') +
       c(81, 40, 2.5, "#e3ebdf", 'stroke="none"') +
       line("m53 74 6-6m13 16 9-6", "#d7c3a3", 2),
+    true,
   ),
   "shadow-mushroom": figure(
     "shadow",
@@ -442,12 +455,13 @@ export const CHARACTER_ART = {
       p("M18 56q1 15 13 19l-9 14q-14-6-12-17Z", "#c59f7e") +
       p("m48 86-8 18h15l11-16m16-2 11 18h15l-13-20", "#72523c") +
       e(70, 75, 27, 28, "#a3714d") +
-      p("M41 68q27-11 51-1l7 29-19-9-12 16-16-15-17 10Z", "#625763") +
+      p("M41 68q27-11 51-1l7 29-19-9-12 16-16-15-17 10Z", a.accent) +
       p("m46 40-12-25 30 15m18-1 23-18-3 31", "#a3714d") +
       e(70, 47, 26, 24, "#a3714d") +
       p("M50 44q19-8 38 0l-6 22-11 6-17-6Z", "#c09b7c") +
       face(69, 47, "shadow", 18) +
       line("m46 75 8 8m25-6-7 9", "#a493aa", 2) +
       p("M97 62q13-13 16-2l-9 17-8 13-3-11Z", "#a493aa"),
+    true,
   ),
 };
