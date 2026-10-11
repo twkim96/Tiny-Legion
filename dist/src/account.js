@@ -427,3 +427,7 @@ export function saveAccount(a, storage = localStorage) {
     return false;
   }
 }
+export function resetAccount(storage = localStorage, now = Date.now()) {
+  const fresh = newAccount(now);
+  return saveAccount(fresh, storage) ? fresh : null;
+}

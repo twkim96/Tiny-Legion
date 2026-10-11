@@ -21,10 +21,34 @@ import {
   isOnboarding,
   saveAccount,
   loadAccount,
+  resetAccount,
+  SAVE_KEY,
 } from "../dist/src/account.js";
 import { createBattle, summonUnit } from "../dist/src/engine.js";
 import { STARTER_UNIT_IDS, UNITS } from "../dist/src/data.js";
 const now = Date.UTC(2026, 9, 11, 3);
+test("account reset persists only a fresh intro account and preserves saves on write failure", () => {
+  const previous = newAccount(now);
+  previous.owned.squirrel = true;
+  previous.highestCleared = 5;
+  previous.records[1] = { gold: 100, diamonds: 1 };
+  previous.onboarding.phase = "complete";
+  const values = new Map([[SAVE_KEY, JSON.stringify(previous)], ["other-setting", "keep"]]);
+  const storage = {
+    getItem: (key) => values.get(key),
+    setItem: (key, value) => values.set(key, value),
+  };
+  const fresh = resetAccount(storage, now);
+  assert.equal(fresh.onboarding.phase, "intro");
+  assert.equal(fresh.highestCleared, 0);
+  assert.deepEqual(fresh.records, {});
+  assert.deepEqual(UNITS.filter((u) => fresh.owned[u.id]).map((u) => u.id), ["sheep"]);
+  assert.deepEqual(loadAccount(storage, now).account, fresh);
+  assert.equal(values.get("other-setting"), "keep");
+  const saved = values.get(SAVE_KEY);
+  assert.equal(resetAccount({ ...storage, setItem() { throw new Error("quota"); } }, now), null);
+  assert.equal(values.get(SAVE_KEY), saved);
+});
 function completedAccount() {
   const account = newAccount(now);
   account.onboarding.phase = "complete";

@@ -21,7 +21,7 @@ import { battlefieldLayout } from "./combat-visuals.js";
 import { onboardingEncounter } from "./onboarding.js";
 import {
   GEMS,
-  newAccount,
+  resetAccount,
   loadAccount,
   saveAccount,
   normalizeAccount,
@@ -722,7 +722,7 @@ function updateUi() {
   );
 }
 function openModal(title, kind, render) {
-  if (isOnboarding(account) && !["onboarding", "settings", "import", "codex"].includes(kind)) return;
+  if (isOnboarding(account) && !["onboarding", "settings", "import", "codex", "reset-account"].includes(kind)) return;
   if (modalKind === "onboarding" && kind !== "onboarding") return;
   recruitCleanup?.();
   recruitCleanup = null;
@@ -1182,7 +1182,7 @@ function renderDaily() {
 }
 function renderSettings() {
   $("modal-content").innerHTML =
-    `<div class="settings-row"><span>소리</span><button class="secondary-button" id="setting-sound">${account.settings.sound ? "켜짐" : "꺼짐"}</button></div><div class="settings-row"><span>화면</span><button class="secondary-button" id="fullscreen">${icon("fullscreen")}전체 화면</button></div><div class="settings-row"><span>저장 파일</span><div><button class="secondary-button" id="export-save">내려받기</button> <button class="secondary-button" id="import-save">불러오기</button><input type="file" id="save-file" accept="application/json,.json" hidden></div></div><p class="settings-note">진행도는 이 브라우저에 저장됩니다.<br>다른 기기로 옮기려면 저장 파일을 사용하세요.</p><p class="settings-note">키보드: 1–5 소환 · Space 일시 정지 · Esc 닫기</p>`;
+    `<div class="settings-row"><span>소리</span><button class="secondary-button" id="setting-sound">${account.settings.sound ? "켜짐" : "꺼짐"}</button></div><div class="settings-row"><span>화면</span><button class="secondary-button" id="fullscreen">${icon("fullscreen")}전체 화면</button></div><div class="settings-row"><span>저장 파일</span><div><button class="secondary-button" id="export-save">내려받기</button> <button class="secondary-button" id="import-save">불러오기</button><input type="file" id="save-file" accept="application/json,.json" hidden></div></div><div class="settings-row"><span>계정</span><button class="secondary-button" id="reset-account">계정 초기화</button></div><p class="settings-note">진행도는 이 브라우저에 저장됩니다.<br>다른 기기로 옮기려면 저장 파일을 사용하세요.</p><p class="settings-note">키보드: 1–5 소환 · Space 일시 정지 · Esc 닫기</p>`;
   $("setting-sound").onclick = () => {
     account.settings.sound = !account.settings.sound;
     persist();
@@ -1212,6 +1212,31 @@ function renderSettings() {
     persist();
   };
   $("import-save").onclick = () => $("save-file").click();
+  $("reset-account").onclick = () => {
+    openModal("계정 초기화", "reset-account", () => {
+      $("modal-content").innerHTML = '<p class="settings-note">동료·재화·성장·전투 기록을 모두 지우고 0스테이지부터 다시 시작합니다.<br>복구하려면 초기화 전에 저장 파일을 내려받아 두세요.</p><div class="modal-footer"><button class="secondary-button" id="cancel-reset-account">취소</button><button class="primary-button" id="confirm-reset-account">초기화하고 시작</button></div>';
+      $("cancel-reset-account").onclick = () => openModal("설정", "settings", renderSettings);
+      $("confirm-reset-account").onclick = () => {
+        const fresh = resetAccount();
+        if (!fresh) {
+          toast("저장할 수 없어 초기화하지 않았습니다.");
+          return;
+        }
+        closeModal(true);
+        account = fresh;
+        recruitReceipt = null;
+        sequenceDraft = null;
+        codexRarity = "all";
+        codexOwned = "all";
+        storageWarning = false;
+        lastAccrual = Date.now();
+        lastFrame = performance.now();
+        resumeOnboarding();
+        toast("계정을 초기화했습니다.");
+      };
+    });
+    $("cancel-reset-account").focus();
+  };
   $("save-file").onchange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
