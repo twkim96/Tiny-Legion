@@ -5,6 +5,7 @@ import { sampleUnitPose } from "../dist/src/combat-visuals.js";
 import { createBattle, summonUnit } from "../dist/src/engine.js";
 import {
   ENEMIES,
+  ATTRIBUTES,
   RARITIES,
   STARTER_UNIT_IDS,
   UNITS,
@@ -95,6 +96,11 @@ test("enemy accent variants follow requested attributes while preserving fur and
   const normal = spriteSvg("beetle", "unsupported");
 
   assert.notEqual(wild, spirit);
+  for (const attribute of ATTRIBUTES) {
+    for (const id of ["beetle", "mushroom"]) {
+      assert.ok(spriteSvg(id, attribute.id).includes(`<g stroke="${attribute.ink}">`), `${id} must use the actual attribute outline`);
+    }
+  }
   assert.match(wild, /fill="#72b54b"/);
   assert.match(spirit, /fill="#69c8ed"/);
   assert.match(normal, /fill="#f2f1e8"/);

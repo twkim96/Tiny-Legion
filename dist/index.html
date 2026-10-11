@@ -79,9 +79,7 @@
           </button>
           <div class="battle-clock">
             <span data-icon="clock"></span><span id="battle-time">02:00</span
-            ><button id="pause" aria-label="일시 정지">
-              <span data-icon="pause"></span>
-            </button>
+            >
           </div>
         </div>
       </div>
@@ -126,6 +124,10 @@
         >
           <span class="menu-medallion"><span data-icon="book"></span></span
           ><span class="menu-label">도감</span>
+        </button>
+        <button class="game-menu menu-pause" id="pause" aria-label="일시 정지" aria-pressed="false" data-tip="일시 정지" hidden>
+          <span class="menu-medallion" id="pause-icon"><span data-icon="pause"></span></span>
+          <span class="menu-label" id="pause-text">정지</span>
         </button>
         <button class="game-menu menu-speed" id="speed" aria-label="전투 속도" data-tip="전투 속도" hidden>
           <span class="menu-medallion"><span data-icon="forward"></span></span>

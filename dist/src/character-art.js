@@ -64,12 +64,12 @@ const rivets = (points) =>
   points.map(([x, y]) => c(x, y, 2, "#e3ebdf", 'stroke-width="1.5"')).join("");
 const glass = (d) => line(d, "#eefcf5", 3.5);
 function figure(family, body, useAttributeAccent = false) {
-  const paint = (accent = PALETTES[family].accent) =>
-    `<g stroke="${PALETTES[family].ink}">${body({ ...PALETTES[family], accent })}</g>`;
+  const paint = (accent = PALETTES[family].accent, outline = PALETTES[family].ink) =>
+    `<g stroke="${outline}">${body({ ...PALETTES[family], accent })}</g>`;
   return {
     family,
     body: paint(),
-    ...(useAttributeAccent ? { bodyForAttribute: (accent) => paint(accent) } : {}),
+    ...(useAttributeAccent ? { bodyForAttribute: (accent, outline = accent) => paint(accent, outline) } : {}),
   };
 }
 

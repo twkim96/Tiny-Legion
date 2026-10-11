@@ -65,7 +65,9 @@ function bodyFor(id, attribute) {
   const art = CHARACTER_ART[id] || CHARACTER_ART[enemy?.artId] || CHARACTER_ART.sheep;
   if (!art.bodyForAttribute || !enemy) return art.body;
   const attributeId = attribute ?? enemy.attribute ?? NEUTRAL_ATTRIBUTE.id;
-  return art.bodyForAttribute(ATTRIBUTE_COLORS.get(attributeId) ?? NEUTRAL_ATTRIBUTE.color);
+  const color = ATTRIBUTE_COLORS.get(attributeId) ?? NEUTRAL_ATTRIBUTE.color;
+  const outline = ATTRIBUTES.find((item) => item.id === attributeId)?.ink ?? color;
+  return art.bodyForAttribute(color, outline);
 }
 export function portrait(id, cls = "", attribute) {
   return `<svg class="portrait ${cls}" viewBox="0 0 128 120" fill="none" stroke="${stroke}" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${bodyFor(id, attribute)}</svg>`;

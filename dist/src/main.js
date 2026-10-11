@@ -3,6 +3,7 @@ import {
   ENEMIES,
   STAGES,
   ATTRIBUTES,
+  NEUTRAL_ATTRIBUTE,
   ROLE_SPECIALIZATION,
   BALANCE_VERSION,
   RARITIES,
@@ -80,11 +81,11 @@ const attributeById = Object.fromEntries(
   (ATTRIBUTES ?? []).map((attribute) => [attribute.id, attribute]),
 );
 const percent = (value) => `${Math.round(value * 100)}%`;
-function attributeName(id) {
-  const attribute = attributeById[id];
-  return attribute ? `${attribute.name}(${attribute.colorName})` : "무속성(흰색)";
+function attributeName(id, suffix = "") {
+  const attribute = attributeById[id] ?? NEUTRAL_ATTRIBUTE;
+  return `<strong class="attribute-label" style="color:${attribute.ink ?? "#757b6a"}">${attribute.name}${suffix}</strong>`;
 }
-function unitSpecialtyText(unit) {
+function unitSpecialtyText(unit, rich = false) {
   const specialties = Array.isArray(unit.specialties) ? unit.specialties : [];
   if (!specialties.length) return "범용 · 모든 속성에 동일한 기본 성능";
   const bonuses = ROLE_SPECIALIZATION?.[unit.role] ?? {};
@@ -97,7 +98,7 @@ function unitSpecialtyText(unit) {
     );
   if (Number.isFinite(bonuses.duration))
     effects.push(`방해 지속시간 +${percent(bonuses.duration)}`);
-  const attributes = specialties.map((id) => `${attributeById[id]?.name ?? id} 특화(${attributeById[id]?.colorName ?? "흰색"})`).join(" · ");
+  const attributes = specialties.map((id) => rich ? attributeName(id, "특화") : `${attributeById[id]?.name ?? "무속성"}특화`).join(" · ");
   return `${attributes}${effects.length ? ` · ${effects.join(" · ")}` : ""} · 다른 속성 페널티 없음`;
 }
 function unitAbilityLines(unit) {
@@ -625,7 +626,7 @@ function updateUi() {
   $("game").dataset.manualCombat = String(manualCombat);
   $("speed").hidden = !manualCombat;
   $("skill").hidden = mode === "idle";
-  $("pause").hidden = manualCombat;
+  $("pause").hidden = !manualCombat;
   $("edit-sequence").hidden = manualCombat;
   $("gold").textContent = fmt(account.gold);
   $("diamonds").textContent = fmt(account.diamonds);
@@ -648,7 +649,10 @@ function updateUi() {
     : mode === "speedrun"
       ? "00:00"
       : "02:00";
-  $("pause").innerHTML = icon(paused ? "play" : "pause");
+  $("pause-icon").innerHTML = icon(paused ? "play" : "pause");
+  $("pause-text").textContent = paused ? "계속" : "정지";
+  $("pause").dataset.tip = paused ? "계속하기" : "일시 정지";
+  $("pause").setAttribute("aria-pressed", String(paused));
   $("pause").setAttribute("aria-label", paused ? "계속하기" : "일시 정지");
   $("pause").disabled = !battle || battle.finished;
   const layout = battlefieldLayout(renderer.width, renderer.height);
@@ -1033,7 +1037,7 @@ function renderCodexDetail(id, enemy) {
           ...gimmicks.lines,
           ...enemyCounterText(u),
         ].filter(Boolean)
-      : [unitSpecialtyText(u), ...unitAbilityLines(u)];
+      : [unitSpecialtyText(u, true), ...unitAbilityLines(u)];
   $("modal-content").innerHTML =
     `<div class="codex-layout"><div class="codex-art ${!enemy && !ownsUnit(account, id) ? "unowned" : ""}">${portrait(id)}</div><div class="codex-info">${enemy ? "" : rarityBadge(u)}<h3>${u.name}</h3>${!enemy ? `<span class="collection-state">${ownsUnit(account, id) ? `보유 · Lv. ${account.levels[id]}` : "미보유 · 모집에서 획득"} · ${u.theme || "숲"}</span>` : ""}<span class="role-label">${roles[u.role]}</span><p>${u.description || "전투 특성을 살펴보세요."}</p>${detailLines.length ? `<p class="settings-note"><strong>${enemy ? "속성과 대응" : "속성 특성"}</strong><br>${detailLines.join("<br>")}</p>` : ""}<div class="stat-list">${[
       ["체력", Math.round(u.hp * scale)],
@@ -1310,7 +1314,17 @@ function renderSettings() {
 function showTooltip(el, x, y, longpress = false) {
   const text = el.dataset.tip;
   if (!text) return;
-  $("tooltip").textContent = text;
+  const labels = new Map(ATTRIBUTES.map((attribute) => [`${attribute.name}특화`, attribute]));
+  const pieces = text.split(/(야생특화|기계특화|정령특화|그림자특화)/);
+  $("tooltip").replaceChildren(...pieces.map((piece) => {
+    const attribute = labels.get(piece);
+    if (!attribute) return document.createTextNode(piece);
+    const label = document.createElement("strong");
+    label.className = "attribute-label";
+    label.style.color = attribute.ink;
+    label.textContent = piece;
+    return label;
+  }));
   $("tooltip").hidden = false;
   $("tooltip").dataset.longpress = String(longpress);
   const r = $("tooltip").getBoundingClientRect();

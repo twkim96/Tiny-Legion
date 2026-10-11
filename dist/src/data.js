@@ -1,10 +1,10 @@
 // Initial tuning, subject to play acceptance. Bonuses of the same kind add.
 export const BALANCE_VERSION = "regional-banners-1";
 export const ATTRIBUTES = [
-  { id: "wild", name: "야생", symbol: "♧", color: "#72b54b", colorName: "초록색" },
-  { id: "machine", name: "기계", symbol: "⚙", color: "#a8b5c5", colorName: "은색" },
-  { id: "spirit", name: "정령", symbol: "◇", color: "#69c8ed", colorName: "하늘색" },
-  { id: "shadow", name: "그림자", symbol: "☾", color: "#9a69cf", colorName: "보라색" },
+  { id: "wild", name: "야생", symbol: "♧", color: "#72b54b", ink: "#3f852e", colorName: "초록색" },
+  { id: "machine", name: "기계", symbol: "⚙", color: "#a8b5c5", ink: "#667487", colorName: "은색" },
+  { id: "spirit", name: "정령", symbol: "◇", color: "#69c8ed", ink: "#287f9e", colorName: "하늘색" },
+  { id: "shadow", name: "그림자", symbol: "☾", color: "#9a69cf", ink: "#7845ab", colorName: "보라색" },
 ];
 export const NEUTRAL_ATTRIBUTE = { id: "normal", name: "무속성", color: "#f2f1e8", colorName: "흰색" };
 export const stageLabel = (id) => id === 0 ? "0" : `${Math.floor((id - 1) / 10) + 1}-${(id - 1) % 10 + 1}`;

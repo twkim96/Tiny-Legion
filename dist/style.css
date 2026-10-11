@@ -3153,10 +3153,11 @@ html:fullscreen .game {
 .summon-bar .skill-cooldown {
   font-size: 30px;
 }
-.menu-speed .menu-medallion {
+.menu-speed .menu-medallion,
+.menu-pause .menu-medallion {
   color: #78816b;
 }
-.game[data-manual-combat="true"] .game-menus > :not(#settings):not(#speed),
+.game[data-manual-combat="true"] .game-menus > :not(#settings):not(#speed):not(#pause),
 .game[data-manual-combat="true"] #profile-button,
 .game[data-manual-combat="true"] #income,
 .game[data-manual-combat="true"] .stage-button .chevron {
@@ -3248,4 +3249,10 @@ html:fullscreen .game {
     padding: 7px 4px;
     font-size: 11px;
   }
+}
+
+.attribute-label {
+  font-weight: 800;
+  text-shadow: none;
+  -webkit-text-stroke: 0;
 }
