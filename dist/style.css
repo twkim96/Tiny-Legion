@@ -363,20 +363,44 @@ body {
 .icon-button:hover {
   background: #e3ead3;
 }
-.castle-health {
+.combat-power {
   position: absolute;
   top: 110px;
+  left: 24px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  z-index: 5;
+}
+.combat-power .icon {
+  width: 18px;
+  height: 18px;
+}
+.wave-progress {
+  color: #fff;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.castle-health {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  flex-direction: column-reverse;
   display: flex;
   align-items: center;
   gap: 6px;
   background: none;
   border: 0;
-  padding: 6px 10px;
-  border-radius: 9px;
+  padding: 0;
+  border-radius: 0;
   font-size: 10px;
   font-weight: 600;
   color: #fff;
-  min-width: 143px;
+  width: clamp(68px, 9vw, 118px);
+  min-width: 0;
   pointer-events: none;
   z-index: 1;
   box-shadow: none;
@@ -387,16 +411,13 @@ body {
   width: 15px;
   height: 15px;
 }
-.player-health {
-  left: 24px;
-}
 .enemy-health {
-  right: 24px;
+  right: auto;
   color: #fff;
 }
 .health-track {
   height: 5px;
-  width: 82px;
+  width: 100%;
   background: #b9c8a8;
   border-radius: 6px;
   overflow: hidden;
@@ -415,7 +436,8 @@ body {
   background: #bf9875;
 }
 .castle-health > span:last-child {
-  min-width: 27px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 .income-button {
   position: absolute;
@@ -2129,26 +2151,28 @@ html:fullscreen .game {
     right: -1px;
     border-width: 1px;
   }
-  .castle-health {
+  .combat-power {
     top: 78px;
-    min-width: 113px;
-    padding: 4px 7px;
-    gap: 5px;
-    font-size: 8px;
-    border-radius: 6px;
-  }
-  .player-health {
     left: var(--safe-left);
+    font-size: 12px;
+    gap: 4px;
   }
-  .enemy-health {
-    right: var(--safe-right);
+  .combat-power .icon {
+    width: 13px;
+    height: 13px;
+  }
+  .wave-progress {
+    font-size: 10px;
+  }
+  .castle-health {
+    gap: 4px;
+    font-size: 9px;
   }
   .castle-health .icon {
     width: 12px;
     height: 12px;
   }
   .health-track {
-    width: 60px;
     height: 4px;
   }
   .castle-health > span:last-child {
@@ -2481,7 +2505,7 @@ html:fullscreen .game {
   .unit-hand {
     height: 50px;
   }
-  .castle-health {
+  .combat-power {
     top: 66px;
   }
   .income-button {

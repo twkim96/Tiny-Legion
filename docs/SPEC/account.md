@@ -11,6 +11,12 @@
 - 도전 진행도에 따라 다음 스테이지를 엽니다. 각 스테이지의 첫 완료만 골드·다이아를 지급합니다.
 - 현재 동료 모집·특별강화는 시작부터 사용 가능하고, 1-3 완료 뒤 속공·보석을 엽니다. 원본 기획의 진행도 기반 성장 해금 확대와 상위 10명 동기화는 [확장 설계](expansion.md)의 미구현 방향입니다.
 
+## 전투력
+
+- 동료 5종을 각각 한 번 포함하는 계정 성장 참고 수치입니다. 일반 레벨·특별강화와 현재 장착한 공격·체력 보석을 반영하며 성장·장착 변경 즉시 갱신합니다. 진행 중 전투에 적용된 성장과는 다를 수 있으며 변경은 다음 전투에 적용됩니다.
+- 현재 산식은 동료별 `전투 최대 체력 + 초당 공격력 × 10`의 합을 반올림합니다. 전투와 같은 레벨 증가율과 능력치 반올림을 사용합니다. 재화·풍요 보석·소환 순서의 중복 횟수·현재 전장 유닛 수는 반영하지 않습니다.
+- 사거리·광역·회복·시너지의 역할 가중치는 아직 반영하지 않습니다. 승패·방치 수익·속공 기록을 예측하거나 보상에 사용하는 값이 아니며 역할 가중치와 밸런스 검증은 [TODO](../TODO.md)에 남습니다.
+
 ## 보석
 
 - 현재 1슬롯, 공격 +10%의 용기, 체력 +15%의 온기, 새 방치 골드 기록 +15%의 풍요 3종입니다.
@@ -29,6 +35,6 @@
 
 ## 코드와 기존 검증
 
-- `dist/src/account.js`: `newAccount`, `normalizeAccount`, `growUnit`, `enhanceUnit`, `refundLevels`, `completeChallenge`, `recruitUnit`, `recruitGem`, `loadAccount`, `saveAccount`.
+- `dist/src/account.js`: `newAccount`, `normalizeAccount`, `growUnit`, `enhanceUnit`, `refundLevels`, `combatPower`, `completeChallenge`, `recruitUnit`, `recruitGem`, `loadAccount`, `saveAccount`.
 - `dist/src/main.js`: `persist`, `renderGrowth`, `renderRecruit`, `renderSettings`.
 - `tests/account.test.js`: 환급·기록 무효화, 첫 보상 중복 방지, 보석 모집, 손상 입력·짧은 순서 정규화. 파일 다이얼로그·저장 불가 안내·실기기 수명주기 검증은 자동 테스트와 별도입니다.

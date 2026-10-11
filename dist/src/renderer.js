@@ -1,5 +1,5 @@
 import { spriteSvg } from "./art.js";
-import { sampleUnitPose } from "./combat-visuals.js";
+import { sampleUnitPose, battlefieldLayout } from "./combat-visuals.js";
 const INK = "#4b5140";
 const MAX_FX = 96;
 const FX_LIFETIME = {
@@ -916,13 +916,12 @@ export class Renderer {
     this.resetForBattle(battle);
     c.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     c.drawImage(this.bg, 0, 0, w, h);
-    const ground = h * 0.74;
-    const castleSize = Math.min(115, h * 0.37, w * 0.105);
+    const { ground, castleSize, playerX, enemyX } = battlefieldLayout(w, h);
     const simulationTime = Number.isFinite(battle?.time)
       ? battle.time
       : wallTime;
-    castle(c, w * (80 / 1200), ground, castleSize, false, simulationTime);
-    castle(c, w * (1120 / 1200), ground, castleSize, true, simulationTime);
+    castle(c, playerX, ground, castleSize, false, simulationTime);
+    castle(c, enemyX, ground, castleSize, true, simulationTime);
     if (!battle) return;
     const units = battle.units
       .filter((u) => !u.dead || (u.deathTimer ?? 0) > 0)

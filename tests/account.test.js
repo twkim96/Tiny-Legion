@@ -11,8 +11,44 @@ import {
   normalizeAccount,
   completeChallenge,
   recruitGem,
+  combatPower,
+  battleLevels,
+  gemModifiers,
 } from "../dist/src/account.js";
+import { createBattle, summonUnit } from "../dist/src/engine.js";
+import { UNITS } from "../dist/src/data.js";
 const now = Date.UTC(2026, 9, 11, 3);
+test("combat power follows summoned stats after growth and combat gems", () => {
+  const a = newAccount(now);
+  const baseline = combatPower(a);
+  growUnit(a, "sheep");
+  a.special.rabbit = 3;
+  for (const gem of [null, "attack", "hp"]) {
+    a.equippedGem = gem;
+    const battle = createBattle({
+      levels: battleLevels(a),
+      modifiers: gemModifiers(a),
+    });
+    let expected = 0;
+    for (const definition of UNITS) {
+      battle.gold = 1000;
+      assert.ok(summonUnit(battle, definition.id));
+      const unit = battle.units.at(-1);
+      expected += unit.maxHp + (10 * unit.attack) / unit.attackInterval;
+    }
+    assert.equal(combatPower(a), Math.round(expected));
+    assert.ok(combatPower(a) > baseline);
+  }
+});
+test("combat power ignores currency, economic gems and repeated summon slots", () => {
+  const a = newAccount(now);
+  const power = combatPower(a);
+  a.equippedGem = "gold";
+  a.gold += 100000;
+  a.diamonds += 100000;
+  a.sequence = Array(5).fill("sheep");
+  assert.equal(combatPower(a), power);
+});
 test("production uses elapsed time once and does not double pay on repeated calls", () => {
   const a = newAccount(now);
   a.records[1] = { gold: 100, diamonds: 0.125 };

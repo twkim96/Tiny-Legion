@@ -1,4 +1,5 @@
 import { UNITS, STAGES } from "./data.js";
+import { UNIT_LEVEL_GROWTH } from "./engine.js";
 export const SAVE_KEY = "tiny-legion.save.v1";
 export const GEMS = [
   {
@@ -174,6 +175,21 @@ export function gemModifiers(a) {
     attack: a.equippedGem === "attack" ? 1.1 : 1,
     hp: a.equippedGem === "hp" ? 1.15 : 1,
   };
+}
+export function combatPower(a) {
+  const levels = battleLevels(a),
+    modifiers = gemModifiers(a);
+  return Math.round(
+    UNITS.reduce((total, unit) => {
+      const scale = 1 + (levels[unit.id] - 1) * UNIT_LEVEL_GROWTH;
+      const hp = Math.round(unit.hp * scale * modifiers.hp);
+      const attack = Math.max(
+        1,
+        Math.round(unit.attack * scale * modifiers.attack),
+      );
+      return total + hp + (10 * attack) / unit.attackInterval;
+    }, 0),
+  );
 }
 export function recordIdle(a, result, snapshot, now = Date.now()) {
   accrue(a, now);

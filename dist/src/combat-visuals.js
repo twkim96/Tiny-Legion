@@ -1,4 +1,15 @@
 const clamp = (value, min = 0, max = 1) => Math.min(max, Math.max(min, value));
+export function battlefieldLayout(width, height) {
+  const ground = height * 0.74;
+  const castleSize = Math.min(115, height * 0.37, width * 0.105);
+  return {
+    ground,
+    castleSize,
+    playerX: width * (80 / 1200),
+    enemyX: width * (1120 / 1200),
+    healthY: ground - castleSize * (166 / 128) - 8,
+  };
+}
 const smoothstep = (value) => {
   const t = clamp(value);
   return t * t * (3 - 2 * t);

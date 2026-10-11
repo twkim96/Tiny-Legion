@@ -2,6 +2,7 @@ import { UNITS, ENEMIES, STAGES } from "./data.js";
 import { createBattle, fireCannon, stepBattle, summonUnit } from "./engine.js";
 import { icon, portrait } from "./art.js";
 import { Renderer } from "./renderer.js";
+import { battlefieldLayout } from "./combat-visuals.js";
 import {
   GEMS,
   newAccount,
@@ -15,6 +16,7 @@ import {
   refundLevels,
   battleLevels,
   gemModifiers,
+  combatPower,
   recordIdle,
   completeChallenge,
   recordSpeedrun,
@@ -314,6 +316,7 @@ function showResult(r, rewards) {
 function updateUi() {
   $("gold").textContent = fmt(account.gold);
   $("diamonds").textContent = fmt(account.diamonds);
+  $("combat-power").textContent = fmt(combatPower(account));
   const record = account.records[account.idleStage];
   $("income-rate").innerHTML =
     `${fmt((record?.gold || 0) * 30)}<span class="muted"> / 시간</span>`;
@@ -335,21 +338,29 @@ function updateUi() {
   $("pause").innerHTML = icon(paused ? "play" : "pause");
   $("pause").setAttribute("aria-label", paused ? "계속하기" : "일시 정지");
   $("pause").disabled = !battle || battle.finished;
-  const hp = battle ? battle.playerHp / battle.playerMaxHp : 1;
-  $("player-health").style.width = `${hp * 100}%`;
-  $("player-health-text").textContent = `${Math.round(hp * 100)}%`;
-  if (mode === "idle") {
-    const current = Math.min(3, Math.floor((battle?.time || 0) / 40) + 1);
-    $("enemy-health").style.width = `${(1 - (battle?.time || 0) / 120) * 100}%`;
-    $("enemy-health-text").textContent = `${current} / 3`;
-    $("enemy-health-label").innerHTML = icon("flag");
-  } else {
-    $("enemy-health").style.width =
-      `${battle ? Math.max(0, battle.enemyHp / battle.enemyMaxHp) * 100 : 100}%`;
-    $("enemy-health-text").textContent =
-      `${Math.round(battle ? Math.max(0, battle.enemyHp / battle.enemyMaxHp) * 100 : 100)}%`;
-    $("enemy-health-label").innerHTML = icon("castle");
+  const layout = battlefieldLayout(renderer.width, renderer.height);
+  const enemyMax =
+    battle?.enemyMaxHp ??
+    Math.round(STAGES[stageId - 1].enemyHp * (mode === "speedrun" ? 0.65 : 1));
+  for (const [team, x, max, current] of [
+    [
+      "player",
+      layout.playerX,
+      battle?.playerMaxHp ?? 1000,
+      battle?.playerHp ?? 1000,
+    ],
+    ["enemy", layout.enemyX, enemyMax, battle?.enemyHp ?? enemyMax],
+  ]) {
+    const hp = Math.max(0, Math.min(max, current));
+    const health = $(`${team}-castle-health`);
+    health.style.left = `${x}px`;
+    health.style.top = `${layout.healthY}px`;
+    $(`${team}-health`).style.width = `${(hp / max) * 100}%`;
+    $(`${team}-health-text`).textContent = `${fmt(hp)} / ${fmt(max)}`;
   }
+  $("wave-progress").hidden = mode !== "idle";
+  $("wave-progress").textContent =
+    `${Math.min(3, Math.floor((battle?.time || 0) / 40) + 1)} / 3`;
   $("battle-gold").textContent = fmt(battle?.gold ?? 220);
   $("wallet-fill").style.width = `${(battle?.gold ?? 220) / 10}%`;
   let note = waiting
