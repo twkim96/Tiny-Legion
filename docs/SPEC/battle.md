@@ -3,6 +3,7 @@
 ## 모드와 시간
 
 - 좌우 직선 전장, 아군·적 성, 현재 한 지역 10스테이지입니다. 동료·적·고정 웨이브의 실제 값은 `dist/src/data.js`의 `UNITS`, `ENEMIES`, `STAGES`가 담당합니다.
+- 모든 모드·스테이지의 첫 웨이브는 오른쪽 적 성 앞에서 생성되어 왼쪽으로 이동합니다. 첫 생성 기준 좌표는 1080이며, 적 성 좌표는 1120입니다. 첫 적을 전장 중간에 미리 배치하지 않습니다. 저장 시간·오프라인 생산 정산은 적의 생성 위치에 영향을 주지 않습니다. 후속 웨이브의 위치·등장 시간·수량은 각 스테이지 데이터를 따릅니다.
 - 방치는 자동 소환으로 최대 120초 성을 방어합니다. 아군 성이 파괴되면 측정을 끝냅니다.
 - 도전은 소환 카드 또는 키보드로 수동 소환해 적 성을 파괴합니다. 성 파괴 또는 120초 제한으로 종료합니다. 첫 완료 보상과 다음 스테이지 해금은 [성장·저장](account.md)을 따릅니다.
 - 속공은 1-3 완료 이후 개방됩니다. 현재 1-1의 웨이브를 사용하고 적 성 체력은 도전의 65%입니다. 수동 소환으로 클리어 시간을 줄입니다.
@@ -66,7 +67,7 @@
 - `dist/src/engine.js`: `createBattle`, `stepBattle`, `summonUnit`, `runIdleQueue`, `resolveAttacks`, `advanceProjectiles`, `applyDamage`, `fireCannon`, `calculateIdleReward`.
 - `dist/src/account.js`: `accrue`, `recordIdle`, `recordSpeedrun`, `claimSpeedrun`, `dailyKey`.
 - `dist/src/main.js`: `startBattle`, `finishBattle`, `renderSequence`, `renderIncome`, `frame`.
-- `tests/engine.test.js`: 골드 우선 검사, 쿨타임 스킵·중복, 순회 종료, 결정적 전투, 승패·보상, 준비 후 타격, 양측 투사체 도착·발사자/목표 사망·범위 피해, 회복 시점, 경직·연속 피격·동시 치명타.
+- `tests/engine.test.js`: 모든 모드·스테이지의 첫 웨이브가 적 성 앞에서 생성되어 왼쪽으로 이동하는지, 골드 우선 검사, 쿨타임 스킵·중복, 순회 종료, 결정적 전투, 승패·보상, 준비 후 타격, 양측 투사체 도착·발사자/목표 사망·범위 피해, 회복 시점, 경직·연속 피격·동시 치명타.
 - `tests/account.test.js`: 생산 중복 방지·8시간 한도, 기록 보너스 고정, 일일 수령·연습·일자 초기화. UI의 날짜 교차 전투와 실기기 복귀는 이 테스트만으로 확인되지 않습니다.
 
 - `dist/src/combat-rules.js`, `tests/specialization.test.js`: 대상별 공격·유효 체력·지속시간, 가산 상한, 방어막 초과 피해, 구름 오라·사망 후 발사체, 재생 억제·종료, 특화 없는 돌파·방치 생존.

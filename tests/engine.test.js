@@ -7,9 +7,32 @@ import {
   stepBattle,
   summonUnit,
 } from "../dist/src/engine.js";
-import { ENEMIES, UNITS } from "../dist/src/data.js";
+import { ENEMIES, STAGES, UNITS } from "../dist/src/data.js";
 
 const FIXED_STEP = 1 / 30;
+
+test("opening waves enter from the enemy castle and walk left in every mode", () => {
+  for (const mode of ["idle", "challenge", "speedrun"]) {
+    for (const stage of STAGES) {
+      const state = createBattle({ mode, stageId: stage.id, sequence: [] });
+      const wave = stage.waves[0];
+      const group = wave.enemies[0];
+      assert.equal(state.time, 0);
+      assert.equal(state.units.length, 0);
+      stepBattle(state, wave.time - FIXED_STEP);
+      assert.equal(state.units.length, 0);
+
+      stepBattle(state, FIXED_STEP + (group.count - 1) * group.interval + 0.1);
+      const spawns = state.events.filter((event) => event.type === "spawn");
+      assert.equal(spawns.length, group.count, `${mode} stage ${stage.id}`);
+      assert.ok(spawns.every((event) => event.x >= 1000 && event.x < 1120));
+      assert.ok(state.units.every((enemy) => enemy.team === "enemy"));
+      for (let index = 0; index < spawns.length; index++) {
+        assert.ok(state.units[index].x < spawns[index].x);
+      }
+    }
+  }
+});
 
 test("every companion can be afforded by saving and spends its full price", () => {
   for (const unit of UNITS) {
@@ -121,7 +144,8 @@ test("same inputs produce identical deterministic battles", () => {
   const left = createBattle({ mode: "idle", stageId: 1 });
   const right = createBattle({ mode: "idle", stageId: 1 });
   let sawCombat = false;
-  for (let frame = 0; frame < 300; frame += 1) {
+  // Run through combat even when the opening wave starts at the distant castle.
+  for (let frame = 0; frame < 3600 && !left.finished; frame += 1) {
     stepBattle(left, FIXED_STEP);
     stepBattle(right, FIXED_STEP);
     sawCombat ||= left.events.some((event) => event.type === "attack");
@@ -129,6 +153,7 @@ test("same inputs produce identical deterministic battles", () => {
 
   assert.deepEqual(left, right);
   assert.equal(sawCombat, true);
+  assert.equal(left.finished, true);
 });
 
 test("idle survival completes with normalized raw HP and integer reward", () => {

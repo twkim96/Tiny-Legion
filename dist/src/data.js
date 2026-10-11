@@ -1,5 +1,5 @@
 // Initial tuning, subject to play acceptance. Bonuses of the same kind add.
-export const BALANCE_VERSION = "companions-1";
+export const BALANCE_VERSION = "enemy-entry-1";
 export const ATTRIBUTES = [
   { id: "wild", name: "야생", symbol: "♧" },
   { id: "machine", name: "기계", symbol: "⚙" },
@@ -444,7 +444,7 @@ export const STAGES = [
     waves: [
       {
         time: 0.6,
-        enemies: [{ id: "beetle", count: 2, interval: 1.3, x: 360 }],
+        enemies: [{ id: "beetle", count: 2, interval: 1.3, x: 1080 }],
       },
       {
         time: 13,
@@ -489,7 +489,7 @@ export const STAGES = [
     enemyHp: 2200,
     enemyAttack: 1.05,
     waves: [
-      { time: 1, enemies: [{ id: "beetle", count: 3, interval: 1.2, x: 400 }] },
+      { time: 1, enemies: [{ id: "beetle", count: 3, interval: 1.2, x: 1080 }] },
       {
         time: 17,
         enemies: [{ id: "mushroom", count: 4, interval: 1.3, x: 930 }],
@@ -526,7 +526,7 @@ export const STAGES = [
     enemyHp: 2450,
     enemyAttack: 1.1,
     waves: [
-      { time: 1, enemies: [{ id: "beetle", count: 3, interval: 1, x: 410 }] },
+      { time: 1, enemies: [{ id: "beetle", count: 3, interval: 1, x: 1080 }] },
       { time: 18, enemies: [{ id: "boar", count: 2, interval: 1.8, x: 950 }] },
       {
         time: 38,
@@ -557,7 +557,7 @@ export const STAGES = [
     enemyHp: 2700,
     enemyAttack: 1.15,
     waves: [
-      { time: 1, enemies: [{ id: "beetle", count: 4, interval: 1, x: 420 }] },
+      { time: 1, enemies: [{ id: "beetle", count: 4, interval: 1, x: 1080 }] },
       {
         time: 17,
         enemies: [
@@ -597,7 +597,7 @@ export const STAGES = [
     enemyHp: 3000,
     enemyAttack: 1.2,
     waves: [
-      { time: 1, enemies: [{ id: "beetle", count: 4, interval: 0.9, x: 420 }] },
+      { time: 1, enemies: [{ id: "beetle", count: 4, interval: 0.9, x: 1080 }] },
       {
         time: 17,
         enemies: [
@@ -636,7 +636,7 @@ export const STAGES = [
     waves: [
       {
         time: 1,
-        enemies: [{ id: "beetle", count: 5, interval: 0.85, x: 430 }],
+        enemies: [{ id: "beetle", count: 5, interval: 0.85, x: 1080 }],
       },
       {
         time: 18,
@@ -677,7 +677,7 @@ export const STAGES = [
     enemyHp: 3750,
     enemyAttack: 1.3,
     waves: [
-      { time: 1, enemies: [{ id: "beetle", count: 5, interval: 0.8, x: 430 }] },
+      { time: 1, enemies: [{ id: "beetle", count: 5, interval: 0.8, x: 1080 }] },
       {
         time: 17,
         enemies: [
@@ -719,7 +719,7 @@ export const STAGES = [
     waves: [
       {
         time: 1,
-        enemies: [{ id: "beetle", count: 6, interval: 0.75, x: 440 }],
+        enemies: [{ id: "beetle", count: 6, interval: 0.75, x: 1080 }],
       },
       {
         time: 17,
@@ -760,7 +760,7 @@ export const STAGES = [
     enemyHp: 4700,
     enemyAttack: 1.4,
     waves: [
-      { time: 1, enemies: [{ id: "beetle", count: 6, interval: 0.7, x: 440 }] },
+      { time: 1, enemies: [{ id: "beetle", count: 6, interval: 0.7, x: 1080 }] },
       {
         time: 16,
         enemies: [
@@ -802,7 +802,7 @@ export const STAGES = [
     waves: [
       {
         time: 1,
-        enemies: [{ id: "beetle", count: 7, interval: 0.65, x: 450 }],
+        enemies: [{ id: "beetle", count: 7, interval: 0.65, x: 1080 }],
       },
       {
         time: 16,
