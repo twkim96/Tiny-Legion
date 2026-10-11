@@ -35,7 +35,8 @@ import {
   levelCost,
   growUnit,
   enhanceUnit,
-  refundLevels,
+  refundUnitLevels,
+  unitLevelRefund,
   battleLevels,
   gemModifiers,
   combatPower,
@@ -581,7 +582,11 @@ function finishBattle() {
           text: "성을 지켜냈어요! 이제 도토리로 동료의 레벨을 올릴 수 있습니다.<br>방치 미션 보상을 받고 동료를 성장시켜 보세요.",
           actions: '<button class="primary-button" id="growth-guide-done">확인</button>',
         });
-        $("growth-guide-done").onclick = () => { closeModal(); actOnMission(); };
+        $("growth-guide-done").onclick = () => {
+          if (currentMission(account)?.completed) actOnMission();
+          closeIdleResult();
+          openModal("동료", "growth", renderGrowth);
+        };
       });
     }
     return;
@@ -996,11 +1001,11 @@ function renderGrowth() {
     .map((u) => {
       const level = account.levels[u.id],
         scale = 1 + (level + account.special[u.id] - 1) * 0.12;
-      return `<article class="growth-card">${rarityBadge(u)}${portrait(u.id)}<span class="level-label">Lv. ${level}${account.special[u.id] ? ` · +${account.special[u.id]}` : ""}</span><h3>${u.name}</h3><div class="stats"><span>${icon("heart")}${Math.round(u.hp * scale)}</span><span>${icon("swords")}${Math.round(u.attack * scale)}</span></div><button class="primary-button" data-grow="${u.id}" ${account.gold < levelCost(level) || level >= 100 ? "disabled" : ""}>${icon(level >= 100 ? "check" : "acorn")}${level >= 100 ? "완료" : fmt(levelCost(level)) + " ↑"}</button><button class="inspect-button" data-inspect="${u.id}">자세히</button>${account.fragments[u.id] > 0 ? `<button class="secondary-button fragment-button" data-enhance="${u.id}" ${account.fragments[u.id] < 3 || account.special[u.id] >= 20 ? "disabled" : ""} style="font-size:10px;margin-top:9px;padding:5px 7px">조각 ${account.fragments[u.id]} / 3</button>` : ""}</article>`;
+      return `<article class="growth-card">${rarityBadge(u)}${portrait(u.id)}<span class="level-label">Lv. ${level}${account.special[u.id] ? ` · +${account.special[u.id]}` : ""}</span><h3>${u.name}</h3><div class="stats"><span>${icon("heart")}${Math.round(u.hp * scale)}</span><span>${icon("swords")}${Math.round(u.attack * scale)}</span></div><button class="primary-button" data-grow="${u.id}" ${account.gold < levelCost(level) || level >= 100 ? "disabled" : ""}>${icon(level >= 100 ? "check" : "acorn")}${level >= 100 ? "완료" : fmt(levelCost(level)) + " ↑"}</button><button class="inspect-button" data-inspect="${u.id}">자세히</button><button class="inspect-button" data-refund="${u.id}" aria-label="${u.name} 레벨 초기화" ${level <= 1 ? "disabled" : ""}>초기화</button>${account.fragments[u.id] > 0 ? `<button class="secondary-button fragment-button" data-enhance="${u.id}" ${account.fragments[u.id] < 3 || account.special[u.id] >= 20 ? "disabled" : ""} style="font-size:10px;margin-top:9px;padding:5px 7px">조각 ${account.fragments[u.id]} / 3</button>` : ""}</article>`;
     })
     .join(
       "",
-    )}</div><div class="modal-footer"><span class="resource-inline">${icon("acorn")}${fmt(account.gold)}</span><button class="secondary-button" id="refund-levels">${icon("reset")}초기화</button></div>`;
+    )}</div><div class="modal-footer"><span class="resource-inline">${icon("acorn")}${fmt(account.gold)}</span></div>`;
   $("modal-content")
     .querySelectorAll("[data-grow]")
     .forEach(
@@ -1031,23 +1036,33 @@ function renderGrowth() {
   $("modal-content")
     .querySelectorAll("[data-inspect]")
     .forEach((b) => (b.onclick = () => openCodex(b.dataset.inspect)));
-  $("refund-levels").onclick = () =>
-    openModal("초기화", "refund", () => {
-      $("modal-content").innerHTML =
-        messagePanel({ text: "사용한 레벨업 도토리를 모두 돌려받습니다.<br>동료의 레벨은 1이 되고, 방치 기록은 다시 측정해야 합니다.<br>모집 조각과 강화는 유지됩니다.", actions: '<button class="secondary-button" id="cancel-refund">돌아가기</button><button class="primary-button" id="confirm-refund">초기화</button>' });
-      $("cancel-refund").onclick = () =>
-        openModal("동료", "growth", renderGrowth);
-      $("confirm-refund").onclick = () => {
-        const gold = refundLevels(account);
-        persist();
-        if (mode === "idle") startBattle();
-        else readyBattle();
-        toast(`${fmt(gold)} 도토리를 돌려받았습니다.`);
-        openModal("동료", "growth", renderGrowth);
-        updateUi();
-      };
-    });
+  $("modal-content").querySelectorAll("[data-refund]").forEach((button) => {
+    button.onclick = () => showUnitRefund(button.dataset.refund);
+  });
 }
+function showUnitRefund(id) {
+  const refunded = unitLevelRefund(account, id);
+  if (!growthUnlocked(account) || !refunded) return;
+  openModal(`${names[id]} 초기화`, "refund", () => {
+    $("modal-content").innerHTML = messagePanel({
+      companion: id,
+      text: `${names[id]}의 일반 레벨을 1로 되돌리고<br>도토리 ${fmt(refunded)}개를 돌려받습니다.<br>방치 기록은 다시 측정해야 합니다.`,
+      actions: '<button class="secondary-button" id="cancel-refund">취소</button><button class="primary-button" id="confirm-refund">초기화</button>',
+    });
+    $("cancel-refund").onclick = () => openModal("동료", "growth", renderGrowth);
+    $("confirm-refund").onclick = () => {
+      const gold = refundUnitLevels(account, id);
+      if (!gold) return;
+      persist();
+      if (mode === "idle") startBattle();
+      else readyBattle();
+      toast(`${names[id]} · 도토리 +${fmt(gold)}`);
+      openModal("동료", "growth", renderGrowth);
+      updateUi();
+    };
+  });
+}
+
 function renderSequence() {
   sequenceDraft ??= [...account.sequence];
   $("modal-content").innerHTML =

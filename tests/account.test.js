@@ -6,7 +6,9 @@ import {
   recordIdle,
   claimSpeedrun,
   recordSpeedrun,
-  refundLevels,
+  refundUnitLevels,
+  unitLevelRefund,
+  levelCost,
   growUnit,
   normalizeAccount,
   completeChallenge,
@@ -130,7 +132,7 @@ test("level refund restores spent gold and invalidates production records", () =
   assert.ok(growUnit(a, "sheep"));
   assert.ok(growUnit(a, "sheep"));
   a.records[1] = { gold: 100, diamonds: 0.125 };
-  refundLevels(a, now);
+  refundUnitLevels(a, "sheep", now);
   assert.equal(a.gold, start);
   assert.equal(a.levels.sheep, 1);
   assert.deepEqual(a.records, {});
@@ -474,4 +476,33 @@ test("hidden idle-result stages normalize uniquely while sound and speed persist
   };
   assert.equal(saveAccount(account, storage), true);
   assert.deepEqual(loadAccount(storage, now).account.settings, account.settings);
+});
+
+
+test("individual level refunds settle earned production and preserve other growth and progress", () => {
+  const a=completedAccount();
+  a.owned.squirrel=true;
+  a.gold=10000;
+  growUnit(a,"sheep"); growUnit(a,"sheep"); growUnit(a,"squirrel");
+  a.special.sheep=2; a.fragments.sheep=7;
+  a.highestCleared=3;
+  a.records[1]={gold:120,diamonds:.5};
+  a.idleStage=1;
+  const before=JSON.parse(JSON.stringify(a));
+  const refund=levelCost(1)+levelCost(2);
+  assert.equal(unitLevelRefund(a,"sheep"),refund);
+  assert.equal(refundUnitLevels(a,"sheep",now+120000),refund);
+  assert.equal(a.gold,before.gold+120+refund);
+  assert.equal(a.diamonds,before.diamonds+.5);
+  assert.equal(a.levels.sheep,1);
+  assert.equal(a.levels.squirrel,2);
+  for(const key of ["special","fragments","owned","sequence","highestCleared","daily","missions","earlyGuide"]) assert.deepEqual(a[key],before[key]);
+  assert.deepEqual(a.records,{});
+  const after=JSON.stringify(a);
+  for(const id of ["sheep","missing","rabbit",undefined]) assert.equal(refundUnitLevels(a,id,now+240000),0);
+  assert.equal(JSON.stringify(a),after);
+  const restored=normalizeAccount(JSON.parse(after),now+120000);
+  assert.equal(restored.levels.sheep,1);
+  assert.equal(restored.levels.squirrel,2);
+  assert.equal(restored.special.sheep,2);
 });

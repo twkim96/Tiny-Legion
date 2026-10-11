@@ -7,7 +7,7 @@
 - 시작 도토리 600, 다이아 60, 신규 계정의 기본 동료는 양 방패 1종입니다. 도토리는 동물이 모아 쓰는 강화용 계정 재화이며, 소환에 사용하는 전투 골드와 구분합니다.
 - 일반 레벨은 도토리로 올리며 비용은 증가합니다. 현재 상한은 100, 공격·체력은 전투 적용 레벨에 따라 선형 증가합니다.
 - 동료 15종 중 신규 계정은 양 방패만 보유합니다. 첫 1-1 실패 뒤 씨앗 다람쥐를 무료 확정 모집하며 1-2 첫 실패 뒤 속공 토끼를 무료 확정 모집하고 나머지는 1-2 방치 안내 이후 일반 모집으로 획득합니다. 기존 계정의 보유 동료는 유지합니다. 모집의 희귀도·비용·보장은 아래 계약을 따릅니다. 특별강화는 같은 동료 조각 3개로 1단계, 현재 상한 20입니다. 특별강화는 일반 레벨과 별도 저장하고 전투 적용 레벨에 합산합니다.
-- 일반 레벨 전체 초기화는 무료이며 투자 도토리를 전액 환급합니다. 특별강화·조각·해금 진행은 보존하고 생산 기록은 무효화합니다. 초기화 전 누적 생산은 먼저 정산합니다.
+- 일반 레벨 초기화는 동료 카드에서 한 명씩 무료로 진행하며 선택한 동료의 투자 도토리를 전액 환급하고 해당 일반 레벨만 1로 돌립니다. 확인창에 동료와 환급량을 표시합니다. 다른 동료 레벨·특별강화·조각·보유·편성·해금 진행은 보존하고 생산 기록은 무효화합니다. 초기화 전 누적 생산은 먼저 정산합니다. 레벨 1·미보유·잘못된 동료 또는 성장 잠금 상태에서는 환급·기록 삭제를 하지 않고 반복 확인으로 중복 지급하지 않습니다.
 - 도전 진행도에 따라 다음 스테이지를 엽니다. 각 스테이지의 첫 완료만 도토리·다이아를 지급합니다.
 - 일반 레벨·특별강화와 보석은 속성에 관계없는 기본 능력치를 올립니다. 역할별 속성 특화와 기믹 대응은 [전투](battle.md)의 계약을 따릅니다. 현재 특별강화는 특화 배율을 추가로 높이지 않습니다.
 - 신규 계정은 1-2 방치 편성 미션을 마친 뒤 일반 레벨업·특별강화·일반 모집을 사용 가능하고, 1-3 완료 뒤 속공·보석을 엽니다. 원본 기획의 진행도 기반 성장 해금 확대와 상위 10명 동기화는 [확장 설계](expansion.md)의 미구현 방향입니다.
@@ -25,7 +25,7 @@
 - 성장 해금 전 일반 레벨업과 특별강화를 계정 함수에서도 차단합니다. 일반 무작위 모집도 뒤로 미뤄 이 구간은 양 방패·씨앗 다람쥐·속공 토끼로 진행합니다. 1-3 이상의 도전은 1-2 방치 미션 이후 열립니다.
 - 신규 계정의 순서 버튼·메뉴 편성 교체는 1-2 방치에서 처음 실패했을 때 열립니다. 그 전에는 화면 진입도 차단하고 기존 성장 계정은 기존대로 사용할 수 있습니다.
 - 방치 실패 후 순서에서 토끼의 `교체` → `비우기` → `적용`을 안내합니다. 모든 토끼 슬롯을 비우고 동료를 한 명 이상 남긴 편성을 적용해야 방치 재도전 단계로 갑니다. 토끼 보유는 유지되며 수동 성 공략에 다시 사용할 수 있습니다. 적용 시 방치를 새로 시작합니다.
-- 1-2 방치 승리 직후 레벨업을 열고 안내창을 표시합니다. 방치 보상을 받으면 레벨업 미션을 표시하고 누르면 성장창으로 갑니다. 먼저 레벨을 올려도 두 보상을 순서대로 받을 수 있으며 ID별 한 번만 지급합니다.
+- 1-2 방치 승리 직후 레벨업을 열고 작은 안내창을 표시합니다. 확인하면 완료된 현재 미션 보상을 한 번 받고 방치 결과창을 닫은 뒤 동료창을 바로 엽니다. 방치 보상을 받으면 레벨업 미션을 표시하고 해당 미션에서도 동료창으로 갈 수 있습니다. 먼저 레벨을 올려도 두 보상을 순서대로 받을 수 있으며 ID별 한 번만 지급합니다.
 - 새 단계가 없는 이전 저장에서 1-2 이상 완료했거나 일반/특별강화에 투자한 계정은 `complete`, `legacy: true`로 이주해 투자를 유지하고 추가 튜토리얼을 요구하지 않습니다. 미성장·1-1 이하 계정은 새 1-2 안내부터 진행합니다. 각 단계 새로고침·불러오기는 지급과 미션 수령 상태를 보존합니다.
 
 ## 동료 모집
@@ -67,7 +67,7 @@
 
 ## 코드와 기존 검증
 
-- `dist/src/account.js`: `newAccount`, `normalizeAccount`, `isOnboarding`, `advanceOnboardingBattle`, `recruitOnboardingCompanion`, `finishOnboarding`, `growUnit`, `enhanceUnit`, `refundLevels`, `combatPower`, `completeChallenge`, `currentMission`, `recordMissionBattle`, `claimMission`, `growthUnlocked`, `recruitEarlyRabbit`, `applyGuideSequence`, `recruitUnits`, `ownsUnit`, `recruitGem`, `loadAccount`, `saveAccount`.
+- `dist/src/account.js`: `newAccount`, `normalizeAccount`, `isOnboarding`, `advanceOnboardingBattle`, `recruitOnboardingCompanion`, `finishOnboarding`, `growUnit`, `enhanceUnit`, `unitLevelRefund`, `refundUnitLevels`, `combatPower`, `completeChallenge`, `currentMission`, `recordMissionBattle`, `claimMission`, `growthUnlocked`, `recruitEarlyRabbit`, `applyGuideSequence`, `recruitUnits`, `ownsUnit`, `recruitGem`, `loadAccount`, `saveAccount`.
 - `dist/src/main.js`: `persist`, `renderGrowth`, `renderRecruit`, `renderSettings`.
 - `tests/account.test.js`: 첫 안내 단계 전환·재접속·확정 지급·1-1 보상 중복 방지, 환급·기록 무효화, 보석 모집, 손상 입력·짧은 순서 정규화. 미션 완료·수령 중복 방지·레거시 이주·스테이지별 결과창 설정 보존도 검증합니다. 파일 다이얼로그·저장 불가 안내·실기기 수명주기 검증은 자동 테스트와 별도입니다.
 

@@ -3410,6 +3410,7 @@ html:fullscreen .game {
   --modal-height: 560px;
   padding: max(12px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
 }
+.modal-backdrop[data-layout="notice"] { --modal-width: 320px; --modal-height: 240px; }
 .modal-backdrop[data-layout="message"] { --modal-width: 440px; --modal-height: 400px; }
 .modal-backdrop[data-layout="collection"] { --modal-width: 800px; --modal-height: 640px; }
 .modal-backdrop .modal {
@@ -3448,3 +3449,10 @@ html:fullscreen .game {
   .modal-message-actions > button { min-height: 36px; }
   .result-card { padding: 18px 24px; }
 }
+
+.growth-card .inspect-button:disabled { opacity: .4; cursor: default; text-decoration: none; }
+.modal-backdrop[data-layout="notice"] .modal-header { padding: 10px 14px; }
+.modal-backdrop[data-layout="notice"] .modal-header h2 { font-size: 16px; }
+.modal-backdrop[data-layout="notice"] .modal-content { padding: 14px 16px; }
+.modal-backdrop[data-layout="notice"] .modal-message { gap: 12px; }
+.modal-backdrop[data-layout="notice"] .modal-message > p { font-size: 12px; }

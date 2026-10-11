@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
-import { newAccount, currentMission, recordMissionBattle, claimMission, accrue, recordIdle, isOnboarding, recruitOnboardingCompanion, growthUnlocked, sequenceUnlocked, recruitEarlyRabbit, applyGuideSequence, canUseUnit, ownsUnit } from '../dist/src/account.js';
+import { newAccount, currentMission, recordMissionBattle, claimMission, accrue, recordIdle, isOnboarding, recruitOnboardingCompanion, growthUnlocked, sequenceUnlocked, growUnit, refundUnitLevels, unitLevelRefund, levelCost, recruitEarlyRabbit, applyGuideSequence, canUseUnit, ownsUnit } from '../dist/src/account.js';
 import { STAGES, UNITS, stageLabel } from '../dist/src/data.js';
 import { recruitPanel } from '../dist/src/recruitment-ui.js';
 import { modalLayout, messagePanel } from '../dist/src/modal-ui.js';
@@ -35,8 +35,9 @@ function harness(names) {
   account.highestCleared = 1;
   const calls = [];
   const context = {
-    $, account, calls, STAGES, stageLabel, currentMission, recordMissionBattle, claimMission, accrue, recordIdle, isOnboarding, recruitOnboardingCompanion, growthUnlocked, sequenceUnlocked, recruitEarlyRabbit, applyGuideSequence, canUseUnit, ownsUnit, UNITS,
+    $, account, calls, STAGES, stageLabel, currentMission, recordMissionBattle, claimMission, accrue, recordIdle, isOnboarding, recruitOnboardingCompanion, growthUnlocked, sequenceUnlocked, growUnit, refundUnitLevels, unitLevelRefund, levelCost, recruitEarlyRabbit, applyGuideSequence, canUseUnit, ownsUnit, UNITS,
     modalLayout, messagePanel, modalKind:null, modalRender:null, lastFocused:null, hideTooltip(){},
+    readyBattle(){calls.push("ready");}, openCodex(){},
     sequenceDraft:null, names:Object.fromEntries(UNITS.map(u=>[u.id,u.name])), portrait:id=>`[${id}]`, rarityBadge:()=>"",
     mode: 'idle', stageId: 1, idleResultStage: null, resultHandled: false, restartAt: 0,
     battle: {result: {won:true, survival:120, hpRatio:1, reward:80}, finished:true, time:120, events:[]},
@@ -177,7 +178,7 @@ test('idle failure opens defense lesson while the automatic retry keeps running'
   assert.ok(c.calls.includes('step'));
 });
 test('second idle completion announces growth and its mission opens the growth screen',()=>{
-  const c=harness(['settleProduction','showIdleResult','finishBattle','actOnMission']);
+  const c=harness(['openModal','settleProduction','closeIdleResult','showIdleResult','finishBattle','actOnMission']);
   c.stageId=2;
   c.account.highestCleared=2;
   c.account.earlyGuide.phase='idle-retry';
@@ -188,11 +189,17 @@ test('second idle completion announces growth and its mission opens the growth s
   c.renderGrowth=()=>c.calls.push('growth-screen');
   c.finishBattle();
   assert.equal(growthUnlocked(c.account),true);
-  assert.ok(c.calls.some(x=>Array.isArray(x)&&x[1]==='growth-guide'));
+  assert.equal(c.$('modal-backdrop').dataset.kind,'growth-guide');
+  assert.equal(c.$('modal-backdrop').dataset.layout,'notice');
   c.$('growth-guide-done').onclick();
   assert.equal(currentMission(c.account).id,'growth-intro');
-  c.actOnMission();
+  assert.equal(c.$('modal-backdrop').dataset.kind,'growth');
   assert.ok(c.calls.includes('growth-screen'));
+  assert.equal(c.$('idle-result-popup').hidden,true);
+  assert.equal(c.paused,false);
+  const balance=c.account.gold;
+  c.$('growth-guide-done').onclick();
+  assert.equal(c.account.gold,balance);
 });
 
 
@@ -278,4 +285,34 @@ test('speedrun success keeps reward and practice actions, final challenge has on
   c.showResult({won:true,time:30},{gold:0,diamonds:0});
   assert.equal([...c.$('battle-result').innerHTML.matchAll(/<button/g)].length,1);
   assert.match(c.$('battle-result').innerHTML,/return-idle/);
+});
+
+
+test('each companion has a refund action; cancel preserves growth and confirm resets only that companion',()=>{
+  const c=harness(['openModal','renderGrowth','showUnitRefund']);
+  c.account.earlyGuide.phase='complete';
+  c.account.owned.squirrel=true;
+  c.account.levels.sheep=3;
+  c.account.levels.squirrel=4;
+  c.renderGrowth();
+  assert.doesNotMatch(c.$('modal-content').innerHTML,/id="refund-levels"/);
+  const initial=JSON.stringify(c.account);
+  c.$('modal-content:data-refund:sheep').onclick();
+  assert.match(c.$('modal-title').textContent,/양 방패/);
+  assert.equal(c.$('modal-backdrop').dataset.layout,'message');
+  assert.match(c.$('modal-content').innerHTML,/도토리 220개/);
+  c.$('cancel-refund').onclick();
+  assert.equal(JSON.stringify(c.account),initial);
+  c.$('modal-content:data-refund:sheep').onclick();
+  c.$('confirm-refund').onclick();
+  assert.equal(c.account.levels.sheep,1);
+  assert.equal(c.account.levels.squirrel,4);
+  assert.equal(c.$('modal-backdrop').dataset.kind,'growth');
+  assert.ok(c.calls.includes('start'));
+  const after=JSON.stringify(c.account);
+  c.$('confirm-refund').onclick();
+  assert.equal(JSON.stringify(c.account),after);
+  c.$('modal-content:data-refund:squirrel').onclick();
+  c.$('confirm-refund').onclick();
+  assert.equal(c.account.levels.squirrel,1);
 });

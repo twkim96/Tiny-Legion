@@ -4,7 +4,7 @@ import { portrait } from "./art.js";
 const layouts = {
   onboarding: "message",
   "defense-guide": "message",
-  "growth-guide": "message",
+  "growth-guide": "notice",
   refund: "message",
   "reset-account": "message",
   import: "message",

@@ -271,15 +271,20 @@ export function enhanceUnit(a, id) {
   a.special[id]++;
   return true;
 }
-export function refundLevels(a, now = Date.now()) {
-  if (isOnboarding(a)) return 0;
-  accrue(a, now);
+export function unitLevelRefund(a, id) {
+  if (!ownsUnit(a, id)) return 0;
   let refunded = 0;
-  for (const u of UNITS) {
-    for (let l = 1; l < a.levels[u.id]; l++) refunded += levelCost(l);
-    a.levels[u.id] = 1;
-  }
+  for (let l = 1; l < a.levels[id]; l++) refunded += levelCost(l);
+  return refunded;
+}
+export function refundUnitLevels(a, id, now = Date.now()) {
+  if (!growthUnlocked(a)) return 0;
+  const refunded = unitLevelRefund(a, id);
+  if (!refunded) return 0;
+  accrue(a, now);
+  a.levels[id] = 1;
   a.gold += refunded;
+  // Production was measured with the old growth, so it must be measured again.
   a.records = {};
   return refunded;
 }

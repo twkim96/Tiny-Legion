@@ -12,7 +12,7 @@ import {
   enhanceUnit,
   combatPower,
   recruitGem,
-  refundLevels,
+  refundUnitLevels,
   recruitOnboardingCompanion,
   advanceOnboardingBattle,
   saveAccount,
@@ -242,7 +242,7 @@ test("onboarding and early defense guide keep growth locked until 1-2 idle compl
   assert.equal(recruitUnits(account, 1, { random: () => 0 }), null);
   assert.equal(growUnit(account, "sheep"), false);
   assert.equal(enhanceUnit(account, "sheep"), false);
-  assert.equal(refundLevels(account, now), 0);
+  assert.equal(refundUnitLevels(account, "sheep", now), 0);
   assert.equal(recruitGem(account, "tickets", () => 0), null);
   assert.equal(JSON.stringify(account), snapshot);
   assert.equal(recruitOnboardingCompanion(account), null);
