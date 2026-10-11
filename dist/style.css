@@ -3647,3 +3647,18 @@ html:fullscreen .game {
   .modal-backdrop[data-kind="sequence"] .modal-footer { margin-top: 6px; }
   .modal-backdrop[data-kind="sequence"] #apply-sequence { padding: 8px 16px; min-height: 32px; }
 }
+.sequence-slot strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sequence-slot > small { position: absolute; bottom: 3px; left: 3px; font-size: 8px; }
+@media (max-height: 360px) and (orientation: landscape) {
+  .modal-backdrop[data-kind="sequence"] .modal-header { padding: 6px 12px; }
+  .modal-backdrop[data-kind="sequence"] .modal-header .icon-button { width: 32px; height: 32px; }
+  .modal-backdrop[data-kind="sequence"] .modal-content { padding: 8px 12px; }
+  .sequence-presets > button { padding: 4px 8px; }
+  .sequence-presets, .modal-backdrop[data-kind="sequence"] .preset-numbers, .modal-backdrop[data-kind="sequence"] .sequence-gem-label { margin-bottom: 4px; }
+  .modal-backdrop[data-kind="sequence"] .preset-numbers button { padding: 3px 0; }
+  .sequence-slot { grid-template-columns: 28px minmax(0, 1fr); padding: 4px; }
+  .sequence-slot .portrait, .sequence-slot .empty-sequence-art { width: 28px; height: 28px; }
+  .sequence-slot > button { min-height: 18px; padding: 2px; }
+  .sequence-hint { font-size: 10px; margin-top: 4px; }
+  .modal-backdrop[data-kind="sequence"] #apply-sequence { padding: 6px 14px; min-height: 28px; }
+}
