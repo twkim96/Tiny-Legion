@@ -1,4 +1,5 @@
 import { spriteSvg } from "./art.js";
+import { ENEMIES, UNITS } from "./data.js";
 import { sampleUnitPose, battlefieldLayout } from "./combat-visuals.js";
 const INK = "#4b5140";
 const MAX_FX = 96;
@@ -24,16 +25,12 @@ const ATTACK_KIND = {
   boar: "melee",
 };
 const SPRITES = {};
-for (const id of [
-  "sheep",
-  "rabbit",
-  "squirrel",
-  "teapot",
-  "cloud",
-  "beetle",
-  "mushroom",
-  "boar",
-]) {
+const SPRITE_IDS = new Set(
+  [...UNITS, ...ENEMIES]
+    .flatMap((definition) => [definition.id, definition.artId])
+    .filter(Boolean),
+);
+for (const id of SPRITE_IDS) {
   const im = new Image();
   im.src =
     "data:image/svg+xml;charset=utf-8," + encodeURIComponent(spriteSvg(id));

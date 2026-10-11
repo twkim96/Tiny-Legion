@@ -14,6 +14,7 @@ import {
   combatPower,
   battleLevels,
   gemModifiers,
+  ownsUnit,
 } from "../dist/src/account.js";
 import { createBattle, summonUnit } from "../dist/src/engine.js";
 import { UNITS } from "../dist/src/data.js";
@@ -30,7 +31,7 @@ test("combat power follows summoned stats after growth and combat gems", () => {
       modifiers: gemModifiers(a),
     });
     let expected = 0;
-    for (const definition of UNITS) {
+    for (const definition of UNITS.filter((u) => ownsUnit(a, u.id))) {
       battle.gold = 1000;
       assert.ok(summonUnit(battle, definition.id));
       const unit = battle.units.at(-1);

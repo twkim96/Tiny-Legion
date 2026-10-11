@@ -5,10 +5,18 @@ import {
   ATTRIBUTES,
   ROLE_SPECIALIZATION,
   BALANCE_VERSION,
+  RARITIES,
 } from "./data.js";
 import { createBattle, fireCannon, stepBattle, summonUnit } from "./engine.js";
 import { icon, portrait } from "./art.js";
 import { Renderer } from "./renderer.js";
+import {
+  recruitPanel,
+  probabilityPanel,
+  revealRecruit,
+  rarityBadge,
+  rarityOf,
+} from "./recruitment-ui.js";
 import { battlefieldLayout } from "./combat-visuals.js";
 import {
   GEMS,
@@ -29,7 +37,8 @@ import {
   recordSpeedrun,
   claimSpeedrun,
   speedrunReward,
-  recruitUnit,
+  recruitUnits,
+  ownsUnit,
   recruitGem,
 } from "./account.js";
 
@@ -40,13 +49,14 @@ const clock = (n) =>
 const precise = (n) =>
   `${Math.floor(n / 60)}:${(n % 60).toFixed(1).padStart(4, "0")}`;
 const unitById = Object.fromEntries(UNITS.map((u) => [u.id, u]));
-const names = {
+const names = Object.fromEntries(UNITS.map((u) => [u.id, u.name]));
+Object.assign(names, {
   sheep: "양 방패",
   rabbit: "목검 토끼",
   squirrel: "다람쥐",
   teapot: "주전자",
   cloud: "구름",
-};
+});
 const roles = {
   tank: "방어",
   fast: "돌격",
@@ -55,6 +65,7 @@ const roles = {
   support: "지원",
   melee: "근접",
   heavy: "돌파",
+  warrior: "전사",
 };
 const attributeById = Object.fromEntries(
   (ATTRIBUTES ?? []).map((attribute) => [attribute.id, attribute]),
@@ -207,6 +218,10 @@ function stageIntelMarkup(stage) {
 }
 let { account, error: loadError } = loadAccount();
 let sequenceDraft = null;
+let recruitCleanup = null;
+let recruitReceipt = null;
+let codexRarity = "all",
+  codexOwned = "all";
 const earned = accrue(account);
 let mode = "idle",
   stageId = account.idleStage,
@@ -301,6 +316,7 @@ function startBattle() {
     levels,
     sequence: account.sequence,
     modifiers: gemModifiers(account),
+    ownedUnits: UNITS.filter((u) => ownsUnit(account, u.id)).map((u) => u.id),
   });
   battleSnapshot = {
     stageId,
@@ -568,7 +584,7 @@ function updateUi() {
     skillRemaining > 0;
   $("skill-cooldown").textContent =
     skillRemaining > 0 ? Math.ceil(skillRemaining) : "";
-  $("edit-sequence").style.visibility = mode === "idle" ? "visible" : "hidden";
+  $("edit-sequence").style.visibility = "visible";
   $("speed-text").textContent = `${account.settings.speed}×`;
   $("sound").innerHTML = icon(account.settings.sound ? "sound" : "sound-off");
   $("sound").setAttribute("aria-pressed", String(account.settings.sound));
@@ -578,11 +594,14 @@ function updateUi() {
   );
   $("upgrade-dot").hidden = !UNITS.some(
     (u) =>
+      ownsUnit(account, u.id) &&
       account.levels[u.id] < 100 &&
       account.gold >= levelCost(account.levels[u.id]),
   );
 }
 function openModal(title, kind, render) {
+  recruitCleanup?.();
+  recruitCleanup = null;
   hideTooltip();
   lastFocused = document.activeElement;
   modalKind = kind;
@@ -595,6 +614,8 @@ function openModal(title, kind, render) {
 function closeModal() {
   if ($("modal-backdrop").hidden) return;
   $("modal-backdrop").hidden = true;
+  recruitCleanup?.();
+  recruitCleanup = null;
   modalKind = null;
   modalRender = null;
   lastFocused?.focus?.();
@@ -635,13 +656,17 @@ function renderStages() {
     );
 }
 function renderGrowth() {
-  $("modal-content").innerHTML = `<div class="unit-grid">${UNITS.map((u) => {
-    const level = account.levels[u.id],
-      scale = 1 + (level + account.special[u.id] - 1) * 0.12;
-    return `<article class="growth-card">${portrait(u.id)}<span class="level-label">Lv. ${level}${account.special[u.id] ? ` · +${account.special[u.id]}` : ""}</span><h3>${u.name}</h3><div class="stats"><span>${icon("heart")}${Math.round(u.hp * scale)}</span><span>${icon("swords")}${Math.round(u.attack * scale)}</span></div><button class="primary-button" data-grow="${u.id}" ${account.gold < levelCost(level) || level >= 100 ? "disabled" : ""}>${icon(level >= 100 ? "check" : "coin")}${level >= 100 ? "완료" : fmt(levelCost(level)) + " ↑"}</button><button class="inspect-button" data-inspect="${u.id}">자세히</button>${account.fragments[u.id] > 0 ? `<button class="secondary-button fragment-button" data-enhance="${u.id}" ${account.fragments[u.id] < 3 || account.special[u.id] >= 20 ? "disabled" : ""} style="font-size:10px;margin-top:9px;padding:5px 7px">조각 ${account.fragments[u.id]} / 3</button>` : ""}</article>`;
-  }).join(
-    "",
-  )}</div><div class="modal-footer"><span class="resource-inline">${icon("coin")}${fmt(account.gold)}</span><button class="secondary-button" id="refund-levels">${icon("reset")}초기화</button></div>`;
+  $("modal-content").innerHTML = `<div class="unit-grid">${UNITS.filter((u) =>
+    ownsUnit(account, u.id),
+  )
+    .map((u) => {
+      const level = account.levels[u.id],
+        scale = 1 + (level + account.special[u.id] - 1) * 0.12;
+      return `<article class="growth-card">${rarityBadge(u)}${portrait(u.id)}<span class="level-label">Lv. ${level}${account.special[u.id] ? ` · +${account.special[u.id]}` : ""}</span><h3>${u.name}</h3><div class="stats"><span>${icon("heart")}${Math.round(u.hp * scale)}</span><span>${icon("swords")}${Math.round(u.attack * scale)}</span></div><button class="primary-button" data-grow="${u.id}" ${account.gold < levelCost(level) || level >= 100 ? "disabled" : ""}>${icon(level >= 100 ? "check" : "coin")}${level >= 100 ? "완료" : fmt(levelCost(level)) + " ↑"}</button><button class="inspect-button" data-inspect="${u.id}">자세히</button>${account.fragments[u.id] > 0 ? `<button class="secondary-button fragment-button" data-enhance="${u.id}" ${account.fragments[u.id] < 3 || account.special[u.id] >= 20 ? "disabled" : ""} style="font-size:10px;margin-top:9px;padding:5px 7px">조각 ${account.fragments[u.id]} / 3</button>` : ""}</article>`;
+    })
+    .join(
+      "",
+    )}</div><div class="modal-footer"><span class="resource-inline">${icon("coin")}${fmt(account.gold)}</span><button class="secondary-button" id="refund-levels">${icon("reset")}초기화</button></div>`;
   $("modal-content")
     .querySelectorAll("[data-grow]")
     .forEach(
@@ -715,7 +740,14 @@ function renderSequence() {
           const i = Number(b.dataset.replace);
           openModal("동료 선택", "sequence-pick", () => {
             $("modal-content").innerHTML =
-              `<div class="collection-grid">${UNITS.map((u) => `<button class="collection-card" data-pick="${u.id}">${portrait(u.id)}<strong>${u.name}</strong><span>${u.cost}</span></button>`).join("")}</div>`;
+              `<div class="collection-grid">${UNITS.filter((u) =>
+                ownsUnit(account, u.id),
+              )
+                .map(
+                  (u) =>
+                    `<button class="collection-card" data-pick="${u.id}">${rarityBadge(u)}${portrait(u.id)}<strong>${u.name}</strong><span>${u.cost}</span></button>`,
+                )
+                .join("")}</div>`;
             $("modal-content")
               .querySelectorAll("[data-pick]")
               .forEach(
@@ -729,6 +761,7 @@ function renderSequence() {
         }),
     );
   $("apply-sequence").onclick = () => {
+    if (!sequenceDraft.every((id) => ownsUnit(account, id))) return;
     account.sequence = [...sequenceDraft];
     persist();
     createHand();
@@ -742,17 +775,32 @@ function openCodex(id = null, enemy = false) {
     openModal("도감", "codex", () => renderCodexDetail(id, enemy));
     return;
   }
-  openModal("도감", "codex", () => {
-    $("modal-content").innerHTML =
-      `<h3 class="collection-heading">동료</h3><div class="collection-grid">${UNITS.map((u) => `<button class="collection-card" data-codex="${u.id}">${portrait(u.artId ?? u.id)}<strong>${u.name}</strong><span>${roles[u.role]}</span></button>`).join("")}</div><h3 class="collection-heading">적</h3><div class="collection-grid">${ENEMIES.map((u) => `<button class="collection-card" data-codex="${u.id}" data-enemy="true">${portrait(u.artId ?? u.id)}<strong>${u.name}</strong><span>${roles[u.role]}</span></button>`).join("")}</div>`;
-    $("modal-content")
-      .querySelectorAll("[data-codex]")
-      .forEach(
-        (b) =>
-          (b.onclick = () =>
-            openCodex(b.dataset.codex, b.dataset.enemy === "true")),
-      );
-  });
+  openModal("도감", "codex", renderCollection);
+}
+function renderCollection() {
+  const owned = UNITS.filter((u) => ownsUnit(account, u.id)).length;
+  const units = UNITS.filter(
+    (u) =>
+      (codexRarity === "all" || u.rarity === codexRarity) &&
+      (codexOwned === "all" || ownsUnit(account, u.id)),
+  );
+  $("modal-content").innerHTML =
+    `<div class="collection-toolbar"><strong>동료 <span>${owned} / ${UNITS.length}</span></strong><label>등급 <select id="codex-rarity"><option value="all">전체</option>${RARITIES.map((r) => `<option value="${r.id}" ${codexRarity === r.id ? "selected" : ""}>${r.name}</option>`).join("")}</select></label><button class="secondary-button" id="owned-filter" aria-pressed="${codexOwned === "owned"}">${codexOwned === "owned" ? "보유" : "전체 보기"}</button></div><div class="companion-collection">${units.map((u) => `<button class="companion-tile ${ownsUnit(account, u.id) ? "" : "unowned"}" style="--rarity:${rarityOf(u).color}" data-codex="${u.id}" aria-label="${u.name} ${ownsUnit(account, u.id) ? "보유" : "미보유"}">${rarityBadge(u)}${portrait(u.id)}<strong>${u.name}</strong><small>${ownsUnit(account, u.id) ? `Lv. ${account.levels[u.id]}` : "미보유"}</small></button>`).join("") || '<p class="empty-note">해당 동료가 없습니다.</p>'}</div><h3 class="collection-heading">적</h3><div class="collection-grid">${ENEMIES.map((u) => `<button class="collection-card" data-codex="${u.id}" data-enemy="true">${portrait(u.artId ?? u.id)}<strong>${u.name}</strong><span>${attributeName(u.attribute)}</span></button>`).join("")}</div>`;
+  $("codex-rarity").onchange = (e) => {
+    codexRarity = e.target.value;
+    renderCollection();
+  };
+  $("owned-filter").onclick = () => {
+    codexOwned = codexOwned === "all" ? "owned" : "all";
+    renderCollection();
+  };
+  $("modal-content")
+    .querySelectorAll("[data-codex]")
+    .forEach(
+      (b) =>
+        (b.onclick = () =>
+          openCodex(b.dataset.codex, b.dataset.enemy === "true")),
+    );
 }
 function enemyCounterText(enemy) {
   const counters = [];
@@ -834,7 +882,7 @@ function renderCodexDetail(id, enemy) {
         ].filter(Boolean)
       : [unitSpecialtyText(u), ...unitAbilityLines(u)];
   $("modal-content").innerHTML =
-    `<div class="codex-layout"><div class="codex-art">${portrait(u.artId ?? id)}</div><div class="codex-info"><h3>${u.name}</h3><span class="role-label">${roles[u.role]}</span><p>${u.description || { beetle: "단단한 껍질을 앞세워 천천히 다가옵니다.", mushroom: "뒤에서 포자를 날립니다. 가까이 붙으면 상대하기 쉽습니다.", boar: "높은 체력과 강한 공격으로 전선을 밀어냅니다." }[id] || "전투 특성을 살펴보세요."}</p>${detailLines.length ? `<p class="settings-note"><strong>${enemy ? "속성과 대응" : "속성 특성"}</strong><br>${detailLines.join("<br>")}</p>` : ""}<div class="stat-list">${[
+    `<div class="codex-layout"><div class="codex-art ${!enemy && !ownsUnit(account, id) ? "unowned" : ""}">${portrait(u.artId ?? id)}</div><div class="codex-info">${enemy ? "" : rarityBadge(u)}<h3>${u.name}</h3>${!enemy ? `<span class="collection-state">${ownsUnit(account, id) ? `보유 · Lv. ${account.levels[id]}` : "미보유 · 모집에서 획득"} · ${u.theme || "숲"}</span>` : ""}<span class="role-label">${roles[u.role]}</span><p>${u.description || { beetle: "단단한 껍질을 앞세워 천천히 다가옵니다.", mushroom: "뒤에서 포자를 날립니다. 가까이 붙으면 상대하기 쉽습니다.", boar: "높은 체력과 강한 공격으로 전선을 밀어냅니다." }[id] || "전투 특성을 살펴보세요."}</p>${detailLines.length ? `<p class="settings-note"><strong>${enemy ? "속성과 대응" : "속성 특성"}</strong><br>${detailLines.join("<br>")}</p>` : ""}<div class="stat-list">${[
       ["체력", Math.round(u.hp * scale)],
       ["공격력", Math.round(u.attack * scale)],
       ["사거리", u.range],
@@ -862,23 +910,25 @@ function renderCodexDetail(id, enemy) {
   $("codex-back").onclick = () => openCodex();
 }
 function renderRecruit(tab = "units") {
+  recruitCleanup?.();
+  recruitCleanup = null;
+  if (tab === "units" && recruitReceipt) {
+    showRecruitResult();
+    return;
+  }
   const unlocked = account.highestCleared >= 3;
   $("modal-content").innerHTML =
-    `<div class="modal-subnav"><button class="${tab === "units" ? "selected" : ""}" id="recruit-units">동료</button><button class="${tab === "gems" ? "selected" : ""}" id="recruit-gems" ${unlocked ? "" : 'data-tip="1-3을 완료하면 열립니다."'}>${unlocked ? "" : icon("lock")}보석</button></div>${tab === "units" ? `<div class="recruit-layout"><div class="recruit-art"><span class="recruit-star s1">✦</span><span class="recruit-star s2">✧</span>${portrait("rabbit")}${portrait("sheep")}${portrait("squirrel")}</div><div class="recruit-info"><button class="primary-button" data-tip="동료 조각을 얻습니다. 같은 동료의 조각 3개로 강화할 수 있습니다." id="draw-unit" ${account.diamonds < 30 ? "disabled" : ""}>${icon("gem")}30 · 모집</button></div></div>` : `<div class="gem-grid">${GEMS.map((g) => `<button class="gem-card ${account.equippedGem === g.id ? "equipped" : ""}" data-equip="${g.id}" ${account.gems[g.id] ? "" : "disabled"} data-tip="${g.description}"><span class="gem-art" style="color:${g.color}">${icon("gem")}</span><strong>${g.name}</strong><span>${account.gems[g.id] || "미보유"}</span>${account.equippedGem === g.id ? "<small>장착 중</small>" : ""}</button>`).join("")}</div><div class="gem-draw-actions"><button class="primary-button" id="draw-gem-tickets" ${account.tickets < 5 ? "disabled" : ""}>${icon("gem")}조각 5 · 모집</button><button class="secondary-button" id="draw-gem-diamonds" ${account.diamonds < 30 ? "disabled" : ""}>${icon("gem")}30 · 모집</button></div>`}<div class="modal-footer"><span class="resource-inline">${icon("gem")}${fmt(account.diamonds)}</span>${unlocked ? `<span class="hint">보석 조각 ${fmt(account.tickets)}</span>` : ""}<button class="secondary-button" id="draw-info">확률</button></div>`;
+    `<div class="modal-subnav"><button class="${tab === "units" ? "selected" : ""}" id="recruit-units">동료</button><button class="${tab === "gems" ? "selected" : ""}" id="recruit-gems" ${unlocked ? "" : 'data-tip="1-3을 완료하면 열립니다."'}>${unlocked ? "" : icon("lock")}보석</button></div>${tab === "units" ? recruitPanel(account) : `<div class="gem-grid">${GEMS.map((g) => `<button class="gem-card ${account.equippedGem === g.id ? "equipped" : ""}" data-equip="${g.id}" ${account.gems[g.id] ? "" : "disabled"} data-tip="${g.description}"><span class="gem-art" style="color:${g.color}">${icon("gem")}</span><strong>${g.name}</strong><span>${account.gems[g.id] || "미보유"}</span>${account.equippedGem === g.id ? "<small>장착 중</small>" : ""}</button>`).join("")}</div><div class="gem-draw-actions"><button class="primary-button" id="draw-gem-tickets" ${account.tickets < 5 ? "disabled" : ""}>${icon("gem")}조각 5 · 모집</button><button class="secondary-button" id="draw-gem-diamonds" ${account.diamonds < 30 ? "disabled" : ""}>${icon("gem")}30 · 모집</button></div>`}<div class="modal-footer"><span class="resource-inline">${icon("gem")}${fmt(account.diamonds)}</span>${unlocked ? `<span class="hint">보석 조각 ${fmt(account.tickets)}</span>` : ""}<button class="secondary-button" id="draw-info">확률</button></div>`;
   $("recruit-units").onclick = () => renderRecruit("units");
   $("recruit-gems").onclick = () =>
     unlocked ? renderRecruit("gems") : toast("1-3을 완료하면 열립니다.");
-  if ($("draw-unit"))
-    $("draw-unit").onclick = () => {
-      const u = recruitUnit(account);
-      if (!u) return;
-      persist();
-      updateUi();
-      chirp("win");
-      $("modal-content").innerHTML =
-        `<div class="recruit-result">${portrait(u.id)}<h3>${u.name}</h3><p>조각 +1 · 보유 ${account.fragments[u.id]}개</p><button class="primary-button" id="draw-done">확인</button></div>`;
-      $("draw-done").onclick = () => renderRecruit("units");
-    };
+  $("modal-content")
+    .querySelectorAll("[data-draw-count]")
+    .forEach(
+      (b) => (b.onclick = () => drawCompanions(Number(b.dataset.drawCount))),
+    );
+  if ($("welcome-draw"))
+    $("welcome-draw").onclick = () => drawCompanions(10, true);
   const gemDraw = (payment) => {
     const g = recruitGem(account, payment);
     if (!g) return;
@@ -907,9 +957,52 @@ function renderRecruit(tab = "units") {
   $("draw-info").onclick = () =>
     openModal("확률", "probability", () => {
       $("modal-content").innerHTML =
-        `<div class="income-list">${(tab === "units" ? UNITS : GEMS).map((u) => `<div class="income-row"><strong>${u.name}</strong><span>${tab === "units" ? "20%" : "33.33%"}</span></div>`).join("")}</div><p class="settings-note">모집 결과는 각각 독립적으로 결정됩니다. ${tab === "gems" ? "보석 조각과 다이아는 같은 목록을 사용합니다." : ""}</p>`;
+        tab === "units"
+          ? probabilityPanel(account)
+          : `<div class="income-list">${GEMS.map((g) => `<div class="income-row"><strong>${g.name}</strong><span>33.33%</span></div>`).join("")}</div><div class="modal-footer"><button class="secondary-button" id="rates-back">돌아가기</button></div>`;
+      $("rates-back").onclick = () =>
+        openModal("모집", "recruit", () => renderRecruit(tab));
     });
 }
+function drawCompanions(count, free = false) {
+  if (recruitReceipt) return;
+  const results = recruitUnits(account, count, { free });
+  if (!results) {
+    toast("다이아가 부족합니다.");
+    return;
+  }
+  persist();
+  recruitReceipt = { results, count };
+  updateUi();
+  showRecruitResult();
+}
+function showRecruitResult() {
+  recruitCleanup?.();
+  const receipt = recruitReceipt;
+  if (!receipt) {
+    renderRecruit();
+    return;
+  }
+  recruitCleanup = revealRecruit($("modal-content"), receipt.results, {
+    done: () => {
+      recruitCleanup?.();
+      recruitCleanup = null;
+      recruitReceipt = null;
+      renderRecruit();
+    },
+    again: () => {
+      recruitCleanup?.();
+      recruitCleanup = null;
+      recruitReceipt = null;
+      drawCompanions(receipt.count);
+      if (!recruitReceipt) renderRecruit();
+    },
+    inspect: (id) => openCodex(id),
+    sound: () => chirp("win"),
+  });
+  $("draw-skip").focus();
+}
+
 function renderIncome() {
   const r = account.records[account.idleStage];
   $("modal-content").innerHTML =
@@ -1010,6 +1103,8 @@ function renderSettings() {
         $("cancel-import").onclick = () =>
           openModal("설정", "settings", renderSettings);
         $("confirm-import").onclick = () => {
+          recruitReceipt = null;
+          sequenceDraft = null;
           account = imported;
           accrue(account);
           persist();

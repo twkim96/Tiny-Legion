@@ -194,6 +194,7 @@ export function createBattle(options = {}) {
     sequence = DEFAULT_SEQUENCE,
     duration = 120,
     modifiers = {},
+    ownedUnits = null,
   } = options ?? {};
   const stage = STAGE_BY_ID.get(Number(stageId)) ?? STAGES[0];
   const battleMode = ["idle", "challenge", "speedrun"].includes(mode)
@@ -230,6 +231,7 @@ export function createBattle(options = {}) {
     _spawnIndex: 0,
     _nextUid: 1,
     _nextProjectileUid: 1,
+    _ownedUnits: Array.isArray(ownedUnits) ? new Set(ownedUnits) : null,
     _levels: levels && typeof levels === "object" ? { ...levels } : {},
     _modifiers: {
       hp: Math.max(1, finiteNumber(modifiers.hp, 1)),
@@ -243,7 +245,8 @@ export function createBattle(options = {}) {
 export function summonUnit(state, unitId) {
   if (!state || state.finished) return false;
   const definition = UNIT_BY_ID.get(unitId);
-  if (!definition) return false;
+  if (!definition || (state._ownedUnits && !state._ownedUnits.has(unitId)))
+    return false;
   if (state.gold < definition.cost) return false;
   if ((state.cooldowns[unitId] ?? 0) > 1e-9) return false;
   if (activeUnitCount(state) >= MAX_ACTIVE_UNITS) return false;
@@ -283,7 +286,7 @@ function runIdleQueue(state) {
   while (visited < length) {
     const unitId = state.sequence[state.sequenceIndex];
     const definition = UNIT_BY_ID.get(unitId);
-    if (!definition) {
+    if (!definition || (state._ownedUnits && !state._ownedUnits.has(unitId))) {
       advanceSequence(state);
       visited += 1;
       continue;

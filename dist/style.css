@@ -2545,3 +2545,490 @@ html:fullscreen .game {
     transform: translate(-50%, 0);
   }
 }
+
+/* Companion collection and recruitment */
+.rarity-badge {
+  color: var(--rarity);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+}
+.growth-card > .rarity-badge {
+  display: block;
+  text-align: left;
+}
+.collection-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 16px;
+}
+.collection-toolbar > strong {
+  margin-right: auto;
+  font-size: 16px;
+}
+.collection-toolbar strong span {
+  color: #879079;
+  font-size: 12px;
+  margin-left: 8px;
+}
+.collection-toolbar label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+}
+.collection-toolbar select {
+  color: #49523f;
+  border: 1px solid #cbd0bf;
+  border-radius: 8px;
+  padding: 5px 8px;
+  background: #fffdf6;
+  font: inherit;
+}
+.companion-collection {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+}
+.companion-tile {
+  background: #fffdf8;
+  border: 1px solid #d9dcce;
+  border-bottom: 3px solid var(--rarity);
+  border-radius: 12px;
+  padding: 10px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+.companion-tile:hover {
+  background: #f2f4e8;
+}
+.companion-tile > .portrait {
+  width: 100%;
+  height: 85px;
+}
+.companion-tile strong {
+  font-size: 11px;
+}
+.companion-tile small {
+  font-size: 10px;
+  color: #8a907f;
+}
+.unowned > .portrait {
+  filter: grayscale(1) brightness(0.36);
+  opacity: 0.42;
+}
+.collection-state {
+  display: block;
+  font-size: 11px;
+  color: #7a826f;
+  margin-bottom: 10px;
+}
+.codex-picker {
+  flex-wrap: wrap;
+}
+.companion-recruit {
+  display: grid;
+  grid-template-columns: 1.15fr 1fr;
+  gap: 20px;
+  align-items: center;
+  padding: 12px 0;
+}
+.recruit-showcase {
+  position: relative;
+  height: 245px;
+  overflow: hidden;
+  border-radius: 18px;
+  background:
+    radial-gradient(ellipse at 50% 80%, #e4e9d2, transparent 55%),
+    linear-gradient(#f3f3e9, #e8eddd);
+}
+.summon-portal {
+  position: absolute;
+  width: 170px;
+  height: 170px;
+  border: 1px solid #abb79b66;
+  border-radius: 50%;
+  bottom: 35px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: radial-gradient(
+    circle,
+    #fffdf4 35%,
+    #eff0dd 66%,
+    transparent 67%
+  );
+}
+.recruit-showcase > .portrait {
+  position: absolute;
+  width: 125px;
+  height: 125px;
+  bottom: 50px;
+}
+.recruit-showcase > .showcase-main {
+  left: 50%;
+  transform: translateX(-50%);
+  width: 170px;
+  height: 170px;
+  bottom: 45px;
+  z-index: 2;
+}
+.recruit-showcase > .showcase-left {
+  left: 0;
+  transform: rotate(-9deg);
+}
+.recruit-showcase > .showcase-right {
+  right: 0;
+  transform: rotate(9deg);
+}
+.showcase-title {
+  position: absolute;
+  bottom: 15px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+}
+.summon-spark {
+  position: absolute;
+  color: #b6aa73;
+  font-size: 28px;
+  z-index: 3;
+}
+.spark-one {
+  left: 25px;
+  top: 20px;
+}
+.spark-two {
+  right: 25px;
+  top: 45px;
+  font-size: 20px;
+}
+.recruit-console {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+.rarity-legend {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 5px;
+}
+.rarity-legend > span {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--rarity);
+  font-size: 11px;
+  text-align: center;
+}
+.rarity-legend strong {
+  font-size: 16px;
+}
+.pity-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 11px;
+  color: #7e8772;
+}
+.pity-row > span {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+.pity-row strong {
+  color: #505b43;
+}
+.recruit-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.recruit-buttons button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  font-size: 12px;
+  padding: 11px 6px;
+}
+.recruit-buttons .icon {
+  width: 14px;
+  height: 14px;
+}
+.welcome-draw {
+  background: #e6edd8;
+  border: 1px solid #a9b991;
+  border-radius: 9px;
+  padding: 9px;
+  font-size: 12px;
+  color: #4b6241;
+  font-weight: 700;
+}
+.recruit-total {
+  color: #8d9582;
+  font-size: 10px;
+  text-align: center;
+}
+.rate-table {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+}
+.rate-table h3 {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  margin: 0 0 8px;
+}
+.rate-table section > div {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  padding: 5px 0;
+}
+.draw-scene {
+  padding: 4px 0;
+}
+.draw-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 15px;
+}
+.draw-heading > strong {
+  font-size: 14px;
+}
+.draw-heading button {
+  padding: 5px 9px;
+  font-size: 10px;
+}
+.draw-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+}
+.draw-card {
+  position: relative;
+  min-width: 0;
+  height: 148px;
+  border-radius: 12px;
+  border: 1px solid #d9ddce;
+  background: #fffdf7;
+  overflow: hidden;
+}
+.card-seal {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: linear-gradient(145deg, #eef0df, #e0e7cf);
+}
+.card-seal > .icon {
+  width: 36px;
+  height: 36px;
+  color: #8e9e78;
+}
+.card-seal small {
+  color: #8e9e78;
+  font-size: 10px;
+}
+.card-revealed {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px 4px;
+  gap: 4px;
+}
+.card-revealed .portrait {
+  height: 82px;
+  width: 100%;
+}
+.card-revealed strong {
+  font-size: 10px;
+}
+.card-revealed > small {
+  font-size: 9px;
+  color: var(--rarity);
+}
+.sealed .card-revealed {
+  visibility: hidden;
+}
+.revealed {
+  border-bottom: 3px solid var(--rarity);
+  animation: companion-appear 0.4s ease both;
+}
+.revealed .card-seal {
+  display: none;
+}
+.special-reveal {
+  background: linear-gradient(
+    160deg,
+    #fffdf8 45%,
+    color-mix(in srgb, var(--rarity) 15%, #fffdf8)
+  );
+}
+.single-draw {
+  display: flex;
+  justify-content: center;
+}
+.single-draw .draw-card {
+  width: 180px;
+  height: 230px;
+}
+.single-draw .card-revealed {
+  padding: 15px 8px;
+  gap: 8px;
+}
+.single-draw .portrait {
+  height: 155px;
+}
+.single-draw .card-revealed strong {
+  font-size: 14px;
+}
+.draw-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 18px;
+}
+.draw-status {
+  display: block;
+  text-align: center;
+  font-size: 11px;
+  margin-top: 10px;
+  color: #8b937e;
+}
+@keyframes companion-appear {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.88);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+@media (max-height: 500px) and (orientation: landscape), (max-width: 760px) {
+  .companion-recruit {
+    gap: 14px;
+    padding: 0;
+  }
+  .recruit-showcase {
+    height: 175px;
+  }
+  .recruit-showcase > .portrait {
+    width: 90px;
+    height: 90px;
+    bottom: 30px;
+  }
+  .recruit-showcase > .showcase-main {
+    width: 130px;
+    height: 130px;
+    bottom: 28px;
+  }
+  .summon-portal {
+    width: 120px;
+    height: 120px;
+    bottom: 25px;
+  }
+  .showcase-title {
+    bottom: 8px;
+    font-size: 11px;
+  }
+  .recruit-console {
+    gap: 9px;
+  }
+  .recruit-buttons button {
+    padding: 8px 4px;
+    font-size: 10px;
+  }
+  .welcome-draw {
+    padding: 6px;
+    font-size: 10px;
+  }
+  .rarity-legend strong {
+    font-size: 13px;
+  }
+  .rarity-legend > span,
+  .pity-row {
+    font-size: 9px;
+  }
+  .companion-collection {
+    gap: 7px;
+  }
+  .companion-tile {
+    padding: 6px 4px;
+    gap: 2px;
+    border-radius: 8px;
+  }
+  .companion-tile > .portrait {
+    height: 62px;
+  }
+  .companion-tile strong {
+    font-size: 9px;
+  }
+  .collection-toolbar {
+    gap: 7px;
+    margin-bottom: 10px;
+  }
+  .collection-toolbar > strong {
+    font-size: 12px;
+  }
+  .collection-toolbar button {
+    font-size: 9px;
+    padding: 5px;
+  }
+  .draw-heading {
+    margin-bottom: 8px;
+  }
+  .draw-grid {
+    gap: 6px;
+  }
+  .draw-card {
+    height: 110px;
+    border-radius: 8px;
+  }
+  .card-revealed {
+    padding: 5px 2px;
+    gap: 2px;
+  }
+  .card-revealed .portrait {
+    height: 60px;
+  }
+  .card-revealed strong {
+    font-size: 8px;
+  }
+  .card-revealed > small,
+  .rarity-badge {
+    font-size: 8px;
+  }
+  .draw-actions {
+    margin-top: 10px;
+  }
+  .draw-actions button {
+    font-size: 10px;
+    padding: 6px 12px;
+  }
+  .single-draw .draw-card {
+    height: 175px;
+    width: 150px;
+  }
+  .single-draw .portrait {
+    height: 105px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .revealed {
+    animation: none;
+  }
+}

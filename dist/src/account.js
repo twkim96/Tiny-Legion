@@ -1,4 +1,4 @@
-import { UNITS, STAGES } from "./data.js";
+import { UNITS, STAGES, RARITIES, STARTER_UNIT_IDS } from "./data.js";
 import { UNIT_LEVEL_GROWTH } from "./engine.js";
 export const SAVE_KEY = "tiny-legion.save.v1";
 export const GEMS = [
@@ -39,7 +39,16 @@ export function newAccount(now = Date.now()) {
     levels: Object.fromEntries(UNITS.map((u) => [u.id, 1])),
     fragments: Object.fromEntries(UNITS.map((u) => [u.id, 0])),
     special: Object.fromEntries(UNITS.map((u) => [u.id, 0])),
-    sequence: UNITS.map((u) => u.id),
+    owned: Object.fromEntries(
+      UNITS.map((u) => [u.id, STARTER_UNIT_IDS.includes(u.id)]),
+    ),
+    recruitment: {
+      total: 0,
+      sinceRare: 0,
+      sinceEpic: 0,
+      welcomeClaimed: false,
+    },
+    sequence: [...STARTER_UNIT_IDS],
     highestCleared: 0,
     records: {},
     idleStage: 1,
@@ -56,15 +65,22 @@ export function normalizeAccount(raw, now = Date.now()) {
   if (!raw || raw.version !== 1) return a;
   for (const k of ["gold", "diamonds", "tickets"]) a[k] = cap(raw[k], 0, 1e12);
   for (const u of UNITS) {
+    a.owned[u.id] =
+      STARTER_UNIT_IDS.includes(u.id) || raw.owned?.[u.id] === true;
     a.levels[u.id] = Math.floor(cap(raw.levels?.[u.id] ?? 1, 1, 100));
     a.fragments[u.id] = Math.floor(cap(raw.fragments?.[u.id], 0, 1e6));
     a.special[u.id] = Math.floor(cap(raw.special?.[u.id], 0, 20));
   }
   if (Array.isArray(raw.sequence)) {
-    const ids = raw.sequence.filter((id) => UNITS.some((u) => u.id === id));
-    if (ids.length)
-      a.sequence = [...ids, ...UNITS.map((u) => u.id)].slice(0, 5);
+    const ids = raw.sequence.filter((id) => ownsUnit(a, id));
+    if (ids.length) a.sequence = [...ids, ...STARTER_UNIT_IDS].slice(0, 5);
   }
+  a.recruitment = {
+    total: Math.floor(cap(raw.recruitment?.total, 0, 1e9)),
+    sinceRare: Math.floor(cap(raw.recruitment?.sinceRare, 0, 9)),
+    sinceEpic: Math.floor(cap(raw.recruitment?.sinceEpic, 0, 49)),
+    welcomeClaimed: raw.recruitment?.welcomeClaimed === true,
+  };
   a.highestCleared = Math.floor(cap(raw.highestCleared, 0, 10));
   a.idleStage = Math.floor(
     cap(raw.idleStage ?? 1, 1, Math.min(10, a.highestCleared + 1)),
@@ -141,7 +157,7 @@ export function accrue(a, now = Date.now()) {
   return { gold, diamonds, seconds };
 }
 export function growUnit(a, id) {
-  if (!UNITS.some((u) => u.id === id) || a.levels[id] >= 100) return false;
+  if (!ownsUnit(a, id) || a.levels[id] >= 100) return false;
   const cost = levelCost(a.levels[id]);
   if (a.gold < cost) return false;
   a.gold -= cost;
@@ -149,7 +165,8 @@ export function growUnit(a, id) {
   return true;
 }
 export function enhanceUnit(a, id) {
-  if ((a.fragments[id] ?? 0) < 3 || a.special[id] >= 20) return false;
+  if (!ownsUnit(a, id) || (a.fragments[id] ?? 0) < 3 || a.special[id] >= 20)
+    return false;
   a.fragments[id] -= 3;
   a.special[id]++;
   return true;
@@ -181,6 +198,7 @@ export function combatPower(a) {
     modifiers = gemModifiers(a);
   return Math.round(
     UNITS.reduce((total, unit) => {
+      if (!ownsUnit(a, unit.id)) return total;
       const scale = 1 + (levels[unit.id] - 1) * UNIT_LEVEL_GROWTH;
       const hp = Math.round(unit.hp * scale * modifiers.hp);
       const attack = Math.max(
@@ -244,13 +262,71 @@ export function claimSpeedrun(a, now = Date.now()) {
   a.daily.claimed = true;
   return reward;
 }
+export const RECRUIT_COSTS = { 1: 30, 10: 270 };
+export function ownsUnit(a, id) {
+  return UNITS.some((unit) => unit.id === id) && a.owned?.[id] === true;
+}
+const randomValue = (random) => {
+  const value = random();
+  if (!Number.isFinite(value)) throw new Error("Invalid random value");
+  return Math.max(0, Math.min(1 - Number.EPSILON, value));
+};
+export function recruitUnits(
+  a,
+  count = 1,
+  { free = false, random = Math.random } = {},
+) {
+  if (![1, 10].includes(count)) return null;
+  if (free && (count !== 10 || a.recruitment.welcomeClaimed)) return null;
+  const cost = free ? 0 : RECRUIT_COSTS[count];
+  if (a.diamonds < cost) return null;
+  // Prepare the entire batch before charging or granting. The reveal is presentation only.
+  const owned = { ...a.owned },
+    fragments = { ...a.fragments };
+  const recruitment = { ...a.recruitment };
+  const results = [];
+  for (let index = 0; index < count; index++) {
+    const roll = randomValue(random);
+    let cumulative = 0;
+    let tier =
+      RARITIES.find((rarity) => {
+        cumulative += rarity.rate;
+        return roll < cumulative;
+      }) ?? RARITIES.at(-1);
+    let guaranteed = false;
+    if (
+      recruitment.sinceEpic >= 49 &&
+      !["epic", "legendary"].includes(tier.id)
+    ) {
+      tier = RARITIES.find((rarity) => rarity.id === "epic");
+      guaranteed = true;
+    } else if (recruitment.sinceRare >= 9 && tier.id === "common") {
+      tier = RARITIES.find((rarity) => rarity.id === "rare");
+      guaranteed = true;
+    }
+    const pool = UNITS.filter((unit) => unit.rarity === tier.id);
+    if (!pool.length) throw new Error("Empty recruit pool");
+    const unit = pool[Math.floor(randomValue(random) * pool.length)];
+    const isNew = !owned[unit.id];
+    owned[unit.id] = true;
+    if (!isNew) fragments[unit.id] = (fragments[unit.id] ?? 0) + 1;
+    recruitment.total++;
+    recruitment.sinceRare =
+      tier.id === "common" ? recruitment.sinceRare + 1 : 0;
+    recruitment.sinceEpic = ["epic", "legendary"].includes(tier.id)
+      ? 0
+      : recruitment.sinceEpic + 1;
+    results.push({ unit, isNew, fragments: isNew ? 0 : 1, guaranteed });
+  }
+  if (free) recruitment.welcomeClaimed = true;
+  a.diamonds -= cost;
+  a.owned = owned;
+  a.fragments = fragments;
+  a.recruitment = recruitment;
+  return results;
+}
 export function recruitUnit(a, random = Math.random) {
-  if (a.diamonds < 30) return null;
-  a.diamonds -= 30;
-  const u =
-    UNITS[Math.min(UNITS.length - 1, Math.floor(random() * UNITS.length))];
-  a.fragments[u.id] += 1;
-  return u;
+  return recruitUnits(a, 1, { random })?.[0].unit ?? null;
 }
 export function recruitGem(a, payment = "tickets", random = Math.random) {
   if (a.highestCleared < 3) return null;
