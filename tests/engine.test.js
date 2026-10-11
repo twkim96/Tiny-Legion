@@ -7,9 +7,41 @@ import {
   stepBattle,
   summonUnit,
 } from "../dist/src/engine.js";
-import { ENEMIES } from "../dist/src/data.js";
+import { ENEMIES, UNITS } from "../dist/src/data.js";
 
 const FIXED_STEP = 1 / 30;
+
+test("every companion can be afforded by saving and spends its full price", () => {
+  for (const unit of UNITS) {
+    const state = createBattle({ mode: "challenge", sequence: [] });
+    state._spawnSchedule = [];
+    assert.ok(unit.cost <= state.maxGold);
+    assert.equal(summonUnit(state, unit.id), false);
+    assert.equal(state.units.length, 0);
+    state.gold = unit.cost - 1;
+    assert.equal(summonUnit(state, unit.id), false);
+    stepBattle(state, FIXED_STEP);
+    const available = state.gold;
+    assert.equal(summonUnit(state, unit.id), true);
+    assert.equal(state.gold, available - unit.cost);
+    assert.equal(state.units[0].id, unit.id);
+  }
+});
+
+test("an expensive idle queue entry waits for its price and then advances once", () => {
+  const unit = UNITS.find((unit) => unit.id === "teapot");
+  const state = createBattle({ mode: "idle", sequence: [unit.id, "sheep"] });
+  state._spawnSchedule = [];
+  state.gold = unit.cost - 2;
+  stepBattle(state, FIXED_STEP);
+  assert.equal(state.waitingReason, "gold");
+  assert.equal(state.sequenceIndex, 0);
+  assert.equal(state.units.length, 0);
+  stepBattle(state, FIXED_STEP);
+  assert.equal(state.units.filter((ally) => ally.id === unit.id).length, 1);
+  assert.equal(state.sequenceIndex, 1);
+  assert.ok(state.gold < 1);
+});
 
 test("equipped gem modifiers affect newly summoned allies without strengthening enemies", () => {
   const normal = createBattle({ mode: "challenge" });
@@ -17,8 +49,9 @@ test("equipped gem modifiers affect newly summoned allies without strengthening 
     mode: "challenge",
     modifiers: { hp: 1.15, attack: 1.1 },
   });
-  summonUnit(normal, "sheep");
-  summonUnit(enhanced, "sheep");
+  normal.gold = enhanced.gold = 1000;
+  assert.equal(summonUnit(normal, "sheep"), true);
+  assert.equal(summonUnit(enhanced, "sheep"), true);
   assert.ok(enhanced.units[0].maxHp > normal.units[0].maxHp);
   assert.ok(enhanced.units[0].attack > normal.units[0].attack);
   stepBattle(normal, 1);
@@ -120,16 +153,21 @@ test("idle survival completes with normalized raw HP and integer reward", () => 
 
 test("challenge summons spend gold and apply a shared cooldown", () => {
   const state = createBattle({ mode: "challenge", sequence: [] });
+  state.gold = 1000;
   const startingGold = state.gold;
 
   assert.equal(summonUnit(state, "sheep"), true);
-  assert.equal(state.gold, startingGold - 85);
+  assert.equal(
+    state.gold,
+    startingGold - UNITS.find((unit) => unit.id === "sheep").cost,
+  );
   assert.equal(state.cooldowns.sheep, 3.4);
   assert.equal(summonUnit(state, "sheep"), false);
 });
 
 test("challenge can win by destroying the enemy castle", () => {
   const state = createBattle({ mode: "challenge", sequence: [] });
+  state.gold = 1000;
   state.enemyHp = 20;
   assert.equal(summonUnit(state, "squirrel"), true);
   const attacker = state.units.find((unit) => unit.id === "squirrel");
