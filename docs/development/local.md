@@ -19,6 +19,7 @@ npm run dev
 | `dist/src/engine.js` | 화면과 독립된 결정적 전투 계산 |
 | `dist/src/onboarding.js` | 신규 0스테이지·1-1·1-2 성 공략과 방치 편성 전투 구성 |
 | `dist/src/account.js` | 성장·재화·진행·기록·저장 |
+| `dist/src/save-compat.js` | 이전 테스트 저장의 임시 변환; 아래 제거 지침 참조 |
 | `dist/src/character-art.js`, `dist/src/art.js`, `dist/src/renderer.js` | 계열별 캐릭터 SVG·아이콘과 Canvas 렌더링 |
 | `dist/src/sequence-ui.js` | 순서 끼워넣기·마우스/터치 포인터 입력 |
 | `dist/src/modal-ui.js` | 종류별 모달 크기 선택과 공통 안내·확인 본문 |
@@ -46,6 +47,13 @@ git commit -m "변경 내용"
 
 - 여러 세션이 동시에 개발할 때는 브랜치와 worktree를 각각 사용합니다. 브랜치만 나누고 같은 폴더를 사용하면 작업 파일이 공유되므로 별도 체크아웃에서 편집합니다. 통합 후에는 영향을 받은 검증을 실행합니다.
 - 속성 변경 전 기준점은 로컬 태그 `baseline-before-attributes-1`입니다. `git show baseline-before-attributes-1:dist/src/data.js`로 이전 데이터를 비교할 수 있습니다. 커밋된 변경을 되돌릴 때는 `git revert <커밋>`으로 복구 이력을 남깁니다.
+
+## 테스트 저장 호환 코드
+
+- 테스트 중 기능·밸런스 변경에는 데이터 이주나 소급 보상 코드를 기본으로 추가하지 않습니다. 폐기해도 되는 이전 테스트 값은 현재 사양에 맞게 정규화합니다.
+- 이미 유지하던 초기 보유/편성, 조각→징표, 미션 완료 추론, 1-2 안내 생략/토끼 복구, 단일 보석→개체 변환은 `dist/src/save-compat.js`에 모았습니다. 현재 호출은 `account.js`의 `legacyStarterSave`·`restoreLegacyProgress`, `gems.js`의 `restoreLegacyGems`입니다. 현재 형식의 저장은 이 변환 조건에 해당하지 않습니다.
+- 이전 저장 지원을 종료할 때 위 세 호출/수입과 모듈, 해당 호환 테스트·사양만 함께 제거합니다. 이 모듈은 다른 게임 로직에서 호출하지 않습니다. 이전 필드로도 현재 작동하는 특별강화·보석 효과·편성 미러는 런타임 기능이므로 사용처를 확인한 뒤 별도로 정리합니다.
+- 저장값 검증, 미보유 동료 차단, 프리셋 독립성, 일반 레벨 초기화의 실지출 기록과 환급 상한 계산은 현재 기능입니다. `cumulativeLevelCost`는 이 상한 계산에도 사용하며 이주 코드를 없앤다는 이유로 삭제하지 않습니다.
 
 ## 기존 자동 검증
 

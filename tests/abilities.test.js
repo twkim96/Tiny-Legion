@@ -227,7 +227,7 @@ test('only the three core abilities are common; movement and range follow unit e
   assert.equal(upgradeUnitAbility(a,'rabbit','move'),true);
   assert.equal(upgradeUnitAbility(a,'whale','range'),true);
 });
-test('removed legacy upgrades refund their exact old costs once while eligible purchases and progress survive', () => {
+test('unsupported ability ranks are dropped without currency compensation; permitted purchases and progress survive', () => {
   const raw=account();raw.gold=1000;
   raw.abilities.sheep={hp:4,attack:2,counter:3,move:3,range:5,signature:1};
   raw.abilities.rabbit={move:2,range:2};
@@ -235,9 +235,8 @@ test('removed legacy upgrades refund their exact old costs once while eligible p
   raw.levels.sheep=8;
   raw.records[1]={gold:80,diamonds:.1,snapshot:{abilities:structuredClone(raw.abilities)}};
   const clean=normalizeAccount(raw);
-  assert.equal(clean.gold,1000+2000+320+120);
-  assert.equal(clean.marks.wild,raw.marks.wild+21+3);
-  assert.equal(clean.marks.spirit,raw.marks.spirit+1);
+  assert.equal(clean.gold,raw.gold);
+  assert.deepEqual(clean.marks,raw.marks);
   assert.equal(clean.abilities.sheep.move,undefined);
   assert.equal(clean.abilities.sheep.range,undefined);
   assert.equal(clean.abilities.sheep.hp,4);
@@ -252,13 +251,4 @@ test('removed legacy upgrades refund their exact old costs once while eligible p
   assert.equal(roundTrip.gold,clean.gold);
   assert.deepEqual(roundTrip.marks,clean.marks);
   assert.deepEqual(roundTrip.abilities,clean.abilities);
-});
-test('legacy optional refunds ignore invalid, negative and unowned ranks and cap the old five-step maximum', () => {
-  const raw=account();raw.gold=1000;
-  raw.abilities.sheep={range:999,move:-2};
-  raw.abilities.squirrel={range:NaN,move:Infinity};
-  raw.owned.cloud=false;raw.abilities.cloud={range:5,move:5};
-  const clean=normalizeAccount(raw);
-  assert.equal(clean.gold,2400);
-  assert.equal(clean.marks.wild,raw.marks.wild+15);
 });

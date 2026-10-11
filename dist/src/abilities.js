@@ -61,22 +61,6 @@ export function normalizeAbilities(id, raw = {}) {
     return [ability.id, Number.isFinite(rank) ? Math.max(0, Math.min(ability.max, Math.floor(rank))) : 0];
   }));
 }
-// Removed purchases are refunded from the old fixed five-step price schedule.
-// Normalized saves omit these ranks, so loading the new save cannot refund twice.
-export function removedAbilityRefund(id, raw = {}) {
-  const allowed = new Set(unitAbilities(id).map(ability => ability.id));
-  const refund = {gold: 0, marks: 0};
-  for (const ability of Object.values(optional)) {
-    if (allowed.has(ability.id)) continue;
-    const value = Number(raw?.[ability.id]);
-    const rank = Number.isFinite(value) ? Math.max(0, Math.min(5, Math.floor(value))) : 0;
-    for (let step = 0; step < rank; step++) {
-      refund.gold += 120 + 80 * step;
-      refund.marks += 1 + step;
-    }
-  }
-  return refund;
-}
 export function abilityCost(ability, rank = 0) {
   if (!ability || rank >= ability.max) return null;
   return ability.max === 1

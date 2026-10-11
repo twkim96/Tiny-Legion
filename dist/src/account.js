@@ -1,6 +1,7 @@
-import { UNITS, STAGES, RARITIES, STARTER_UNIT_IDS, bannerById, bannerPool, bannerRarities, stageLabel } from "./data.js";
-import { MARK_TYPES, DUPLICATE_MARKS, markTypeFor, unitAbilities, normalizeAbilities, removedAbilityRefund, abilityCost, unitCombatStats } from "./abilities.js";
+import { UNITS, STAGES, RARITIES, bannerById, bannerPool, bannerRarities, stageLabel } from "./data.js";
+import { MARK_TYPES, DUPLICATE_MARKS, markTypeFor, unitAbilities, normalizeAbilities, abilityCost, unitCombatStats } from "./abilities.js";
 import { initialGemState, normalizeGemState, gemEffects, drawGem } from "./gems.js";
+import { legacyStarterSave, restoreLegacyProgress } from "./save-compat.js";
 export const SAVE_KEY = "tiny-legion.save.v1";
 const ONBOARDING_PHASES = new Set([
   "intro",
@@ -92,43 +93,28 @@ export function newAccount(now = Date.now()) {
 export function normalizeAccount(raw, now = Date.now()) {
   const a = newAccount(now);
   if (!raw || raw.version !== 1) return a;
-  const hasOnboarding = Object.hasOwn(raw, "onboarding");
+  raw = legacyStarterSave(raw);
   const rawPhase = raw.onboarding?.phase;
   a.onboarding = {
-    phase: ONBOARDING_PHASES.has(rawPhase) ? rawPhase : hasOnboarding ? "intro" : "complete",
+    phase: ONBOARDING_PHASES.has(rawPhase) ? rawPhase : "intro",
   };
   for (const k of ["gold", "diamonds", "tickets"]) a[k] = cap(raw[k], 0, 1e12);
   for (const u of UNITS) {
     a.owned[u.id] =
       u.id === "sheep" ||
-      (!hasOnboarding && STARTER_UNIT_IDS.includes(u.id)) ||
       raw.owned?.[u.id] === true;
     a.levels[u.id] = Math.floor(cap(raw.levels?.[u.id] ?? 1, 1, 100));
     a.levelSpent[u.id] = Number.isFinite(raw.levelSpent?.[u.id]) && raw.levelSpent[u.id] >= 0
-      ? Math.min(cap(raw.levelSpent[u.id], 0, 1e12), legacyLevelSpent(a.levels[u.id]))
-      : legacyLevelSpent(a.levels[u.id]);
+      ? Math.min(cap(raw.levelSpent[u.id], 0, 1e12), cumulativeLevelCost(a.levels[u.id]))
+      : cumulativeLevelCost(a.levels[u.id]);
     a.fragments[u.id] = Math.floor(cap(raw.fragments?.[u.id], 0, 1e6));
     a.special[u.id] = Math.floor(cap(raw.special?.[u.id], 0, 20));
     a.abilities[u.id] = normalizeAbilities(u.id, raw.abilities?.[u.id]);
   }
   for (const mark of MARK_TYPES) a.marks[mark.id] = Math.floor(cap(raw.marks?.[mark.id], 0, 1e9));
-  if (!Object.hasOwn(raw, "marks")) {
-    // Convert only unused legacy fragments once; already purchased levels stay intact.
-    for (const unit of UNITS) {
-      a.marks[markTypeFor(unit)] += a.fragments[unit.id] * DUPLICATE_MARKS[unit.rarity];
-      a.fragments[unit.id] = 0;
-    }
-  }
-  for (const unit of UNITS) {
-    if (!ownsUnit(a, unit.id)) continue;
-    const refund = removedAbilityRefund(unit.id, raw.abilities?.[unit.id]);
-    a.gold = Math.min(1e12, a.gold + refund.gold);
-    const mark = markTypeFor(unit);
-    a.marks[mark] = Math.min(1e9, a.marks[mark] + refund.marks);
-  }
   const sequence = Array.isArray(raw.sequence)
     ? raw.sequence.slice(0, 10).map((id) => ownsUnit(a, id) ? id : null)
-    : hasOnboarding ? ["sheep"] : [...STARTER_UNIT_IDS];
+    : ["sheep"];
   if (!sequence.some((id) => ownsUnit(a, id))) sequence[0] = "sheep";
   a.sequence = [...sequence, ...Array(10).fill(null)].slice(0, 10);
   if (a.onboarding.phase === "recruit" && ownsUnit(a, "squirrel")) {
@@ -200,52 +186,23 @@ export function normalizeAccount(raw, now = Date.now()) {
         ),
       ]
     : [];
-  if (Object.hasOwn(raw, "missions")) {
-    a.missions = {
-      idleCompleted: raw.missions?.idleCompleted === true,
-      claimed: Array.isArray(raw.missions?.claimed)
-        ? [...new Set(raw.missions.claimed.filter((id) => MISSION_IDS.has(id)))]
-        : [],
-    };
-  } else {
-    a.missions = { idleCompleted: false, claimed: [] };
-    if (!isOnboarding(a)) {
-      if (a.highestCleared >= 2) {
-        a.missions.idleCompleted = true;
-        a.missions.claimed = [
-          "idle-intro",
-          ...STAGES.slice(1, a.highestCleared).map((stage) => `challenge-${stage.id}`),
-        ];
-      } else if (a.highestCleared === 1) {
-        const introRecord = a.records[1];
-        if (
-          Number.isFinite(introRecord?.survival) &&
-          introRecord.survival >= (introRecord.productionSeconds ?? 120) &&
-          Number.isFinite(introRecord?.hpRatio) &&
-          introRecord.hpRatio > 0
-        ) {
-          a.missions.idleCompleted = true;
-        }
-      }
-    }
-  }
-  // Saves from before this guide keep their existing growth and completed stages.
-  const progressed = a.highestCleared >= 2 || UNITS.some((u) => a.levels[u.id] > 1 || a.special[u.id] > 0);
+  a.missions = {
+    idleCompleted: raw.missions?.idleCompleted === true,
+    claimed: Array.isArray(raw.missions?.claimed)
+      ? [...new Set(raw.missions.claimed.filter((id) => MISSION_IDS.has(id)))]
+      : [],
+  };
   const phase = raw.earlyGuide?.phase;
-  a.earlyGuide = { phase: EARLY_PHASES.has(phase) ? phase : progressed ? "complete" : "wall-battle", legacy: raw.earlyGuide?.legacy === true || (!EARLY_PHASES.has(phase) && progressed) };
-  if (["wall-retry", "idle-defense", "remove-rabbit", "idle-retry"].includes(a.earlyGuide.phase) && !ownsUnit(a, "rabbit")) {
-    a.earlyGuide.phase = "rabbit-recruit";
-  }
+  a.earlyGuide = { phase: EARLY_PHASES.has(phase) ? phase : "wall-battle", legacy: raw.earlyGuide?.legacy === true };
   for (const mode of ["challenge", "speedrun"]) {
     const saved = raw.sequencePresets?.[mode];
     const preset = (Array.isArray(saved) && !isOnboarding(a) ? saved : a.sequence).slice(0, 10).map((id) => ownsUnit(a, id) ? id : null);
     if (!preset.some(Boolean)) preset[0] = "sheep";
     a.sequencePresets[mode] = [...preset, ...Array(10).fill(null)].slice(0, 10);
   }
-  // Earlier tutorial saves removed the castle specialist from the shared lineup.
-  if (!Array.isArray(raw.sequencePresets?.challenge) && !a.earlyGuide.legacy &&
-      ["remove-rabbit", "idle-retry", "growth", "complete"].includes(a.earlyGuide.phase) && ownsUnit(a, "rabbit")) {
-    addToSequence(a.sequencePresets.challenge, "rabbit");
+  restoreLegacyProgress(a, raw, EARLY_PHASES.has(phase));
+  if (["wall-retry", "idle-defense", "remove-rabbit", "idle-retry"].includes(a.earlyGuide.phase) && !ownsUnit(a, "rabbit")) {
+    a.earlyGuide.phase = "rabbit-recruit";
   }
   Object.assign(a, normalizeGemState(raw));
   a.gemGuide = { drawn: raw.gemGuide?.drawn === true, equipped: raw.gemGuide?.equipped === true };
@@ -336,7 +293,7 @@ export function applyGuideSequence(a, sequence) {
 export function levelCost(level) {
   return Math.floor(60 + level * 25 + level * level * 5);
 }
-function legacyLevelSpent(level) {
+function cumulativeLevelCost(level) {
   let spent = 0;
   for (let purchasedLevel = 1; purchasedLevel < level; purchasedLevel++) {
     spent += levelCost(purchasedLevel);
@@ -346,18 +303,18 @@ function legacyLevelSpent(level) {
 function levelSpentFor(a, id) {
   const stored = a.levelSpent?.[id];
   return Number.isFinite(stored) && stored >= 0
-    ? Math.min(stored, legacyLevelSpent(a.levels?.[id] ?? 1))
-    : legacyLevelSpent(a.levels?.[id] ?? 1);
+    ? Math.min(stored, cumulativeLevelCost(a.levels?.[id] ?? 1))
+    : cumulativeLevelCost(a.levels?.[id] ?? 1);
 }
 function ensureLevelSpent(a) {
   a.levelSpent ??= {};
   for (const unit of UNITS) {
     if (!Number.isFinite(a.levelSpent[unit.id]) || a.levelSpent[unit.id] < 0) {
-      a.levelSpent[unit.id] = legacyLevelSpent(a.levels?.[unit.id] ?? 1);
+      a.levelSpent[unit.id] = cumulativeLevelCost(a.levels?.[unit.id] ?? 1);
     } else {
       a.levelSpent[unit.id] = Math.min(
         a.levelSpent[unit.id],
-        legacyLevelSpent(a.levels?.[unit.id] ?? 1),
+        cumulativeLevelCost(a.levels?.[unit.id] ?? 1),
       );
     }
   }

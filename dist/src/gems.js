@@ -1,3 +1,4 @@
+import { restoreLegacyGems } from "./save-compat.js";
 // Account-owned instances; all effects returned here are detached snapshots.
 export const GEM_TYPES = [
   { id: 'income', name: '햇살', color: '#c3ad78', effect: 'goldIncome', base: .10, description: '초당 전투 골드' },
@@ -44,18 +45,7 @@ export function normalizeGemState(raw) {
   if (!raw || typeof raw !== 'object') return state;
   state.nextGemUid = Number.isSafeInteger(raw.nextGemUid) && raw.nextGemUid > 0 && raw.nextGemUid < Number.MAX_SAFE_INTEGER ? raw.nextGemUid : 1;
   state.gemWelcomeClaimed = raw.gemWelcomeClaimed === true;
-  if (!Object.hasOwn(raw, 'gemItems')) {
-    for (const type of legacyTypes) {
-      const owned = count(Number(raw.gems?.[type]));
-      if (!owned) continue;
-      const allocation = nextUid(state.gemItems, state.nextGemUid);
-      state.nextGemUid = allocation.next;
-      state.gemItems.push({ uid: allocation.uid, type, level: 1, options: [] });
-      state.gemReserves[type] = owned - 1;
-      if (raw.equippedGem === type) state.gemPresets[0][0] = allocation.uid;
-    }
-    return state;
-  }
+  if (restoreLegacyGems(raw, state, { count, nextUid })) return state;
   const items = Array.isArray(raw.gemItems) ? raw.gemItems : [];
   // Reserve original IDs before repairing duplicates so a repair cannot steal a later ID.
   const reserved = items.filter(g => g && safeUid(g.uid)).map(g => ({ uid: g.uid }));

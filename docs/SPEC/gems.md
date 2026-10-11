@@ -53,7 +53,8 @@
 
 ## 코드와 검증
 
-- `dist/src/gems.js`: 개체·배너·옵션·강화·전승·장착·이주·효과 스냅샷.
+- `dist/src/gems.js`: 개체·배너·옵션·강화·전승·장착·효과 스냅샷.
+- `dist/src/save-compat.js`: 이전 단일 보석 저장의 임시 변환. 제거 지침은 [개발 안내](../development/local.md#테스트-저장-호환-코드)를 따릅니다.
 - `dist/src/gem-ui.js`, `main.js`: 장착/프리셋·모집·개체 상세·재료 선택·전승 확인·가이드·복귀 모달.
 - `dist/src/account.js`: `advancedContentUnlocked`, `collectReturnIncome`, `initializeLineups`, `gemPresetForMode`, `gemModifiers`, 미션·기록.
 - `dist/src/engine.js`, `combat-rules.js`: 초당 골드/상한/처치 보상·유닛 기본/속성 옵션·발사체 스냅샷.
