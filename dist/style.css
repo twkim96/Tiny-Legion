@@ -3438,6 +3438,10 @@ html:fullscreen .game {
   overflow: auto;
 }
 .result-actions { flex-wrap: wrap; }
+.result-support { margin-top: 14px; }
+.result-support p { font-size: 12px; color: #7a8567; margin: 0 0 8px; }
+.result-support > div { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; }
+.result-support .secondary-button { padding: 8px 12px; font-size: 12px; }
 @media (max-height: 560px) and (orientation: landscape) {
   .modal-backdrop .modal-header { padding: 10px 14px; }
   .modal-backdrop .modal-content { padding: 14px 16px; }

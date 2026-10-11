@@ -1024,13 +1024,15 @@ export class Renderer {
         Number.parseInt(String(u.uid ?? "").replace(/^\D+/, ""), 10) || 0;
       const size =
         baseSize *
-        (artId === "boar"
-          ? 1.2
-          : artId === "sheep"
-            ? 1.08
-            : artId === "beetle"
-              ? 0.85
-              : 1);
+        (artId === "bear"
+          ? 1.35
+          : artId === "boar"
+            ? 1.2
+            : artId === "sheep"
+              ? 1.08
+              : artId === "beetle"
+                ? 0.85
+                : 1);
       const pose = sampleUnitPose(visualUnit, simulationTime);
       const facing =
         u.facing === -1 || u.facing === 1

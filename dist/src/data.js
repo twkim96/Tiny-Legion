@@ -1,5 +1,5 @@
 // Initial tuning, subject to play acceptance. Bonuses of the same kind add.
-export const BALANCE_VERSION = "regional-banners-2";
+export const BALANCE_VERSION = "early-growth-3";
 export const ATTRIBUTES = [
   { id: "wild", name: "야생", symbol: "♧", color: "#72b54b", ink: "#3f852e", colorName: "초록색" },
   { id: "machine", name: "기계", symbol: "⚙", color: "#a8b5c5", ink: "#667487", colorName: "은색" },
@@ -396,6 +396,37 @@ export const ENEMIES = [
     color: "#a27649",
   },
   {
+    id: "bear",
+    attribute: "wild",
+    name: "덩굴 곰",
+    description: "햇볕에 그을린 큰 곰이에요. 덩굴 망토를 두르고 묵직한 앞발로 앞줄을 밀어요. 방패로 버티며 뒤에서 공격해 보세요.",
+    role: "heavy",
+    hp: 720, attack: 68, range: 52, speed: 25,
+    attackInterval: 1.9, attackWindup: 0.48, attackRecovery: 0.36,
+    color: "#94633e",
+  },
+  {
+    id: "badger",
+    attribute: "wild",
+    name: "바람 오소리",
+    description: "짙은 줄무늬와 풀잎 허리띠를 두른 오소리예요. 빠르게 다가오니 앞줄이 비지 않게 지켜 주세요.",
+    role: "melee",
+    hp: 280, attack: 34, range: 42, speed: 78,
+    attackInterval: 0.95, attackWindup: 0.18, attackRecovery: 0.16,
+    color: "#9b754f",
+  },
+  {
+    id: "porcupine",
+    attribute: "wild",
+    name: "가시 호저",
+    description: "그을린 털과 긴 가시를 가진 호저예요. 풀잎 주머니의 씨앗을 멀리 날려요. 방패 뒤에 원거리 동료를 모아 보세요.",
+    role: "ranged",
+    hp: 330, attack: 42, range: 285, speed: 24,
+    attackInterval: 1.8, attackWindup: 0.34, attackRecovery: 0.26,
+    projectile: { kind: "seed", speed: 610 },
+    color: "#986849",
+  },
+  {
     id: "clock-beetle",
     artId: "beetle",
     name: "고철 두더지",
@@ -555,40 +586,40 @@ export const STAGES = [
   {
     id: 4,
     name: "달빛 초원",
-    description: "달빛 아래 여러 방향에서 적이 밀려와요.",
+    description: "덩굴 곰이 앞줄을 막아요. 방패와 원거리 동료를 키워 돌파해 보세요.",
     baseReward: 170,
     enemyHp: 2700,
     enemyAttack: 1.15,
     waves: [
-      { time: 1, enemies: [{ id: "beetle", count: 4, interval: 1, x: 1080 }] },
+      { time: 1, enemies: [{ id: "beetle", count: 3, interval: 1, x: 1080 }] },
       {
         time: 17,
         enemies: [
-          { id: "mushroom", count: 4, interval: 1.2, x: 920 },
-          { id: "boar", count: 1, x: 1010 },
+          { id: "bear", count: 1, x: 1080 },
+          { id: "mushroom", count: 2, interval: 1.5, x: 1080 },
         ],
       },
       {
         time: 39,
         enemies: [
-          { id: "boar", count: 3, interval: 1.6, x: 970 },
-          { id: "beetle", count: 3, interval: 1, x: 1030 },
+          { id: "boar", count: 1, x: 1080 },
+          { id: "beetle", count: 3, interval: 1.2, x: 1080 },
         ],
       },
       {
         time: 65,
-        enemies: [{ id: "mushroom", count: 6, interval: 1.1, x: 940 }],
+        enemies: [{ id: "bear", count: 1, x: 1080 }, { id: "mushroom", count: 2, interval: 1.5, x: 1080 }],
       },
       {
         time: 88,
         enemies: [
-          { id: "boar", count: 3, interval: 1.5, x: 990 },
-          { id: "mushroom", count: 4, interval: 1.2, x: 1040 },
+          { id: "boar", count: 2, interval: 2, x: 1080 },
+          { id: "beetle", count: 3, interval: 1.2, x: 1080 },
         ],
       },
       {
         time: 108,
-        enemies: [{ id: "beetle", count: 7, interval: 0.85, x: 1000 }],
+        enemies: [{ id: "bear", count: 1, x: 1080 }],
       },
     ],
   },
@@ -843,6 +874,30 @@ export const STAGES = [
   },
 ];
 
+// Early milestones fund growth; later missions return to the normal reward pace.
+for (const [id, gold] of [[3, 900], [4, 1200], [5, 1400], [6, 1600]]) {
+  STAGES.find((stage) => stage.id === id).missionReward = { gold, diamonds: 30 };
+}
+// Introduce each silhouette separately, then mix the familiar threats.
+for (const stage of STAGES) {
+  for (const [index, wave] of stage.waves.entries()) {
+    if (!index) continue;
+    for (const group of wave.enemies) {
+      if (stage.id >= 6 && group.id === "beetle" && index % 2 === 1) group.id = "badger";
+      if (stage.id >= 8 && group.id === "mushroom" && index % 2 === 1) group.id = "porcupine";
+      if (stage.id >= 5 && group.id === "boar" && index === 2) {
+        group.id = "bear";
+        group.count = Math.max(1, Math.ceil(group.count / 2));
+      }
+      if (stage.id === 5 || stage.id === 6) group.count = Math.max(1, Math.ceil((group.count ?? 1) * 0.6));
+    }
+  }
+}
+
+STAGES.find((stage) => stage.id === 6).waves[1].enemies[0].id = "badger";
+STAGES.find((stage) => stage.id === 6).description = "바람 오소리가 빠르게 파고들어요. 앞줄을 지켜 주세요.";
+STAGES.find((stage) => stage.id === 8).description = "가시 호저가 멀리서 씨앗을 날려요. 앞줄과 뒷줄을 함께 준비해 보세요.";
+
 // Region one teaches a single weakness; region two gradually mixes counters.
 const firstRegion = [...STAGES];
 for (const stage of firstRegion) {
@@ -864,6 +919,7 @@ for (const source of firstRegion) {
   stage.enemyHp = Math.round(source.enemyHp * 1.55);
   stage.enemyAttack = source.enemyAttack * 1.15;
   stage.baseReward = source.baseReward + 120;
+  delete stage.missionReward;
   for (const [index, wave] of stage.waves.entries()) for (const group of wave.enemies) {
     delete group.attribute;
     delete group.shield;

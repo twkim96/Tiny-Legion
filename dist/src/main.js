@@ -770,6 +770,9 @@ function finishOnboardingBattle(result) {
   updateUi();
 }
 function showResult(r, rewards) {
+  const growthHelp = mode === "challenge" && !r.won && growthUnlocked(account);
+  const mission = growthHelp ? currentMission(account) : null;
+  const support = growthHelp ? `<div class="result-support"><p>${mission?.completed ? "받지 않은 미션 보상이 있어요." : "동료를 키우거나 새 친구를 모집해 보세요."}</p><div>${mission?.completed ? '<button class="secondary-button" id="result-mission">미션 보상</button>' : ""}<button class="secondary-button" id="result-growth">동료</button><button class="secondary-button" id="result-recruit">모집</button></div></div>` : "";
   const daily = mode === "speedrun",
     rewardMarkup =
       daily && r.won
@@ -778,10 +781,23 @@ function showResult(r, rewards) {
           ? `<span>${icon("acorn")}+${fmt(rewards.gold)}</span><span>${icon("gem")}+${rewards.diamonds}</span>`
           : "";
   $("battle-result").innerHTML =
-    `<div class="result-card">${icon(r.won ? "trophy" : "shield")}<h2>${r.won ? "완료" : "다시 한 번"}</h2><div class="result-time">${precise(r.time)}</div>${rewardMarkup ? `<div class="result-rewards">${rewardMarkup}</div>` : ""}<div class="result-actions"><button class="secondary-button" id="return-idle">방치로</button>${!r.won || daily ? `<button class="secondary-button" id="retry-battle">${daily && account.daily.claimed ? "연습하기" : "다시 도전"}</button>` : ""}${daily && r.won && !account.daily.claimed ? '<button class="primary-button" id="claim-speedrun">보상받기</button>' : !daily && r.won && stageId < STAGES.length ? `<button class="primary-button" id="next-battle">${stageLabel(stageId + 1)} 도전</button>` : ""}</div>${daily && account.daily.claimed ? '<div class="new-record">오늘 보상 수령 완료</div>' : ""}</div>`;
+    `<div class="result-card">${icon(r.won ? "trophy" : "shield")}<h2>${r.won ? "완료" : "다시 한 번"}</h2><div class="result-time">${precise(r.time)}</div>${rewardMarkup ? `<div class="result-rewards">${rewardMarkup}</div>` : ""}<div class="result-actions"><button class="secondary-button" id="return-idle">방치로</button>${!r.won || daily ? `<button class="secondary-button" id="retry-battle">${daily && account.daily.claimed ? "연습하기" : "다시 도전"}</button>` : ""}${daily && r.won && !account.daily.claimed ? '<button class="primary-button" id="claim-speedrun">보상받기</button>' : !daily && r.won && stageId < STAGES.length ? `<button class="primary-button" id="next-battle">${stageLabel(stageId + 1)} 도전</button>` : ""}</div>${daily && account.daily.claimed ? '<div class="new-record">오늘 보상 수령 완료</div>' : ""}${support}</div>`;
   $("battle-result").hidden = false;
   $("return-idle").onclick = mode === "challenge" && stageId === 2 && account.earlyGuide?.phase === "idle-defense" ? enterSecondIdle : () => setMode("idle");
   if (!r.won || daily) $("retry-battle").onclick = startBattle;
+  if (growthHelp) {
+    $("result-growth").onclick = () => openModal("동료", "growth", renderGrowth);
+    $("result-recruit").onclick = () => openModal("모집", "recruit", renderRecruit);
+    if (mission?.completed) $("result-mission").onclick = () => {
+      if (currentMission(account)?.id !== mission.id) return;
+      const reward = claimMission(account);
+      if (!reward) return;
+      persist();
+      updateUi();
+      toast(`도토리 +${fmt(reward.gold)} · 다이아 +${reward.diamonds}`);
+      showResult(r, rewards);
+    };
+  }
   if ($("next-battle"))
     $("next-battle").onclick = () => startChallenge(stageId + 1);
   if ($("claim-speedrun"))

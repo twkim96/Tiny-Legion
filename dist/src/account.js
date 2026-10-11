@@ -417,8 +417,8 @@ export function currentMission(account) {
       kind: "challenge",
       stageId: stage.id,
       title: `도전 ${stageLabel(stage.id)} 클리어`,
-      gold: stage.baseReward,
-      diamonds: 10,
+      gold: stage.missionReward?.gold ?? stage.baseReward,
+      diamonds: stage.missionReward?.diamonds ?? 10,
       completed: account.highestCleared >= stage.id,
     };
   }

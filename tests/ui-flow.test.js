@@ -38,6 +38,7 @@ function harness(names) {
     $, account, calls, STAGES, stageLabel, currentMission, recordMissionBattle, claimMission, accrue, recordIdle, isOnboarding, recruitOnboardingCompanion, growthUnlocked, sequenceUnlocked, sequenceForMode, setSequence, playableSequence, growUnit, refundUnitLevels, unitLevelRefund, levelCost, recruitEarlyRabbit, applyGuideSequence, canUseUnit, ownsUnit, UNITS,
     modalLayout, messagePanel, modalKind:null, modalRender:null, lastFocused:null, hideTooltip(){},
     readyBattle(){calls.push("ready");}, openCodex(){},
+    renderGrowth(){calls.push('growth-screen');}, renderRecruit(){calls.push('recruit-screen');},
     sequenceDraft:null, sequenceDraftMode:"idle", sequenceDrafts:null, names:Object.fromEntries(UNITS.map(u=>[u.id,u.name])), portrait:id=>`[${id}]`, rarityBadge:()=>"",
     mode: 'idle', stageId: 1, idleResultStage: null, resultHandled: false, restartAt: 0,
     battle: {result: {won:true, survival:120, hpRatio:1, reward:80}, finished:true, time:120, events:[]},
@@ -349,4 +350,42 @@ test('content selector preserves separate drafts and applies only the selected p
   assert.deepEqual([...c.handUnits()],speedrun);
   c.openSequence();
   assert.equal(c.sequenceDraftMode,'speedrun');
+});
+
+test('ordinary victories never offer retry at any stage, while speedrun still does',()=>{
+  const c=harness(['showResult']);
+  c.mode='challenge';
+  for(const stage of STAGES){
+    c.stageId=stage.id;
+    c.showResult({won:true,time:60},{gold:0,diamonds:0});
+    const html=c.$('battle-result').innerHTML;
+    assert.doesNotMatch(html,/retry-battle|result-support/);
+    assert.match(html,/return-idle/);
+    assert.equal(html.includes('next-battle'),stage.id<STAGES.length);
+  }
+  c.mode='speedrun'; c.speedrunReward=()=>5;
+  c.showResult({won:true,time:60},{gold:0,diamonds:0});
+  assert.match(c.$('battle-result').innerHTML,/retry-battle/);
+});
+test('failed challenges expose earned mission rewards once and open growth or recruitment',()=>{
+  const c=harness(['showResult']);
+  c.mode='challenge'; c.stageId=4;
+  c.account.highestCleared=3; c.account.earlyGuide.phase='complete';
+  c.account.missions.claimed=['idle-intro','challenge-2','idle-second','growth-intro'];
+  const before=c.account.gold;
+  c.showResult({won:false,time:120},{gold:0,diamonds:0});
+  assert.equal(c.account.gold,before);
+  assert.match(c.$('battle-result').innerHTML,/result-mission|result-growth|result-recruit/);
+  const claim=c.$('result-mission').onclick;
+  claim();
+  const balance=c.account.gold;
+  assert.ok(balance>before);
+  assert.doesNotMatch(c.$('battle-result').innerHTML,/result-mission/);
+  claim();
+  assert.equal(c.account.gold,balance);
+  c.$('result-growth').onclick();
+  c.$('result-recruit').onclick();
+  assert.ok(c.calls.includes('growth-screen'));
+  assert.ok(c.calls.includes('recruit-screen'));
+  assert.match(c.$('battle-result').innerHTML,/retry-battle/);
 });
