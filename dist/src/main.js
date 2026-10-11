@@ -298,6 +298,7 @@ function createHand() {
   const hand = handUnits()
     .map((id, index) => {
       const unit = unitById[id];
+      if (!unit) return `<button class="unit-card empty-slot" data-index="${index}" disabled aria-label="${index + 1}번 빈 슬롯"><span class="unit-card-number">${index + 1}</span></button>`;
       const tip = [
         unit.description,
         unitSpecialtyText(unit),
@@ -314,7 +315,10 @@ function createHand() {
     .forEach((btn) => (btn.onclick = () => manualSummon(btn.dataset.unit)));
 }
 function handUnits() {
-  return isOnboarding(account) ? [...new Set(account.sequence)] : account.sequence;
+  const sequence = isOnboarding(account)
+    ? [...new Set(account.sequence.filter(Boolean))]
+    : account.sequence;
+  return [...sequence, ...Array(10).fill(null)].slice(0, 10);
 }
 function currentStage() {
   return onboardingEncounter(account.onboarding?.phase) ?? STAGES[stageId - 1] ?? STAGES[0];
@@ -682,8 +686,9 @@ function updateUi() {
   $("unit-hand")
     .querySelectorAll(".unit-card")
     .forEach((btn, index) => {
-      const u = unitById[btn.dataset.unit],
-        cd = battle?.cooldowns[u.id] || 0;
+      const u = unitById[btn.dataset.unit];
+      if (!u) return;
+      const cd = battle?.cooldowns[u.id] || 0;
       btn.classList.toggle(
         "current",
         mode === "idle" && !battle?.finished && battle?.sequenceIndex === index,
@@ -844,7 +849,7 @@ function renderGrowth() {
 function renderSequence() {
   sequenceDraft ??= [...account.sequence];
   $("modal-content").innerHTML =
-    `<div class="sequence-list">${sequenceDraft.map((id, i) => `<article class="sequence-slot"><span class="slot-index">${i + 1}</span>${portrait(id)}<strong>${names[id]}</strong><div class="sequence-arrows"><button data-move="${i}" data-direction="-1" aria-label="${names[id]} 앞으로" ${i === 0 ? "disabled" : ""}>${icon("up")}</button><button data-move="${i}" data-direction="1" aria-label="${names[id]} 뒤로" ${i === sequenceDraft.length - 1 ? "disabled" : ""}>${icon("down")}</button></div><button class="inspect-button secondary-button" data-replace="${i}" style="font-size:10px;padding:5px 8px;margin-top:7px">교체</button></article>`).join("")}</div><p class="sequence-hint">골드가 모이면 차례대로 소환합니다. 쿨타임 중인 동료는 건너뜁니다.</p><div class="modal-footer"><span class="hint">같은 동료를 여러 번 넣을 수 있습니다.</span><button class="primary-button" id="apply-sequence">적용</button></div>`;
+    `<div class="sequence-list">${sequenceDraft.map((id, i) => `<article class="sequence-slot"><span class="slot-index">${i + 1}</span>${id ? portrait(id) : '<div class="empty-sequence-art"></div>'}<strong>${names[id] || "빈 슬롯"}</strong><div class="sequence-arrows"><button data-move="${i}" data-direction="-1" aria-label="${names[id] || "빈 슬롯"} 앞으로" ${i === 0 ? "disabled" : ""}>${icon("up")}</button><button data-move="${i}" data-direction="1" aria-label="${names[id] || "빈 슬롯"} 뒤로" ${i === sequenceDraft.length - 1 ? "disabled" : ""}>${icon("down")}</button></div><button class="inspect-button secondary-button" data-replace="${i}" style="font-size:10px;padding:5px 8px;margin-top:7px">교체</button></article>`).join("")}</div><p class="sequence-hint">골드가 모이면 차례대로 소환합니다. 쿨타임 중인 동료는 건너뜁니다.</p><div class="modal-footer"><span class="hint">같은 동료를 여러 번 넣을 수 있습니다.</span><button class="primary-button" id="apply-sequence">적용</button></div>`;
   $("modal-content")
     .querySelectorAll("[data-move]")
     .forEach(
@@ -874,7 +879,11 @@ function renderSequence() {
                   (u) =>
                     `<button class="collection-card" data-pick="${u.id}">${rarityBadge(u)}${portrait(u.id)}<strong>${u.name}</strong><span>${u.cost}</span></button>`,
                 )
-                .join("")}</div>`;
+                .join("")}</div><div class="modal-footer"><button class="secondary-button" id="clear-sequence-slot">비우기</button></div>`;
+            $("clear-sequence-slot").onclick = () => {
+              sequenceDraft[i] = null;
+              openModal("순서", "sequence", renderSequence);
+            };
             $("modal-content")
               .querySelectorAll("[data-pick]")
               .forEach(
@@ -888,7 +897,11 @@ function renderSequence() {
         }),
     );
   $("apply-sequence").onclick = () => {
-    if (!sequenceDraft.every((id) => ownsUnit(account, id))) return;
+    if (!sequenceDraft.every((id) => id === null || ownsUnit(account, id))) return;
+    if (!sequenceDraft.some((id) => ownsUnit(account, id))) {
+      toast("동료를 한 명 이상 넣어 주세요.");
+      return;
+    }
     account.sequence = [...sequenceDraft];
     persist();
     createHand();
@@ -1182,7 +1195,7 @@ function renderDaily() {
 }
 function renderSettings() {
   $("modal-content").innerHTML =
-    `<div class="settings-row"><span>소리</span><button class="secondary-button" id="setting-sound">${account.settings.sound ? "켜짐" : "꺼짐"}</button></div><div class="settings-row"><span>화면</span><button class="secondary-button" id="fullscreen">${icon("fullscreen")}전체 화면</button></div><div class="settings-row"><span>저장 파일</span><div><button class="secondary-button" id="export-save">내려받기</button> <button class="secondary-button" id="import-save">불러오기</button><input type="file" id="save-file" accept="application/json,.json" hidden></div></div><div class="settings-row"><span>계정</span><button class="secondary-button" id="reset-account">계정 초기화</button></div><p class="settings-note">진행도는 이 브라우저에 저장됩니다.<br>다른 기기로 옮기려면 저장 파일을 사용하세요.</p><p class="settings-note">키보드: 1–5 소환 · Space 일시 정지 · Esc 닫기</p>`;
+    `<div class="settings-row"><span>소리</span><button class="secondary-button" id="setting-sound">${account.settings.sound ? "켜짐" : "꺼짐"}</button></div><div class="settings-row"><span>화면</span><button class="secondary-button" id="fullscreen">${icon("fullscreen")}전체 화면</button></div><div class="settings-row"><span>저장 파일</span><div><button class="secondary-button" id="export-save">내려받기</button> <button class="secondary-button" id="import-save">불러오기</button><input type="file" id="save-file" accept="application/json,.json" hidden></div></div><div class="settings-row"><span>계정</span><button class="secondary-button" id="reset-account">계정 초기화</button></div><p class="settings-note">진행도는 이 브라우저에 저장됩니다.<br>다른 기기로 옮기려면 저장 파일을 사용하세요.</p><p class="settings-note">키보드: 1–9·0 소환 · Space 일시 정지 · Esc 닫기</p>`;
   $("setting-sound").onclick = () => {
     account.settings.sound = !account.settings.sound;
     persist();
@@ -1346,8 +1359,8 @@ document.addEventListener("keydown", (e) => {
     e.preventDefault();
     setPaused();
   }
-  if (/^[1-5]$/.test(e.key) && !e.repeat)
-    manualSummon(handUnits()[Number(e.key) - 1]);
+  if (/^[0-9]$/.test(e.key) && !e.repeat)
+    manualSummon(handUnits()[e.key === "0" ? 9 : Number(e.key) - 1]);
 });
 $("close-modal").onclick = () => closeModal();
 $("modal-backdrop").onclick = (e) => {

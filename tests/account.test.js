@@ -180,24 +180,34 @@ test("damaged saves cannot introduce negative balances, invalid sequence or unkn
   );
   assert.equal(a.gold, 0);
   assert.equal(a.levels.sheep, 100);
-  assert.equal(a.sequence.length, 5);
+  assert.equal(a.sequence.length, 10);
   assert.equal(a.equippedGem, null);
 });
-test("a truncated imported sequence restores five usable summon slots and preserves duplicates", () => {
+test("a truncated imported sequence preserves duplicates and pads ten slots without extra summons", () => {
   const a = normalizeAccount(
     { ...newAccount(now), sequence: ["sheep", "sheep"] },
     now,
   );
-  assert.equal(a.sequence.length, 5);
+  assert.equal(a.sequence.length, 10);
   assert.deepEqual(a.sequence.slice(0, 2), ["sheep", "sheep"]);
-  assert.ok(a.sequence.every((id) => Object.hasOwn(a.levels, id)));
+  assert.ok(a.sequence.every((id) => id === null || Object.hasOwn(a.levels, id)));
+  assert.deepEqual(a.sequence.slice(2), Array(8).fill(null));
+});
+
+test("all ten sequence positions survive reload, including interior empty slots", () => {
+  const raw = newAccount(now);
+  raw.owned.squirrel = true;
+  raw.sequence = ["sheep", null, "squirrel", null, null, "sheep", null, null, null, "squirrel"];
+  const restored = normalizeAccount(raw, now);
+  assert.deepEqual(restored.sequence, raw.sequence);
+  assert.deepEqual(normalizeAccount(restored, now).sequence, raw.sequence);
 });
 
 test("onboarding battles, guaranteed companion and idle completion survive reload", () => {
   const account = newAccount(now);
   assert.deepEqual(account.onboarding, { phase: "intro" });
   assert.equal(Object.values(account.owned).filter(Boolean).length, 1);
-  assert.deepEqual(account.sequence, Array(5).fill("sheep"));
+  assert.deepEqual(account.sequence, ["sheep", ...Array(9).fill(null)]);
   assert.equal(advanceOnboardingBattle(account, false), false);
   assert.equal(advanceOnboardingBattle(account, true), true);
   assert.equal(account.onboarding.phase, "first-battle");
@@ -214,7 +224,7 @@ test("onboarding battles, guaranteed companion and idle completion survive reloa
   assert.equal(result.guaranteed, true);
   assert.deepEqual(account.recruitment, recruitmentBefore);
   assert.deepEqual([account.gold, account.diamonds, account.tickets], balances);
-  assert.deepEqual(account.sequence, ["sheep", "squirrel", "sheep", "squirrel", "sheep"]);
+  assert.deepEqual(account.sequence, ["sheep", "squirrel", ...Array(8).fill(null)]);
   assert.equal(recruitOnboardingCompanion(account), null);
 
   let saved;
@@ -247,12 +257,12 @@ test("onboarding normalization repairs phases and preserves its owned roster", (
     now,
   );
   assert.equal(malformed.onboarding.phase, "retry-battle");
-  assert.deepEqual(malformed.sequence, ["sheep", "squirrel", "sheep", "squirrel", "sheep"]);
+  assert.deepEqual(malformed.sequence, ["sheep", "squirrel", ...Array(8).fill(null)]);
   const missingCompanion = normalizeAccount(
     { ...newAccount(now), onboarding: { phase: "idle-guide" } },
     now,
   );
   assert.equal(missingCompanion.onboarding.phase, "recruit");
-  assert.deepEqual(missingCompanion.sequence, Array(5).fill("sheep"));
+  assert.deepEqual(missingCompanion.sequence, ["sheep", ...Array(9).fill(null)]);
   assert.deepEqual(normalizeAccount(malformed, now), malformed);
 });

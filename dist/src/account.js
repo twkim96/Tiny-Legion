@@ -54,7 +54,7 @@ export function newAccount(now = Date.now()) {
       sinceEpic: 0,
       welcomeClaimed: false,
     },
-    sequence: Array(5).fill("sheep"),
+    sequence: ["sheep", ...Array(9).fill(null)],
     onboarding: { phase: "intro" },
     highestCleared: 0,
     records: {},
@@ -85,17 +85,14 @@ export function normalizeAccount(raw, now = Date.now()) {
     a.fragments[u.id] = Math.floor(cap(raw.fragments?.[u.id], 0, 1e6));
     a.special[u.id] = Math.floor(cap(raw.special?.[u.id], 0, 20));
   }
-  const ownedIds = hasOnboarding
-    ? UNITS.filter((u) => ownsUnit(a, u.id)).map((u) => u.id)
-    : STARTER_UNIT_IDS.filter((id) => ownsUnit(a, id));
   const sequence = Array.isArray(raw.sequence)
-    ? raw.sequence.filter((id) => ownsUnit(a, id))
-    : [];
-  a.sequence = [...(sequence.length ? sequence : []), ...ownedIds].slice(0, 5);
-  while (a.sequence.length < 5) a.sequence.push(ownedIds[0] ?? "sheep");
+    ? raw.sequence.slice(0, 10).map((id) => ownsUnit(a, id) ? id : null)
+    : hasOnboarding ? ["sheep"] : [...STARTER_UNIT_IDS];
+  if (!sequence.some((id) => ownsUnit(a, id))) sequence[0] = "sheep";
+  a.sequence = [...sequence, ...Array(10).fill(null)].slice(0, 10);
   if (a.onboarding.phase === "recruit" && ownsUnit(a, "squirrel")) {
     a.onboarding.phase = "retry-battle";
-    a.sequence = ["sheep", "squirrel", "sheep", "squirrel", "sheep"];
+    a.sequence = ["sheep", "squirrel", ...Array(8).fill(null)];
   } else if (
     ["retry-battle", "idle-guide"].includes(a.onboarding.phase) &&
     !ownsUnit(a, "squirrel")
@@ -325,7 +322,7 @@ export function recruitOnboardingCompanion(a) {
   if (!unit) return null;
   a.owned.squirrel = true;
   a.onboarding.phase = "retry-battle";
-  a.sequence = ["sheep", "squirrel", "sheep", "squirrel", "sheep"];
+  a.sequence = ["sheep", "squirrel", ...Array(8).fill(null)];
   return { unit, isNew: true, fragments: 0, guaranteed: true };
 }
 export function finishOnboarding(a) {

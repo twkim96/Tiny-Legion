@@ -52,9 +52,9 @@ test("legacy saves preserve progress and starter ownership without granting new 
     UNITS.filter((u) => ownsUnit(account, u.id)).map((u) => u.id),
     STARTER_UNIT_IDS,
   );
-  assert.equal(account.sequence.length, 5);
-  assert.deepEqual(account.sequence.slice(0, 2), ["rabbit", "rabbit"]);
-  assert.ok(account.sequence.every((id) => ownsUnit(account, id)));
+  assert.equal(account.sequence.length, 10);
+  assert.deepEqual(account.sequence.slice(0, 3), [null, "rabbit", "rabbit"]);
+  assert.ok(account.sequence.every((id) => id === null || ownsUnit(account, id)));
 });
 
 test("first draw unlocks, subsequent duplicate yields one fragment and supports enhancement", () => {
@@ -229,7 +229,7 @@ test("complete onboarding saves do not regain the legacy starter roster", () => 
     UNITS.filter((unit) => ownsUnit(account, unit.id)).map((unit) => unit.id),
     ["sheep"],
   );
-  assert.deepEqual(account.sequence, Array(5).fill("sheep"));
+  assert.deepEqual(account.sequence, ["sheep", ...Array(9).fill(null)]);
 });
 
 test("completed new-format save retains exactly its sheep and squirrel owners", () => {
@@ -248,5 +248,5 @@ test("completed new-format save retains exactly its sheep and squirrel owners", 
     UNITS.filter((unit) => ownsUnit(restored, unit.id)).map((unit) => unit.id),
     ["sheep", "squirrel"],
   );
-  assert.deepEqual(restored.sequence, source.sequence);
+  assert.deepEqual(restored.sequence, [...source.sequence, ...Array(5).fill(null)]);
 });

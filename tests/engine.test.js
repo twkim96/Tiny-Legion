@@ -11,6 +11,22 @@ import { ENEMIES, STAGES, UNITS } from "../dist/src/data.js";
 
 const FIXED_STEP = 1 / 30;
 
+test("idle skips empty slots and summons a companion in the tenth slot", () => {
+  const state = createBattle({ mode: "idle", sequence: [...Array(9).fill(null), "sheep"] });
+  state._spawnSchedule = [];
+  state.gold = 1000;
+  stepBattle(state, FIXED_STEP);
+  assert.deepEqual(state.units.map((unit) => unit.id), ["sheep"]);
+  stepBattle(state, FIXED_STEP);
+  assert.equal(state.units.length, 1);
+  assert.equal(state.waitingReason, "cooldown");
+  const empty = createBattle({ mode: "idle", sequence: Array(10).fill(null) });
+  empty._spawnSchedule = [];
+  stepBattle(empty, FIXED_STEP);
+  assert.equal(empty.units.length, 0);
+  assert.ok(empty.time > 0);
+});
+
 test("opening waves enter from the enemy castle and walk left in every mode", () => {
   for (const mode of ["idle", "challenge", "speedrun"]) {
     for (const stage of STAGES) {

@@ -3050,3 +3050,62 @@ html:fullscreen .game {
   max-width: 420px;
   line-height: 1.7;
 }
+
+/* Keep all ten slots in place, including the initial single companion. */
+.summon-bar {
+  height: 162px;
+}
+.unit-hand {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  width: 100%;
+  height: 162px;
+  gap: 6px;
+}
+.unit-card.empty-slot {
+  opacity: 1;
+  background: #f8f8f2;
+  border-color: #aeb5a0;
+  cursor: default;
+}
+.unit-card.empty-slot .unit-card-number {
+  color: #a0a894;
+}
+.sequence-list {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+.empty-sequence-art {
+  height: 60px;
+}
+@media (max-height: 560px) and (orientation: landscape),
+  (max-width: 1000px) and (orientation: landscape) {
+  .summon-bar,
+  .unit-hand {
+    height: 94px;
+  }
+  .unit-hand {
+    gap: 4px;
+  }
+  .unit-card .portrait {
+    height: calc(100% - 16px);
+  }
+  .unit-cost {
+    font-size: 11px;
+  }
+}
+@media (max-height: 340px) and (orientation: landscape) {
+  .summon-bar,
+  .unit-hand {
+    height: 88px;
+  }
+}
+.sequence-slot {
+  min-width: 0;
+}
+.sequence-slot .portrait {
+  width: min(86px, 100%);
+  height: 60px;
+}
