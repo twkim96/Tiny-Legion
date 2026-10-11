@@ -3,6 +3,21 @@ const number = value => Number(value).toLocaleString('ko-KR', { maximumFractionD
 const percent = value => `${number(value * 100)}%`;
 const amountText = spec => [spec.amount ? number(spec.amount) : '', spec.hpRatio ? `최대 체력의 ${percent(spec.hpRatio)}` : ''].filter(Boolean).join(' + ');
 export const MIN_EFFECT_INTERVAL = 1/30;
+// Identity belongs to the granting system, never the caster UID or team.
+export const BATTLE_ORIGIN = 'battle';
+export function effectOrigin(category, id, option) {
+  if (category === BATTLE_ORIGIN) return BATTLE_ORIGIN;
+  if (!['gem', 'ability', 'upgrade'].includes(category) || typeof id !== 'string' || !id.trim()) throw new TypeError('Invalid effect origin');
+  if (category === 'gem' && (typeof option !== 'string' || !option.trim())) throw new TypeError('Gem option origin required');
+  return JSON.stringify(category === 'gem' ? [category, id, option] : [category, id]);
+}
+export function effectKind(spec) {
+  if (spec.type !== 'stat') return spec.type;
+  const directions=[Math.sign((spec.multiplier??1)-1),Math.sign(spec.flat??0)].filter(Boolean);
+  const direction=directions.every(value=>value>=0) ? 'increase' : directions.every(value=>value<=0) ? 'decrease' : 'mixed';
+  return `stat:${spec.stat}:${direction}`;
+}
+export const effectKey = (origin, spec) => JSON.stringify([origin, effectKind(spec)]);
 export const STAT_KEYS = Object.freeze(['hp','attack','speed','range','attackInterval']);
 export const STAT_MINIMUMS = Object.freeze({ hp: 1, attack: 1, speed: 0, range: 0, attackInterval: .2 });
 export const STAT_NAMES = Object.freeze({ hp: '체력', attack: '공격력', speed: '이동속도', range: '사거리', attackInterval: '공격 간격' });
@@ -29,6 +44,7 @@ export function effect(type, values = {}) {
   const definition = EFFECTS[type];
   if (!definition) throw new TypeError(`Unknown effect: ${type}`);
   const result = { ...values, type };
+  if (result.origin != null && (typeof result.origin !== 'string' || !result.origin.trim())) throw new TypeError('Invalid effect origin');
   for (const field of definition.fields) {
     if (result[field] == null) continue;
     if (!Number.isFinite(result[field]) || (field !== 'flat' && result[field] < 0)) throw new TypeError(`Invalid ${type}.${field}`);
@@ -44,7 +60,7 @@ export function effect(type, values = {}) {
   if (type==='stat') {
     result.multiplier ??= 1;
     result.flat ??= 0;
-    if (!STAT_NAMES[result.stat] || result.stat==='hp' || !(result.duration>0) || typeof result.id!=='string' || !result.id) throw new TypeError('Invalid stat effect');
+    if (!STAT_NAMES[result.stat] || result.stat==='hp' || !(result.duration>0)) throw new TypeError('Invalid stat effect');
   }
   if (['poison','regeneration'].includes(type)) result.interval = Math.max(MIN_EFFECT_INTERVAL, result.interval);
   return result;

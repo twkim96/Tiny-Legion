@@ -1,4 +1,4 @@
-import { EFFECTS, effect, effectOf, STAT_MINIMUMS, MIN_EFFECT_INTERVAL } from './effects.js';
+import { EFFECTS, effect, effectOf, effectKey, BATTLE_ORIGIN, STAT_MINIMUMS, MIN_EFFECT_INTERVAL } from './effects.js';
 import { specializationBonus } from './combat-rules.js';
 
 const finite = (value, fallback = 0) => Number.isFinite(Number(value)) ? Number(value) : fallback;
@@ -9,7 +9,7 @@ export const COMBAT_TIMING = Object.freeze({ step: MIN_EFFECT_INTERVAL, hitFlash
 export const activeEffects = (unit, type) => Object.values(unit?.statusEffects ?? {}).filter(status => status.type === type && status.remaining > 0);
 export const remainingEffect = (unit, type) => Math.max(0, ...activeEffects(unit, type).map(status => status.remaining));
 export const isImmune = (unit,type) => effectOf(unit,'immunity')?.effect===type;
-export const effectFactor = (unit, type, scope = 'all') => Math.min(1, ...activeEffects(unit, type).filter(status => scope === 'regeneration' || status.scope !== 'regeneration').map(status => status.factor));
+export const effectFactor = (unit, type, scope = 'all') => activeEffects(unit, type).filter(status => scope === 'regeneration' || status.scope !== 'regeneration').reduce((factor, status) => factor * status.factor, 1);
 export const healingAmount = (unit,spec) => nonnegative(spec?.amount) + nonnegative(unit?.maxHp)*nonnegative(spec?.hpRatio);
 
 export function initializeEffects(unit, definition) {
@@ -23,31 +23,32 @@ export function initializeEffects(unit, definition) {
   return unit;
 }
 
-// A single application API for either team. Strongest control/poison refreshes;
-// independently named stat modifiers coexist and refresh only their own ID.
+// Last application replaces every value for the same origin and effect kind.
+// Different origins coexist; team and caster identity do not enter the key.
 export function applyEffect(unit, spec, context = {}) {
   if(!unit || unit.dead || !spec)return false;
   try { spec=effect(spec.type,spec); } catch { return false; }
   if(isImmune(unit,spec.type))return false;
+  const origin = context.origin ?? spec.origin ?? context.source?.origin ?? BATTLE_ORIGIN;
+  if (typeof origin !== 'string' || !origin.trim()) return false;
+  const key = effectKey(origin, spec);
+  const durationMultiplier = context.durationMultiplier ?? 1;
+  if (!Number.isFinite(durationMultiplier) || durationMultiplier <= 0) return false;
   unit.statusEffects ??= {};
   if(['slow','healingSuppression'].includes(spec.type)) {
-    const durationMultiplier = context.durationMultiplier ?? 1;
-    if (!Number.isFinite(durationMultiplier) || durationMultiplier <= 0) return false;
-    const key = spec.type === 'healingSuppression' && spec.scope === 'regeneration' ? 'healingSuppression:regeneration' : spec.type;
-    const previous=unit.statusEffects[key];
-    unit.statusEffects[key]={ ...spec, factor:Math.min(previous?.remaining>0?previous.factor:1,spec.factor), remaining:Math.max(previous?.remaining??0,spec.duration*durationMultiplier) };
+    unit.statusEffects[key]={ ...spec, origin, remaining:spec.duration*durationMultiplier };
   } else if(spec.type==='poison') {
-    const previous=unit.statusEffects.poison;
+    const previous=unit.statusEffects[key];
     const damage=nonnegative(context.damage)*spec.ratio;
-    const strongest=!previous || damage>=previous.damage;
     const source=structuredClone(context.source??{});
     if(source.effects) for (const [type, entry] of Object.entries(source.effects)) {
       if (EFFECTS[entry?.type]?.trigger === 'hit') delete source.effects[type];
     }
-    unit.statusEffects.poison={...spec,remaining:Math.max(previous?.remaining??0,spec.duration),tickRemaining:previous?.tickRemaining??spec.interval,interval:strongest?spec.interval:previous.interval,damage:Math.max(previous?.damage??0,damage),direction:strongest?context.direction:previous.direction,source:strongest?source:previous.source};
+    // Preserve the next tick's progress so frequent refreshes cannot suppress poison.
+    const tickRemaining=previous?.remaining>0 ? Math.min(previous.tickRemaining,spec.interval) : spec.interval;
+    unit.statusEffects[key]={...spec,origin,remaining:spec.duration*durationMultiplier,tickRemaining,damage,direction:context.direction,source};
   } else if(spec.type==='stat') {
-    if(typeof spec.id!=='string' || !spec.id || !Number.isFinite(spec.multiplier??1) || (spec.multiplier??1)<0 || !Number.isFinite(spec.flat??0))return false;
-    unit.statusEffects[`stat:${spec.id}`]={...spec,multiplier:spec.multiplier??1,flat:spec.flat??0,remaining:spec.duration};
+    unit.statusEffects[key]={...spec,origin,remaining:spec.duration*durationMultiplier};
   } else if(spec.type==='healing') {
     return healUnit(unit,spec)>0;
   } else if(spec.type==='shield') {
@@ -58,8 +59,8 @@ export function applyEffect(unit, spec, context = {}) {
     if(!Number.isFinite(unit.x) || !Number.isFinite(context.direction))return false;
     unit.x=Math.max(context.minX??0,Math.min(context.maxX??1200,unit.x+Math.sign(context.direction)*spec.distance));
   } else if(spec.type==='hitStun') {
-    unit.hitStunDuration=Math.max(unit.hitStun??0,spec.duration);
-    unit.hitStun=unit.hitStunDuration;
+    unit.statusEffects[key]={...spec,origin,remaining:spec.duration*durationMultiplier};
+    syncHitStun(unit);
     unit.moving=false;
   } else if (['regeneration','immunity','shieldDamageAura','areaAttack','castleDamage','shieldDamage'].includes(spec.type)) {
     unit.effects ??= {};
@@ -73,11 +74,19 @@ export function applyEffect(unit, spec, context = {}) {
 }
 export function advanceEffects(unit,dt) {
   if(!Number.isFinite(dt) || !(dt>0))return;
+  const managedStun=activeEffects(unit,'hitStun').length>0;
   for(const [key,status] of Object.entries(unit.statusEffects??{})) {
     if(status.type==='poison')continue; // periodic damage owns its exact final tick
     status.remaining=Math.max(0,status.remaining-dt);
     if(status.remaining<=EPSILON)delete unit.statusEffects[key];
   }
+  if(managedStun)syncHitStun(unit);
+  else unit.hitStun=Math.max(0,(unit.hitStun??0)-dt);
+}
+function syncHitStun(unit) {
+  const longest=activeEffects(unit,'hitStun').sort((a,b)=>b.remaining-a.remaining)[0];
+  unit.hitStun=longest?.remaining??0;
+  unit.hitStunDuration=longest ? longest.duration : unit.hitStunDuration;
 }
 export function combatStat(unit,stat) {
   let value=finite(unit?.[stat]);
@@ -102,14 +111,14 @@ export function healUnit(unit,spec) {
 }
 export function tickPeriodicEffects(unit,dt,{heal,damage}) {
   if(unit.dead || !Number.isFinite(dt) || !(dt>0))return;
-  const poison=unit.statusEffects?.poison;
-  if(poison && isImmune(unit,'poison'))delete unit.statusEffects.poison;
-  else if(poison) {
+  for(const [key,poison] of Object.entries(unit.statusEffects??{})) {
+    if(poison.type!=='poison')continue;
+    if(isImmune(unit,'poison')) { delete unit.statusEffects[key]; continue; }
     const active=Math.min(dt,poison.remaining);
     poison.remaining=Math.max(0,poison.remaining-active);
     poison.tickRemaining-=active;
     while(poison.tickRemaining<=EPSILON) { damage(poison.damage,poison.direction,poison.source); poison.tickRemaining+=poison.interval; }
-    if(poison.remaining<=EPSILON)delete unit.statusEffects.poison;
+    if(poison.remaining<=EPSILON)delete unit.statusEffects[key];
   }
   const regeneration=effectOf(unit,'regeneration');
   if(regeneration) {
@@ -127,13 +136,17 @@ export function applyHitEffects(target,source,{hpDamage,damage,direction}) {
   }
 }
 export function auraBonus(source,units,type) {
-  return Math.max(0,...units.filter(u=>u.team===source.team && !u.dead).map(u=>{
-    const aura=effectOf(u,type);
-    return aura && Math.abs(u.x-source.x)<=aura.range ? aura.bonus : 0;
-  }));
+  const origins=new Map();
+  // Units are kept in spawn order: the latest eligible supporter refreshes its origin.
+  for(const unit of units) {
+    if(unit.team!==source.team || unit.dead)continue;
+    const aura=effectOf(unit,type);
+    if(aura && Math.abs(unit.x-source.x)<=aura.range)origins.set(aura.origin??BATTLE_ORIGIN,aura.bonus);
+  }
+  return [...origins.values()].reduce((sum,bonus)=>sum+bonus,0);
 }
 export function attackSource(unit,units) {
-  return {team:unit.team,role:unit.role,attribute:unit.attribute,specialties:[...(unit.specialties??[])],attributeBonuses:structuredClone(unit.attributeBonuses),specialtyUpgradeBonus:structuredClone(unit.specialtyUpgradeBonus),gemAttributeBonuses:structuredClone(unit.gemAttributeBonuses),effects:{...structuredClone(unit.effects??{}),shieldDamage:effect('shieldDamage',{bonus:(effectOf(unit,'shieldDamage')?.bonus??0)+auraBonus(unit,units,'shieldDamageAura')})}};
+  return {origin:unit.origin??BATTLE_ORIGIN,team:unit.team,role:unit.role,attribute:unit.attribute,specialties:[...(unit.specialties??[])],attributeBonuses:structuredClone(unit.attributeBonuses),specialtyUpgradeBonus:structuredClone(unit.specialtyUpgradeBonus),gemAttributeBonuses:structuredClone(unit.gemAttributeBonuses),effects:{...structuredClone(unit.effects??{}),shieldDamage:effect('shieldDamage',{bonus:(effectOf(unit,'shieldDamage')?.bonus??0)+auraBonus(unit,units,'shieldDamageAura')})}};
 }
 export function supportTarget(source,units,spec) {
   if(!spec)return null;

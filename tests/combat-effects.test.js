@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { effect, effectText, effectLines, applyChanges } from '../dist/src/effects.js';
-import { initializeEffects, applyEffect, advanceEffects, combatStat, healingFactor, healUnit, queueHealing, tickPeriodicEffects, attackSource, statusMarks, supportTarget } from '../dist/src/combat-effects.js';
+import { effect, effectText, effectLines, applyChanges, effectOrigin, BATTLE_ORIGIN } from '../dist/src/effects.js';
+import { initializeEffects, activeEffects, remainingEffect, applyHitEffects, applyEffect, advanceEffects, combatStat, healingFactor, healUnit, queueHealing, tickPeriodicEffects, attackSource, statusMarks, supportTarget } from '../dist/src/combat-effects.js';
 import { getUnit, getEnemy, UNITS, ENEMIES } from '../dist/src/characters.js';
 import { unitAbilities, abilityText, applyUnitAbilities } from '../dist/src/abilities.js';
 import { characterStats } from '../dist/src/character-stats.js';
@@ -9,18 +9,18 @@ import { resolveDamage } from '../dist/src/combat-rules.js';
 const near=(a,b)=>assert.ok(Math.abs(a-b)<1e-8, `${a} != ${b}`);
 const unit=(team='player',effects={})=>initializeEffects({uid:team,team,hp:50,maxHp:100,attack:80,speed:40,range:50,attackInterval:1,x:100}, {effects});
 
-test('either team uses one control API: strongest reapplication, expiration, and stat refresh leave base stats unchanged',()=>{
+test('either team uses one control API: last reapplication, expiration, and stat refresh leave base stats unchanged',()=>{
   for(const team of ['player','enemy']) {
     const target=unit(team);
-    applyEffect(target,effect('slow',{factor:.5,duration:2}));
-    advanceEffects(target,1);
-    applyEffect(target,effect('slow',{factor:.8,duration:3}));
+    applyEffect(target,effect('slow',{factor:.7,duration:2}));
+    advanceEffects(target,.25);
+    applyEffect(target,effect('slow',{factor:.8,duration:1}));
     applyEffect(target,effect('stat',{id:'boots',stat:'speed',multiplier:2,duration:1}));
-    assert.equal(combatStat(target,'speed'),40);
-    assert.equal(target.statusEffects.slow.remaining,3);
+    assert.equal(combatStat(target,'speed'),64);
+    assert.equal(remainingEffect(target,'slow'),1);
     assert.deepEqual(statusMarks(target).map(m=>m.kind),['slow']);
     advanceEffects(target,1);
-    assert.equal(combatStat(target,'speed'),20);
+    assert.equal(combatStat(target,'speed'),40);
     advanceEffects(target,2);
     assert.equal(combatStat(target,'speed'),40);
     assert.equal(target.speed,40);
@@ -47,7 +47,7 @@ test('healing and regeneration share amounts and caps, with explicit suppression
   assert.equal(applyEffect(target,effect('shield',{hpRatio:.5})),false);
 });
 
-test('periodic effects deliver each due tick including final poison tick, refresh without multiplying damage, and respect immunity',()=>{
+test('periodic effects deliver each due tick including final poison tick, overwrite strength and direction without multiplying same-origin damage, and respect immunity',()=>{
   for(const team of ['player','enemy']) {
     const target=unit(team,{regeneration:effect('regeneration',{amount:2,interval:1})});
     const poison=effect('poison',{ratio:.1,interval:1,duration:3});
@@ -56,16 +56,16 @@ test('periodic effects deliver each due tick including final poison tick, refres
     applyEffect(target,poison,{damage:50,direction:1,source});
     const hits=[],heals=[];
     tickPeriodicEffects(target,3,{damage:(amount,direction,snapshot)=>hits.push({amount,direction,snapshot}),heal:spec=>heals.push(spec.amount)});
-    assert.deepEqual(hits.map(h=>h.amount),[10,10,10]);
-    assert.ok(hits.every(h=>h.direction===-1 && !h.snapshot.effects.poison));
+    assert.deepEqual(hits.map(h=>h.amount),[5,5,5]);
+    assert.ok(hits.every(h=>h.direction===1 && !h.snapshot.effects.poison));
     assert.deepEqual(heals,[2,2,2]);
-    assert.equal(target.statusEffects.poison,undefined);
+    assert.equal(activeEffects(target,'poison').length,0);
     target.effects.immunity=effect('immunity',{effect:'poison'});
     assert.equal(applyEffect(target,poison,{damage:100}),false);
   }
 });
 
-test('shield, attack area, and strongest nearby aura use frozen release snapshots without mutating character definitions',()=>{
+test('shield, attack area, and latest nearby aura use frozen release snapshots without mutating character definitions',()=>{
   const definition=getUnit('cloud'), before=structuredClone(definition);
   const caster=unit('player',definition.effects);caster.role=definition.role;caster.specialties=definition.specialties;
   const ally=unit(); ally.uid='ally'; ally.x=110;
@@ -117,10 +117,10 @@ test('effect overrides merge and disable independently; team support selects wou
 
 test('regeneration-only and all-healing suppression keep independent strength and expiry',()=>{
   const target=unit(), direct=effect('healing',{amount:20,range:100}), regen=effect('regeneration',{hpRatio:.1,interval:1});
-  applyEffect(target,effect('healingSuppression',{factor:.2,duration:3,scope:'regeneration'}));
+  applyEffect(target,effect('healingSuppression',{factor:.2,duration:3,scope:'regeneration'}),{origin:effectOrigin('ability','regen-suppression')});
   applyEffect(target,effect('healingSuppression',{factor:.8,duration:1,scope:'all'}));
   assert.equal(healingFactor(target,direct),.8);
-  assert.equal(healingFactor(target,regen),.2);
+  near(healingFactor(target,regen),.16);
   advanceEffects(target,1);
   assert.equal(healingFactor(target,direct),1);
   assert.equal(healingFactor(target,regen),.2);
@@ -140,4 +140,114 @@ test('passive effects can be installed with numeric parameters without adding ch
   assert.equal(attackSource(target,[target]).effects.areaAttack.radius,100);
   assert.match(effectText(effect('healing',{amount:10,hpRatio:.05,range:100})),/10 \+ 최대 체력의 5%/);
   assert.match(effectText(effect('stat',{id:'mixed',stat:'attack',flat:5,multiplier:1.2,duration:2})),/\+5 · 1.2배/);
+});
+
+
+test('gem options, an ability, and shared supporters coexist; a weaker second supporter replaces both value and duration',()=>{
+  for(const team of ['player','enemy']) {
+    const target=unit(team);
+    const boost=multiplier=>effect('stat',{stat:'attack',multiplier,duration:10});
+    const origins=[effectOrigin('gem','gem-1','0'),effectOrigin('gem','gem-1','1'),effectOrigin('gem','gem-2','0'),effectOrigin('ability','periodic-attack')];
+    for(const origin of origins)applyEffect(target,boost(1.1),{origin});
+    const supporter1=unit(team), supporter2=unit(team==='player'?'enemy':'player');
+    supporter1.uid='supporter-1';supporter2.uid='supporter-2';
+    supporter1.effects.stat=boost(1.3);
+    supporter2.effects.stat=effect('stat',{id:'another-label',stat:'attack',multiplier:1.05,duration:1});
+    applyHitEffects(target,attackSource(supporter1,[supporter1]),{hpDamage:1,damage:1,direction:1});
+    applyHitEffects(target,attackSource(supporter2,[supporter2]),{hpDamage:1,damage:1,direction:-1});
+    assert.equal(activeEffects(target,'stat').length,5);
+    assert.equal(activeEffects(target,'stat').find(e=>e.origin===BATTLE_ORIGIN).remaining,1);
+    near(combatStat(target,'attack'),80*1.1**4*1.05);
+    advanceEffects(target,1);
+    near(combatStat(target,'attack'),80*1.1**4);
+    advanceEffects(target,9);
+    assert.equal(combatStat(target,'attack'),80);
+    assert.equal(applyEffect(target,boost(1.2),{origin:''}),false);
+    assert.throws(()=>effectOrigin('gem','gem-1'),TypeError);
+  }
+});
+
+test('effect kind includes the stat; scope and arbitrary labels do not create new origins',()=>{
+  const target=unit();
+  applyEffect(target,effect('stat',{id:'attack-a',stat:'attack',multiplier:1.3,duration:10}));
+  applyEffect(target,effect('stat',{id:'speed-a',stat:'speed',multiplier:1.2,duration:10}));
+  applyEffect(target,effect('stat',{id:'attack-b',stat:'attack',multiplier:1.1,duration:1}));
+  assert.equal(activeEffects(target,'stat').length,2);
+  near(combatStat(target,'attack'),88);near(combatStat(target,'speed'),48);
+  applyEffect(target,effect('healingSuppression',{factor:.2,duration:10,scope:'regeneration'}));
+  applyEffect(target,effect('healingSuppression',{factor:.8,duration:1,scope:'all'}));
+  assert.equal(activeEffects(target,'healingSuppression').length,1);
+  assert.equal(healingFactor(target,effect('regeneration',{amount:1,interval:1})),.8);
+  assert.equal(healingFactor(target,effect('healing',{amount:1,range:1})),.8);
+  advanceEffects(target,1);
+  assert.equal(activeEffects(target,'healingSuppression').length,0);
+});
+
+test('different-origin control and poison tick independently; poison refresh preserves progress while replacing the snapshot',()=>{
+  const target=unit(), poison=effect('poison',{ratio:.1,interval:1,duration:3});
+  const origin=effectOrigin('ability','poison');
+  applyEffect(target,effect('slow',{factor:.7,duration:2}));
+  applyEffect(target,effect('slow',{factor:.8,duration:1}),{origin});
+  near(combatStat(target,'speed'),40*.7*.8);
+  advanceEffects(target,1);near(combatStat(target,'speed'),28);
+  applyEffect(target,poison,{damage:100,direction:-1,source:{team:'enemy',tag:'old'}});
+  const hits=[], callbacks={damage:(amount,direction,source)=>hits.push([amount,direction,source.tag]),heal:()=>{}};
+  tickPeriodicEffects(target,.6,callbacks);
+  applyEffect(target,effect('poison',{ratio:.1,interval:1,duration:1}),{damage:50,direction:1,source:{team:'player',tag:'new'}});
+  applyEffect(target,poison,{origin,damage:20,direction:-1,source:{tag:'ability'}});
+  assert.equal(remainingEffect(target,'poison'),3);
+  tickPeriodicEffects(target,.4,callbacks);
+  assert.deepEqual(hits,[[5,1,'new']]);
+  tickPeriodicEffects(target,.6,callbacks);
+  assert.deepEqual(hits,[[5,1,'new'],[2,-1,'ability']]);
+  assert.equal(activeEffects(target,'poison').length,1);
+  tickPeriodicEffects(target,2,callbacks);
+  assert.deepEqual(hits.slice(2),[[2,-1,'ability'],[2,-1,'ability']]);
+  assert.equal(activeEffects(target,'poison').length,0);
+});
+
+test('support auras use the latest eligible supporter even when weaker and return to remaining support when it leaves',()=>{
+  for(const team of ['player','enemy']) {
+    const target=unit(team), first=unit(team), second=unit(team);
+    first.effects.shieldDamageAura=effect('shieldDamageAura',{bonus:1,range:100});
+    second.effects.shieldDamageAura=effect('shieldDamageAura',{bonus:.25,range:100});
+    const units=[target,first,second];
+    assert.equal(attackSource(target,units).effects.shieldDamage.bonus,.25);
+    second.x=500;
+    assert.equal(attackSource(target,units).effects.shieldDamage.bonus,1);
+    second.x=100;second.dead=true;
+    assert.equal(attackSource(target,units).effects.shieldDamage.bonus,1);
+    second.dead=false;second.effects.shieldDamageAura.origin=effectOrigin('ability','other-aura');
+    assert.equal(attackSource(target,units).effects.shieldDamage.bonus,1.25);
+  }
+});
+
+
+test('hit stun uses the same overwrite and independent-origin expiration contract',()=>{
+  for(const team of ['player','enemy']) {
+    const target=unit(team);
+    applyEffect(target,effect('hitStun',{duration:2}));
+    advanceEffects(target,.25);
+    applyEffect(target,effect('hitStun',{duration:1}));
+    assert.equal(target.hitStun,1);
+    assert.equal(activeEffects(target,'hitStun').length,1);
+    applyEffect(target,effect('hitStun',{duration:2}),{origin:effectOrigin('upgrade','resonance')});
+    advanceEffects(target,1);
+    assert.equal(target.hitStun,1);
+    assert.equal(activeEffects(target,'hitStun').length,1);
+    advanceEffects(target,1);
+    assert.equal(target.hitStun,0);
+  }
+});
+
+
+test('battle attack buffs and attack debuffs are different kinds, while another buff replaces only the buff',()=>{
+  const target=unit();
+  applyEffect(target,effect('stat',{stat:'attack',multiplier:1.3,duration:10}),{source:{team:'player'}});
+  applyEffect(target,effect('stat',{stat:'attack',multiplier:.5,duration:2}),{source:{team:'enemy'}});
+  applyEffect(target,effect('stat',{stat:'attack',multiplier:1.1,duration:1}),{source:{team:'enemy'}});
+  assert.equal(activeEffects(target,'stat').length,2);
+  near(combatStat(target,'attack'),44);
+  advanceEffects(target,1);assert.equal(combatStat(target,'attack'),40);
+  advanceEffects(target,1);assert.equal(combatStat(target,'attack'),80);
 });

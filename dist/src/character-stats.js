@@ -43,5 +43,5 @@ export const enemyCombatStats = (id, multipliers = {}, overrides = {}, modifiers
   characterStats(id, { team: "enemy", multipliers, overrides, modifiers });
 
 // Public convenience wrapper; all active effects use the same state/application.
-export const applyStatEffect = (unit, values) => applyEffect(unit, { type: "stat", ...values });
+export const applyStatEffect = (unit, values, context) => applyEffect(unit, { type: "stat", ...values }, context);
 export const advanceStatEffects = advanceEffects;

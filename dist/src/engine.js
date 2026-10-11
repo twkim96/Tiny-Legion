@@ -690,7 +690,6 @@ function advanceTimers(state, dt) {
     unit.attackTimer = Math.max(0, unit.attackTimer - dt);
     unit.hitFlash = Math.max(0, (unit.hitFlash ?? 0) - dt);
     unit.attackFlash = Math.max(0, (unit.attackFlash ?? 0) - dt);
-    unit.hitStun = Math.max(0, (unit.hitStun ?? 0) - dt);
     unit.stunCooldown = Math.max(0, (unit.stunCooldown ?? 0) - dt);
     if (unit.action?.phase === "recovery" && unit.hitStun <= 1e-9) {
       unit.action.elapsed += dt;

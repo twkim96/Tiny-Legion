@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { activeEffects } from '../dist/src/combat-effects.js';
 import { UNITS } from '../dist/src/data.js';
 import { newAccount, normalizeAccount, upgradeUnitAbility, recruitUnits, refundUnitLevels, companionStats, recordIdle, levelCost } from '../dist/src/account.js';
 import { applyUnitAbilities, unitAbilities, abilityCost, markTypeFor, DUPLICATE_MARKS } from '../dist/src/abilities.js';
@@ -156,11 +157,11 @@ test('poison causes timed non-stacking damage and the purchased immunity blocks 
     while(player.hp===before&&state.time<5)stepBattle(state,1/30);
     const afterHit=player.hp;
     assert.ok(afterHit<before);
-    assert.equal(!!player.statusEffects.poison,signature===0);
+    assert.equal(activeEffects(player,'poison').length>0,signature===0);
     enemy.attackTimer=100;enemy.action=null;
     runFor(state,3.2);
     outcomes.push(afterHit-player.hp);
-    assert.equal(player.statusEffects.poison,undefined);
+    assert.equal(activeEffects(player,'poison').length,0);
   }
   assert.ok(Math.abs(outcomes[0]-3.6)<1e-6);
   assert.equal(outcomes[1],0);
@@ -170,12 +171,12 @@ test('released witch poison survives caster death and deals its three timed tick
   while(!state.projectiles.length&&state.time<5)stepBattle(state,1/30);
   player.dead=true;player.hp=0;player.deathTimer=.32;
   while(enemy.hp===10000&&state.time<5)stepBattle(state,1/30);
-  assert.ok(enemy.statusEffects.poison);
+  assert.ok(activeEffects(enemy,'poison').length);
   const afterHit=enemy.hp;
   player.attackTimer=100;player.action=null;
   runFor(state,3.2);
   assert.ok(Math.abs(afterHit-enemy.hp-36*.08*3)<1e-6);
-  assert.equal(enemy.statusEffects.poison,undefined);
+  assert.equal(activeEffects(enemy,'poison').length,0);
 });
 
 test('signature shield and support heal use the upgraded combat definition including equipped HP',()=>{
@@ -201,9 +202,9 @@ test('repeated poison applications refresh duration but do not stack tick damage
     impacts.push(...state.events.filter(event=>event.type==='impact'&&event.team==='player'&&event.hit));
   }
   assert.ok(impacts.length>=2);
-  assert.ok(enemy.statusEffects.poison);
-  assert.ok(Math.abs(enemy.statusEffects.poison.damage-player.attack*.08)<1e-8);
-  assert.ok(enemy.statusEffects.poison.remaining<=3);
+  assert.ok(activeEffects(enemy,'poison').length);
+  assert.ok(Math.abs(activeEffects(enemy,'poison')[0].damage-player.attack*.08)<1e-8);
+  assert.ok(activeEffects(enemy,'poison')[0].remaining<=3);
 });
 
 test('only the three core abilities are common; movement and range follow unit eligibility', () => {

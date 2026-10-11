@@ -1,4 +1,4 @@
-import { applyEffect, remainingEffect } from '../dist/src/combat-effects.js';
+import { applyEffect, remainingEffect, activeEffects } from '../dist/src/combat-effects.js';
 import { effect } from '../dist/src/effects.js';
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -166,7 +166,7 @@ test("regeneration is capped at max HP, suppression lowers recovery and expires"
   applyEffect(enemy, effect("healingSuppression", { factor: .5, duration: 1, scope: "regeneration" }));
   stepBattle(state, tick);
   near(enemy.hp - 50, fullRecovery * 0.5);
-  enemy.statusEffects["healingSuppression:regeneration"].remaining = tick;
+  activeEffects(enemy,"healingSuppression")[0].remaining = tick;
   enemy.periodicTimers.regeneration = tick;
   enemy.hp = 50;
   stepBattle(state, tick);

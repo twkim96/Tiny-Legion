@@ -5,6 +5,8 @@ import { STAGES } from '../dist/src/data.js';
 import { characterStats, unitCombatStats, enemyCombatStats, combatStat, applyStatEffect, advanceStatEffects } from '../dist/src/character-stats.js';
 import { createBattle, summonUnit, stepBattle } from '../dist/src/engine.js';
 import { portrait } from '../dist/src/art.js';
+import { effectOrigin } from '../dist/src/effects.js';
+import { activeEffects, applyEffect } from '../dist/src/combat-effects.js';
 const tick = 1 / 30;
 
 test('registry definitions and nested mechanics cannot be changed by callers; combat snapshots are independent', () => {
@@ -72,16 +74,17 @@ test('ally spawn and detail use the same level, ability and equipment calculatio
   assert.equal(characterStats('missing'), null);
 });
 
-test('timed buffs and debuffs refresh by ID, combine with slow, expire and leave spawn stats intact for either team', () => {
+test('timed buffs and debuffs refresh by origin, combine with slow, expire and leave spawn stats intact for either team', () => {
   for (const team of ['player','enemy']) {
-    const unit = {team, attack:100, speed:50, range:60, attackInterval:1, statusEffects:{slow:{type:'slow',remaining:1,factor:.5}}};
-    assert.equal(applyStatEffect(unit,{id:'rage',stat:'attack',multiplier:1.2,duration:2}), true);
-    assert.equal(applyStatEffect(unit,{id:'weakness',stat:'attack',multiplier:.5,duration:1}), true);
+    const unit = {team, attack:100, speed:50, range:60, attackInterval:1, statusEffects:{}};
+    applyEffect(unit,{type:'slow',duration:1,factor:.5});
+    assert.equal(applyStatEffect(unit,{origin:effectOrigin('ability','rage'),stat:'attack',multiplier:1.2,duration:2}), true);
+    assert.equal(applyStatEffect(unit,{origin:effectOrigin('ability','weakness'),stat:'attack',multiplier:.5,duration:1}), true);
     assert.equal(combatStat(unit,'attack'), 60);
-    applyStatEffect(unit,{id:'rage',stat:'attack',multiplier:1.5,duration:2});
-    assert.equal(Object.keys(unit.statusEffects).filter(key=>key.startsWith("stat:")).length, 2);
+    applyStatEffect(unit,{origin:effectOrigin('ability','rage'),stat:'attack',multiplier:1.5,duration:2});
+    assert.equal(activeEffects(unit,'stat').length, 2);
     assert.equal(combatStat(unit,'attack'), 75);
-    applyStatEffect(unit,{id:'boots',stat:'speed',multiplier:2,duration:2});
+    applyStatEffect(unit,{origin:effectOrigin('gem','boots','0'),stat:'speed',multiplier:2,duration:2});
     assert.equal(combatStat(unit,'speed'), 50);
     advanceStatEffects(unit,1);
     assert.equal(combatStat(unit,'attack'),150);
@@ -103,7 +106,7 @@ test('battle damage uses current attack effects and returns to original damage a
     attacker.x=team==='player'?500:540; attacker.speed=0;
     target.x=team==='player'?540:500; target.speed=0; target.attackTimer=1000;
     target.hp=target.maxHp=1000;
-    applyStatEffect(attacker,{id:'weakness',stat:'attack',multiplier:.5,duration:.8});
+    applyStatEffect(attacker,{origin:effectOrigin('ability','weakness'),stat:'attack',multiplier:.5,duration:.8});
     let before=target.hp;
     while(target.hp===before && state.time<3)stepBattle(state,tick);
     assert.equal(before-target.hp,attacker.attack*.5);
