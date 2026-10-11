@@ -533,7 +533,7 @@ function showOnboardingRetry() {
   onboardingMessage("다시 출정", "양 방패를 먼저 소환하고, 골드를 모아 씨앗 다람쥐를 소환하세요. 방패 뒤에서 적을 공격합니다.", "1-1 출정", enterOnboardingBattle, "squirrel");
 }
 function showIdleGuide() {
-  onboardingMessage("방치", "1-1을 돌파했어요! 이제 동료가 자동으로 소환되어 120초 동안 성을 지킵니다.<br>전투가 끝나면 생산 기록이 생겨요. 그 기록으로 게임을 꺼도 골드와 다이아가 쌓입니다.", "방치 시작", () => {
+  onboardingMessage("방치", "1-1을 돌파했어요! 이제 동료가 자동으로 소환되어 120초 동안 성을 지킵니다.<br>전투가 끝나면 생산 기록이 생겨요. 그 기록으로 게임을 꺼도 도토리와 다이아가 쌓입니다.", "방치 시작", () => {
     if (!finishOnboarding(account)) return;
     persist();
     closeModal(true);
@@ -588,7 +588,7 @@ function showResult(r, rewards) {
       daily && r.won
         ? `<span>${icon("gem")}${speedrunReward(account)}</span>`
         : r.won && rewards.gold
-          ? `<span>${icon("coin")}+${fmt(rewards.gold)}</span><span>${icon("gem")}+${rewards.diamonds}</span>`
+          ? `<span>${icon("acorn")}+${fmt(rewards.gold)}</span><span>${icon("gem")}+${rewards.diamonds}</span>`
           : "";
   $("battle-result").innerHTML =
     `<div class="result-card">${icon(r.won ? "trophy" : "shield")}<h2>${r.won ? "완료" : "다시 한 번"}</h2><div class="result-time">${precise(r.time)}</div>${rewardMarkup ? `<div class="result-rewards">${rewardMarkup}</div>` : ""}<div class="result-actions"><button class="secondary-button" id="retry-battle">${daily && account.daily.claimed ? "연습하기" : "다시 도전"}</button>${daily && r.won && !account.daily.claimed ? '<button class="primary-button" id="claim-speedrun">보상받기</button>' : !daily && r.won && stageId < 10 ? '<button class="primary-button" id="next-battle">다음</button>' : ""}</div>${daily && account.daily.claimed ? '<div class="new-record">오늘 보상 수령 완료</div>' : ""}</div>`;
@@ -611,6 +611,12 @@ function showResult(r, rewards) {
     };
 }
 function updateUi() {
+  const manualCombat = mode !== "idle" && !!battle && !battle.finished;
+  $("game").dataset.manualCombat = String(manualCombat);
+  $("speed").hidden = !manualCombat;
+  $("skill").hidden = mode === "idle";
+  $("pause").hidden = manualCombat;
+  $("edit-sequence").hidden = manualCombat;
   $("gold").textContent = fmt(account.gold);
   $("diamonds").textContent = fmt(account.diamonds);
   $("combat-power").textContent = fmt(combatPower(account));
@@ -710,15 +716,9 @@ function updateUi() {
     skillRemaining > 0 ? Math.ceil(skillRemaining) : "";
   $("edit-sequence").style.visibility = "visible";
   for (const id of ["stage-select", "mode-select", "profile-button", "edit-sequence", "nav-battle", "nav-units", "nav-recruit", "income"]) {
-    $(id).disabled = isOnboarding(account);
+    $(id).disabled = isOnboarding(account) || (manualCombat && ["stage-select", "mode-select"].includes(id));
   }
   $("speed-text").textContent = `${account.settings.speed}×`;
-  $("sound").innerHTML = icon(account.settings.sound ? "sound" : "sound-off");
-  $("sound").setAttribute("aria-pressed", String(account.settings.sound));
-  $("sound").setAttribute(
-    "aria-label",
-    account.settings.sound ? "소리 끄기" : "소리 켜기",
-  );
   $("upgrade-dot").hidden = !UNITS.some(
     (u) =>
       ownsUnit(account, u.id) &&
@@ -756,7 +756,7 @@ function closeModal(force = false) {
 function renderStages() {
   const unlocked = Math.min(10, account.highestCleared + 1);
   $("modal-content").innerHTML =
-    `<div class="stage-grid">${STAGES.map((s) => `<div style="position:relative"><button class="stage-tile ${s.id === stageId ? "selected" : ""}" data-stage="${s.id}" ${s.id > unlocked ? "disabled" : ""} style="width:100%"><strong>1-${s.id}</strong><span class="stage-tile-name">${s.name}</span>${icon(s.id > unlocked ? "lock" : s.id <= account.highestCleared ? "check" : "flag")}${account.records[s.id] ? `<span class="stage-rate">${icon("coin")}${fmt(account.records[s.id].gold * 30)} / 시간</span>` : ""}</button><button class="stage-info-button" data-stage-info="${s.id}" aria-label="${s.name} 전장 정보" title="${s.name} 전장 정보" style="position:absolute;left:5px;bottom:5px;padding:2px 4px;border:0;background:transparent;color:#7b9463;line-height:0">${icon("book")}</button></div>`).join("")}</div>`;
+    `<div class="stage-grid">${STAGES.map((s) => `<div style="position:relative"><button class="stage-tile ${s.id === stageId ? "selected" : ""}" data-stage="${s.id}" ${s.id > unlocked ? "disabled" : ""} style="width:100%"><strong>1-${s.id}</strong><span class="stage-tile-name">${s.name}</span>${icon(s.id > unlocked ? "lock" : s.id <= account.highestCleared ? "check" : "flag")}${account.records[s.id] ? `<span class="stage-rate">${icon("acorn")}${fmt(account.records[s.id].gold * 30)} / 시간</span>` : ""}</button><button class="stage-info-button" data-stage-info="${s.id}" aria-label="${s.name} 전장 정보" title="${s.name} 전장 정보" style="position:absolute;left:5px;bottom:5px;padding:2px 4px;border:0;background:transparent;color:#7b9463;line-height:0">${icon("book")}</button></div>`).join("")}</div>`;
   $("modal-content")
     .querySelectorAll("[data-stage]")
     .forEach(
@@ -794,11 +794,11 @@ function renderGrowth() {
     .map((u) => {
       const level = account.levels[u.id],
         scale = 1 + (level + account.special[u.id] - 1) * 0.12;
-      return `<article class="growth-card">${rarityBadge(u)}${portrait(u.id)}<span class="level-label">Lv. ${level}${account.special[u.id] ? ` · +${account.special[u.id]}` : ""}</span><h3>${u.name}</h3><div class="stats"><span>${icon("heart")}${Math.round(u.hp * scale)}</span><span>${icon("swords")}${Math.round(u.attack * scale)}</span></div><button class="primary-button" data-grow="${u.id}" ${account.gold < levelCost(level) || level >= 100 ? "disabled" : ""}>${icon(level >= 100 ? "check" : "coin")}${level >= 100 ? "완료" : fmt(levelCost(level)) + " ↑"}</button><button class="inspect-button" data-inspect="${u.id}">자세히</button>${account.fragments[u.id] > 0 ? `<button class="secondary-button fragment-button" data-enhance="${u.id}" ${account.fragments[u.id] < 3 || account.special[u.id] >= 20 ? "disabled" : ""} style="font-size:10px;margin-top:9px;padding:5px 7px">조각 ${account.fragments[u.id]} / 3</button>` : ""}</article>`;
+      return `<article class="growth-card">${rarityBadge(u)}${portrait(u.id)}<span class="level-label">Lv. ${level}${account.special[u.id] ? ` · +${account.special[u.id]}` : ""}</span><h3>${u.name}</h3><div class="stats"><span>${icon("heart")}${Math.round(u.hp * scale)}</span><span>${icon("swords")}${Math.round(u.attack * scale)}</span></div><button class="primary-button" data-grow="${u.id}" ${account.gold < levelCost(level) || level >= 100 ? "disabled" : ""}>${icon(level >= 100 ? "check" : "acorn")}${level >= 100 ? "완료" : fmt(levelCost(level)) + " ↑"}</button><button class="inspect-button" data-inspect="${u.id}">자세히</button>${account.fragments[u.id] > 0 ? `<button class="secondary-button fragment-button" data-enhance="${u.id}" ${account.fragments[u.id] < 3 || account.special[u.id] >= 20 ? "disabled" : ""} style="font-size:10px;margin-top:9px;padding:5px 7px">조각 ${account.fragments[u.id]} / 3</button>` : ""}</article>`;
     })
     .join(
       "",
-    )}</div><div class="modal-footer"><span class="resource-inline">${icon("coin")}${fmt(account.gold)}</span><button class="secondary-button" id="refund-levels">${icon("reset")}초기화</button></div>`;
+    )}</div><div class="modal-footer"><span class="resource-inline">${icon("acorn")}${fmt(account.gold)}</span><button class="secondary-button" id="refund-levels">${icon("reset")}초기화</button></div>`;
   $("modal-content")
     .querySelectorAll("[data-grow]")
     .forEach(
@@ -832,7 +832,7 @@ function renderGrowth() {
   $("refund-levels").onclick = () =>
     openModal("초기화", "refund", () => {
       $("modal-content").innerHTML =
-        '<p class="settings-note">사용한 레벨업 골드를 모두 돌려받습니다.<br>동료의 레벨은 1이 되고, 방치 기록은 다시 측정해야 합니다.<br>모집 조각과 강화는 유지됩니다.</p><div class="modal-footer"><button class="secondary-button" id="cancel-refund">돌아가기</button><button class="primary-button" id="confirm-refund">초기화</button></div>';
+        '<p class="settings-note">사용한 레벨업 도토리를 모두 돌려받습니다.<br>동료의 레벨은 1이 되고, 방치 기록은 다시 측정해야 합니다.<br>모집 조각과 강화는 유지됩니다.</p><div class="modal-footer"><button class="secondary-button" id="cancel-refund">돌아가기</button><button class="primary-button" id="confirm-refund">초기화</button></div>';
       $("cancel-refund").onclick = () =>
         openModal("동료", "growth", renderGrowth);
       $("confirm-refund").onclick = () => {
@@ -840,7 +840,7 @@ function renderGrowth() {
         persist();
         if (mode === "idle") startBattle();
         else readyBattle();
-        toast(`${fmt(gold)} 골드를 돌려받았습니다.`);
+        toast(`${fmt(gold)} 도토리를 돌려받았습니다.`);
         openModal("동료", "growth", renderGrowth);
         updateUi();
       };
@@ -1146,7 +1146,7 @@ function showRecruitResult() {
 function renderIncome() {
   const r = account.records[account.idleStage];
   $("modal-content").innerHTML =
-    `<div class="income-summary"><div>${icon("coin")}<strong>${fmt((r?.gold || 0) * 30)}</strong><small>골드 / 시간</small></div><div>${icon("gem")}<strong>${((r?.diamonds || 0) * 30).toFixed(2)}</strong><small>다이아 / 시간</small></div></div>${
+    `<div class="income-summary"><div>${icon("acorn")}<strong>${fmt((r?.gold || 0) * 30)}</strong><small>도토리 / 시간</small></div><div>${icon("gem")}<strong>${((r?.diamonds || 0) * 30).toFixed(2)}</strong><small>다이아 / 시간</small></div></div>${
       Object.keys(account.records).length
         ? `<div class="income-list">${STAGES.filter(
             (s) => account.records[s.id],
@@ -1388,15 +1388,10 @@ $("nav-codex").onclick = () => openCodex();
 $("settings").onclick = () => openModal("설정", "settings", renderSettings);
 $("income").onclick = () => openModal("방치", "income", renderIncome);
 $("speed").onclick = () => {
+  if (mode === "idle" || !battle || battle.finished) return;
   account.settings.speed = account.settings.speed === 1 ? 2 : 1;
   persist();
   updateUi();
-};
-$("sound").onclick = () => {
-  account.settings.sound = !account.settings.sound;
-  persist();
-  updateUi();
-  chirp();
 };
 $("skill").onclick = () => {
   if (
@@ -1443,7 +1438,7 @@ else if (earned.seconds > 60 && earned.gold >= 1)
   setTimeout(
     () =>
       toast(
-        `골드 +${fmt(earned.gold)} · 다이아 +${earned.diamonds.toFixed(2)}`,
+        `도토리 +${fmt(earned.gold)} · 다이아 +${earned.diamonds.toFixed(2)}`,
       ),
     900,
   );
@@ -1462,7 +1457,7 @@ function frame(now) {
     battle &&
     !battle.finished;
   if (shouldAdvance) {
-    accumulator += dt * account.settings.speed;
+    accumulator += dt * (mode === "idle" ? 1 : account.settings.speed);
     let steps = 0;
     while (accumulator >= 1 / 30 && steps < 8 && !battle.finished) {
       stepBattle(battle, 1 / 30);

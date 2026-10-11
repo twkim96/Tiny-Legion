@@ -1,6 +1,7 @@
 import { CHARACTER_ART } from "./character-art.js";
 
 const iconPaths = {
+  acorn: '<g stroke="#705039"><path d="M6 11h12c0 6-3 9-6 10-3-1-6-4-6-10Z" fill="#efb77c"/><path d="M4 11c0-4 3-6 8-6s8 2 8 6H4Z" fill="#a7734c"/><path d="M12 5V2m0 2c1-3 4-3 6-2-1 3-3 4-6 2Z" fill="#a4bd79"/><path d="m7 7 2 4m3-5 2 5m2-4 2 4" opacity=".5"/><path d="M9 14c0 2 1 3 2 4" stroke="#fff2d2"/></g>',
   coin: '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="5.5"/><path d="M12 8v8m-2-6h3a1.5 1.5 0 0 1 0 3h-2a1.5 1.5 0 0 0 0 3h3"/>',
   gem: '<path d="m3 9 4-5h10l4 5-9 12L3 9Zm0 0h18M7 4l5 17 5-17M7 9l5-5 5 5"/>',
   settings:

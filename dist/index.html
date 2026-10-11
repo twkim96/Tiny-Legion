@@ -38,8 +38,8 @@
           <span id="brand-icon"></span>
         </button>
         <div class="resources">
-          <div class="resource" data-tip="캐릭터를 성장시키는 데 사용합니다.">
-            <span data-icon="coin"></span><strong id="gold">0</strong>
+          <div class="resource" aria-label="도토리" data-tip="도토리 · 동료를 성장시키는 데 사용합니다.">
+            <span data-icon="acorn"></span><strong id="gold">0</strong>
           </div>
           <div
             class="resource gem-resource"
@@ -127,6 +127,10 @@
           <span class="menu-medallion"><span data-icon="book"></span></span
           ><span class="menu-label">도감</span>
         </button>
+        <button class="game-menu menu-speed" id="speed" aria-label="전투 속도" data-tip="전투 속도" hidden>
+          <span class="menu-medallion"><span data-icon="forward"></span></span>
+          <span class="menu-label" id="speed-text">1×</span>
+        </button>
         <button
           class="game-menu menu-settings"
           id="settings"
@@ -158,9 +162,9 @@
         class="income-button"
         id="income"
         aria-label="방치 수익"
-        data-tip="기록한 성적에 따라 골드와 다이아가 쌓입니다."
+        data-tip="기록한 성적에 따라 도토리와 다이아가 쌓입니다."
       >
-        <span data-icon="coin"></span
+        <span data-icon="acorn"></span
         ><span id="income-rate">0<span class="muted"> / 시간</span></span
         ><span class="income-dot"></span>
       </button>
@@ -168,16 +172,16 @@
         <span class="small-dot"></span
         ><span id="field-note-text">자동 소환 중</span>
       </div>
-      <div
-        class="battle-wallet"
-        role="group"
-        aria-label="전투 골드"
-        data-tip="시간에 따라 쌓이는 전투용 골드입니다. 육성 골드와 별개입니다."
-      >
-        <span data-icon="purse"></span><strong id="battle-gold">220</strong>
-        <div class="wallet-track"><div id="wallet-fill"></div></div>
-      </div>
       <section class="summon-bar" aria-label="동료 소환">
+        <div
+          class="battle-wallet"
+          role="group"
+          aria-label="전투 골드"
+          data-tip="시간에 따라 쌓이는 전투용 골드입니다. 강화에 쓰는 도토리와 별개입니다."
+        >
+          <span data-icon="coin"></span><strong id="battle-gold">220</strong>
+          <div class="wallet-track"><div id="wallet-fill"></div></div>
+        </div>
         <div class="unit-hand" id="unit-hand"></div>
         <button
           class="sequence-button"
@@ -187,35 +191,16 @@
         >
           <span data-icon="sequence"></span><span>순서</span>
         </button>
-      </section>
-      <div class="play-controls">
         <button
-          class="speed-button"
-          id="speed"
-          aria-label="전투 속도"
-          data-tip="전투 속도"
+          class="skill-button"
+          id="skill"
+          aria-label="대포"
+          data-tip="대포 · 적을 밀어내고 피해를 줍니다."
         >
-          <span data-icon="forward"></span
-          ><span id="speed-text">1×</span></button
-        ><button
-          class="icon-button sound-button"
-          id="sound"
-          aria-label="소리 켜기"
-          aria-pressed="false"
-          data-tip="소리"
-        >
-          <span data-icon="sound-off"></span>
+          <span data-icon="cannon"></span
+          ><span class="skill-cooldown" id="skill-cooldown"></span>
         </button>
-      </div>
-      <button
-        class="skill-button"
-        id="skill"
-        aria-label="대포"
-        data-tip="대포 · 적을 밀어내고 피해를 줍니다."
-      >
-        <span data-icon="cannon"></span
-        ><span class="skill-cooldown" id="skill-cooldown"></span>
-      </button>
+      </section>
     </main>
     <div class="rotate-hint" id="rotate-hint">
       <div class="rotate-art"><span data-icon="rotate"></span></div>
