@@ -406,10 +406,10 @@ export class Renderer {
     path(
       c,
       [
-        ["moveTo", 0, h * 0.82],
-        ["bezierCurveTo", w * 0.3, h * 0.8, w * 0.57, h * 0.83, w, h * 0.8],
-        ["lineTo", w, h * 0.955],
-        ["bezierCurveTo", w * 0.6, h * 0.9, w * 0.35, h * 0.95, 0, h * 0.94],
+        ["moveTo", 0, h * 0.74],
+        ["bezierCurveTo", w * 0.3, h * 0.72, w * 0.57, h * 0.75, w, h * 0.72],
+        ["lineTo", w, h * 0.875],
+        ["bezierCurveTo", w * 0.6, h * 0.82, w * 0.35, h * 0.87, 0, h * 0.86],
         ["closePath"],
       ],
       "#ddd9b8",
@@ -417,8 +417,8 @@ export class Renderer {
     path(
       c,
       [
-        ["moveTo", 0, h * 0.82],
-        ["bezierCurveTo", w * 0.3, h * 0.8, w * 0.57, h * 0.83, w, h * 0.8],
+        ["moveTo", 0, h * 0.74],
+        ["bezierCurveTo", w * 0.3, h * 0.72, w * 0.57, h * 0.75, w, h * 0.72],
       ],
       null,
       "#a4b783",
@@ -426,12 +426,12 @@ export class Renderer {
     );
     for (let i = 0; i < 46; i++) {
       const x = w * ((i * 0.1973) % 1),
-        y = h * (0.88 + Math.sin(i * 2.17) * 0.028);
+        y = h * (0.8 + Math.sin(i * 2.17) * 0.028);
       line(c, x, y, x + 3 + (i % 4), y - 0.3, "#c6c29b", 1.2);
     }
     for (let i = 0; i < 42; i++) {
       const x = w * ((i * 0.197) % 1),
-        y = h * (0.72 + (i % 4) * 0.02),
+        y = h * (0.64 + (i % 4) * 0.02),
         s = cs * 3;
       line(c, x, y, x - s, y - s * 1.3, "#93aa73", 1);
       line(c, x, y, x + s * 0.3, y - s * 1.8, "#93aa73", 1);
@@ -439,7 +439,7 @@ export class Renderer {
     }
     for (let i = 0; i < 15; i++) {
       const x = w * ((i * 0.187 + 0.04) % 1),
-        y = h * (0.73 + (i % 3) * 0.025);
+        y = h * (0.65 + (i % 3) * 0.025);
       line(c, x, y, x, y - 5 * cs, "#8fa476", 1);
       oval(c, x, y - 6 * cs, 2.7 * cs, 2.7 * cs, i % 2 ? "#f5eed1" : "#d9d6aa");
       oval(c, x, y - 6 * cs, 1 * cs, 1 * cs, "#c2ad6c");
@@ -474,7 +474,7 @@ export class Renderer {
     if (!w || !h) return;
     c.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     c.drawImage(this.bg, 0, 0, w, h);
-    const ground = h * 0.82;
+    const ground = h * 0.74;
     const castleSize = Math.min(115, h * 0.37, w * 0.105);
     castle(c, w * (80 / 1200), ground, castleSize, false, wallTime);
     castle(c, w * (1120 / 1200), ground, castleSize, true, wallTime);

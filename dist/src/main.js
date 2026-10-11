@@ -182,6 +182,49 @@ function setMode(next) {
   else readyBattle();
   chirp();
 }
+function renderBattleMenu() {
+  const modes = [
+    {
+      id: "idle",
+      name: "방치",
+      glyph: "leaf",
+      description: "120초 동안 성을 지켜 생산 기록을 남깁니다.",
+    },
+    {
+      id: "challenge",
+      name: "도전",
+      glyph: "swords",
+      description: "동료를 소환해 적 성을 파괴합니다.",
+    },
+    {
+      id: "speedrun",
+      name: "속공",
+      glyph: "bolt",
+      description: "가장 빠른 기록에 도전합니다.",
+    },
+  ];
+  $("modal-content").innerHTML = `<div class="battle-menu-grid">${modes
+    .map((item) => {
+      const locked = item.id === "speedrun" && account.highestCleared < 3;
+      return `<button class="battle-menu-tile ${item.id === mode ? "selected" : ""} ${locked ? "locked" : ""}" data-mode="${item.id}" aria-pressed="${item.id === mode}" data-tip="${locked ? "1-3을 완료하면 열립니다." : item.description}"><span class="battle-menu-art">${icon(item.glyph)}</span><strong>${item.name}</strong>${locked ? `<span class="battle-menu-mark">${icon("lock")}</span>` : item.id === mode ? `<span class="battle-menu-mark">${icon("check")}</span>` : ""}</button>`;
+    })
+    .join("")}</div>`;
+  $("modal-content")
+    .querySelectorAll("[data-mode]")
+    .forEach((button) => {
+      button.onclick = () => {
+        if (button.dataset.mode === "speedrun" && account.highestCleared < 3) {
+          toast("1-3을 완료하면 열립니다.");
+          return;
+        }
+        closeModal();
+        if (button.dataset.mode !== mode) setMode(button.dataset.mode);
+      };
+    });
+}
+function openBattleMenu() {
+  openModal("전투", "battle-menu", renderBattleMenu);
+}
 function manualSummon(id) {
   if (!unitById[id]) return;
   if ($("tooltip").dataset.longpress === "true") {
@@ -274,14 +317,14 @@ function updateUi() {
     `${fmt((record?.gold || 0) * 30)}<span class="muted"> / 시간</span>`;
   $("stage-number").textContent = mode === "speedrun" ? "일일" : `1-${stageId}`;
   $("stage-name").textContent = "초원";
-  document.querySelectorAll("[data-mode]").forEach((b) => {
-    b.setAttribute("aria-selected", String(b.dataset.mode === mode));
-    if (b.dataset.mode === "speedrun")
-      b.dataset.tip =
-        account.highestCleared < 3
-          ? "1-3을 완료하면 열립니다."
-          : "오늘의 기록에 도전합니다.";
-  });
+  $("current-mode").textContent = {
+    idle: "방치",
+    challenge: "도전",
+    speedrun: "속공",
+  }[mode];
+  $("current-mode-icon").innerHTML = icon(
+    { idle: "leaf", challenge: "swords", speedrun: "bolt" }[mode],
+  );
   $("battle-time").textContent = battle
     ? clock(mode === "speedrun" ? battle.time : battle.duration - battle.time)
     : mode === "speedrun"
@@ -798,9 +841,8 @@ $("stage-select").onclick = () =>
   mode === "speedrun"
     ? openModal("속공", "daily", renderDaily)
     : openModal("초원", "stages", renderStages);
-document
-  .querySelectorAll("[data-mode]")
-  .forEach((b) => (b.onclick = () => setMode(b.dataset.mode)));
+$("mode-select").onclick = openBattleMenu;
+$("profile-button").onclick = () => openModal("동료", "growth", renderGrowth);
 $("start-battle").onclick = () => {
   startBattle();
   chirp();
@@ -810,7 +852,7 @@ $("edit-sequence").onclick = () => {
   sequenceDraft = [...account.sequence];
   openModal("순서", "sequence", renderSequence);
 };
-$("nav-battle").onclick = closeModal;
+$("nav-battle").onclick = openBattleMenu;
 $("nav-units").onclick = () => openModal("동료", "growth", renderGrowth);
 $("nav-recruit").onclick = () => openModal("모집", "recruit", renderRecruit);
 $("nav-codex").onclick = () => openCodex();
