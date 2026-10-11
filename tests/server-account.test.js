@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
 import { handleGameRequest } from '../server/api.js';
-import { createBattle, stepBattle, summonUnit } from '../dist/src/engine.js';
+import { createBattle, stepBattle, summonUnit, fireCannon } from '../dist/src/engine.js';
+import { UNITS } from '../dist/src/data.js';
 import { passwordHash } from '../server/test-access.js';
 
 const rootSalt = 'a'.repeat(32), playerSalt = 'b'.repeat(32);
@@ -251,9 +252,59 @@ test('clearing a regional finale opens its next idle stage without allowing arbi
 
 test('server preferences accept presentation fields without granting arbitrary account changes', async () => {
   const h = harness(), b = h.browser(); await h.call(b, 'session/start');
-  const changed = await h.command(b, 'settings', { sound: true, speed: 2, hiddenIdleResults: [1, 1], gold: 1e12 });
+  const changed = await h.command(b, 'settings', { audio: { musicEnabled: false, musicVolume: 0.25 }, speed: 2, hiddenIdleResults: [1, 1], gold: 1e12 });
   assert.equal(changed.status, 200); assert.equal(changed.account.gold, 600);
-  assert.deepEqual(changed.account.settings, { sound: true, speed: 2, hiddenIdleResults: [1] });
+  assert.deepEqual(changed.account.settings, { audio: { musicEnabled: false, sfxEnabled: true, musicVolume: 0.25, sfxVolume: 0.6 }, speed: 2, hiddenIdleResults: [1] });
   assert.equal((await h.command(b, 'settings', { speed: 100 })).error, 'invalid_preference');
+  assert.equal((await h.command(b, 'settings', { audio: { musicVolume: 2 } })).error, 'invalid_preference');
+  assert.equal((await h.command(b, 'settings', { audio: { sfxEnabled: 1 } })).error, 'invalid_preference');
+  assert.equal((await h.command(b, 'settings', { audio: { gold: 1000 } })).error, 'invalid_preference');
   assert.equal((await h.command(b, 'settings', { hiddenIdleResults: [999] })).error, 'invalid_preference');
+});
+
+test('server verifies speedrun stage progression and replays reward claim receipts once', async () => {
+  const h = harness(), b = h.browser();
+  await h.call(b, 'session/start');
+  h.seed({
+    onboarding: { phase: 'complete' },
+    earlyGuide: { phase: 'complete', legacy: false },
+    highestCleared: 11,
+    speedrunUnlocked: 1,
+    owned: Object.fromEntries(UNITS.map(unit => [unit.id, true])),
+    levels: Object.fromEntries(UNITS.map(unit => [unit.id, 100])),
+  });
+  const started = await h.command(b, 'battle.start', { mode: 'speedrun', stageId: 1 });
+  assert.equal(started.status, 200);
+  const run = started.result;
+  const state = createBattle(run.options), actions = [];
+  const order = [...UNITS].sort((a, c) => c.attack / c.cost - a.attack / a.cost).map(unit => unit.id);
+  let cannon = -750;
+  for (let step = 0; step <= Math.ceil(state.duration * 30) && !state.finished; step++) {
+    for (const id of order) if (summonUnit(state, id)) { actions.push({ step, type: 'summon', id }); break; }
+    if (step - cannon >= 750 && state.units.some(unit => unit.team === 'enemy' && !unit.dead) && fireCannon(state)) {
+      actions.push({ step, type: 'cannon' }); cannon = step;
+    }
+    stepBattle(state, 1 / 30);
+  }
+  assert.equal(state.result.won, true);
+  assert.ok(state.result.time <= 60);
+  h.advance(Math.ceil(state.result.time * 1000));
+  const finished = await h.command(b, 'battle.finish', { battleId: run.battleId, actions }, 'speedrun-finish');
+  assert.equal(finished.status, 200);
+  assert.equal(finished.result.battleResult.won, true);
+  assert.equal(finished.account.speedrunUnlocked, 2);
+  assert.equal(finished.account.daily.stages[1].best, finished.result.battleResult.time);
+  assert.equal((await h.command(b, 'battle.start', { mode: 'speedrun', stageId: 2 })).status, 200);
+  assert.equal((await h.command(b, 'battle.start', { mode: 'speedrun', stageId: 3 })).error, 'battle_locked');
+
+  const [claim, retry] = await Promise.all([
+    h.command(b, 'speedrun.claim', { stageId: 1 }, 'speedrun-claim'),
+    h.command(b, 'speedrun.claim', { stageId: 1 }, 'speedrun-claim'),
+  ]);
+  assert.equal(claim.status, 200);
+  assert.equal(retry.status, 200);
+  assert.deepEqual(retry.result, claim.result);
+  assert.equal(claim.account.tickets, 10);
+  assert.equal(retry.account.tickets, 10);
+  assert.equal((await h.command(b, 'speedrun.claim', { stageId: 1 })).error, 'action_unavailable');
 });

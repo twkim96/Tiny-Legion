@@ -1536,6 +1536,9 @@ a.secondary-button {
   color: #959b85;
   font-size: 11px;
 }
+.audio-controls { display: flex; align-items: center; gap: 10px; }
+.audio-controls input { width: clamp(70px, 16vw, 140px); accent-color: #6a7f52; }
+.audio-controls output { width: 36px; text-align: right; font-variant-numeric: tabular-nums; }
 .settings-note {
   color: #8e967f;
   font-size: 12px;
@@ -3788,3 +3791,10 @@ html:fullscreen .game {
 @media (max-height: 560px) and (orientation: landscape), (max-width: 1000px) and (orientation: landscape) {
   .draw-grid:not(.single-draw) .card-revealed .portrait { height: 54px; }
 }
+
+.speedrun-list { display: grid; gap: 6px; }
+.speedrun-list .income-row { padding: 8px 4px; }
+.speedrun-list [data-speedrun-stage] { border: 0; background: none; color: inherit; }
+.speedrun-list [data-speedrun-stage]:disabled { opacity: .45; }
+.speedrun-list [data-speedrun-stage] strong { display: block; font-size: 13px; }
+.speedrun-list .primary-button, .speedrun-list .secondary-button { padding: 7px 12px; min-height: 32px; font-size: 11px; }

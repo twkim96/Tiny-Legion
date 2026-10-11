@@ -22,18 +22,19 @@ export function startBattle(a, { mode, stageId }, now) {
           (!account.growthUnlocked(a) && stageId > 2) ||
           (stageId === 2 && a.earlyGuide.phase === 'rabbit-recruit')) throw new GameError('battle_locked');
     }
-    if (mode === 'speedrun' && (!account.advancedContentUnlocked(a) || stageId > a.highestCleared)) throw new GameError('battle_locked');
+    if (mode === 'speedrun' && (!account.advancedContentUnlocked(a) || stageId > account.speedrunProgress(a))) throw new GameError('battle_locked');
     if (mode === 'idle' && stageId === 2 && a.earlyGuide.phase === 'remove-rabbit') throw new GameError('sequence_required');
   }
   const options = { mode, stageId, levels: account.battleLevels(a), abilities: structuredClone(a.abilities),
     sequence: account.playableSequence(a, mode), modifiers: account.gemModifiers(a, mode),
     ownedUnits: UNITS.filter(u => account.canUseUnit(a, u.id)).map(u => u.id),
     onboardingPhase: onboarding ? a.onboarding.phase : null,
-    earlyGuidePhase: stageId === 2 ? a.earlyGuide.phase : null };
+    earlyGuidePhase: mode !== 'speedrun' && stageId === 2 ? a.earlyGuide.phase : null };
   const battle = createBattle(options);
   const snapshot = { stageId, duration: battle.duration, balanceVersion: BALANCE_VERSION,
     levels: options.levels, abilities: options.abilities, sequence: options.sequence,
-    gem: a.equippedGem, gemEffects: options.modifiers, gemPreset: account.gemPresetForMode(a, mode), dailyKey: a.daily.key };
+    gem: a.equippedGem, gemEffects: options.modifiers, gemPreset: account.gemPresetForMode(a, mode), dailyKey: a.daily.key,
+    speedrunStageId: mode === 'speedrun' ? stageId : null };
   return { battleId: crypto.randomUUID(), options, snapshot, startedAt: now };
 }
 
@@ -73,7 +74,11 @@ export function finishBattle(a, run, { battleId, actions }, now) {
     account.recordMissionBattle(a, { mode: state.mode, stageId: state.stageId, won: battleResult.won });
     if (state.mode === 'idle') recordChanged = account.recordIdle(a, battleResult, run.snapshot, now);
     else if (state.mode === 'challenge' && battleResult.won) rewards = account.completeChallenge(a, state.stageId);
-    else if (state.mode === 'speedrun' && battleResult.won && run.snapshot.dailyKey === a.daily.key) account.recordSpeedrun(a, battleResult.time, now);
+    else if (state.mode === 'speedrun' && battleResult.won && run.snapshot.speedrunStageId === state.stageId) {
+      account.accrue(a, now);
+      if (run.snapshot.dailyKey === a.daily.key) account.recordSpeedrun(a, state.stageId, battleResult.time, now);
+      else account.advanceSpeedrun(a, state.stageId, battleResult.time);
+    }
   }
   return { battleResult, rewards, recordChanged };
 }

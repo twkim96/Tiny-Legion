@@ -6,6 +6,8 @@ import {
   recordIdle,
   claimSpeedrun,
   recordSpeedrun,
+  speedrunStageRecord,
+  speedrunProgress,
   sequenceForMode,
   setSequence,
   playableSequence,
@@ -141,25 +143,31 @@ test("level refund restores spent gold and invalidates production records", () =
   assert.deepEqual(a.records, {});
 });
 test("best speedrun is preserved, daily claim is once, and practice gives no extra currency", () => {
-  const a = newAccount(now);
-  recordSpeedrun(a, 60, now);
-  recordSpeedrun(a, 80, now);
-  assert.equal(a.daily.best, 60);
-  assert.equal(claimSpeedrun(a, now), 5);
-  recordSpeedrun(a, 30, now);
-  assert.equal(a.daily.practice, 30);
-  assert.equal(claimSpeedrun(a, now), 0);
-  assert.equal(a.tickets, 5);
+  const a = completedAccount();
+  a.highestCleared = 11;
+  recordSpeedrun(a, 1, 60, now);
+  recordSpeedrun(a, 1, 80, now);
+  assert.equal(speedrunStageRecord(a, 1).best, 60);
+  assert.equal(claimSpeedrun(a, 1, now), 10);
+  recordSpeedrun(a, 1, 30, now);
+  assert.equal(speedrunStageRecord(a, 1).best, 60);
+  assert.equal(speedrunStageRecord(a, 1).practice, 30);
+  assert.equal(claimSpeedrun(a, 1, now), 0);
+  assert.equal(a.tickets, 10);
+  assert.equal(speedrunProgress(a), 2);
 });
 test("Korean daily boundary resets records and reward state", () => {
   const before = Date.UTC(2026, 9, 11, 14, 59, 59);
-  const a = newAccount(before);
-  recordSpeedrun(a, 60, before);
-  claimSpeedrun(a, before);
+  const a = completedAccount();
+  a.lastSettled = before;
+  a.highestCleared = 11;
+  recordSpeedrun(a, 1, 60, before);
+  claimSpeedrun(a, 1, before);
   accrue(a, before + 2000);
-  assert.equal(a.daily.claimed, false);
-  assert.equal(a.daily.best, null);
-  assert.equal(a.tickets, 5);
+  assert.deepEqual(a.daily.stages, {});
+  assert.equal(a.speedrunUnlocked, 2);
+  assert.equal(speedrunProgress(a), 2);
+  assert.equal(a.tickets, 10);
 });
 test("first challenge reward is not paid twice and gem draw consumes the right currency", () => {
   const a = completedAccount();
@@ -458,12 +466,12 @@ test("legacy mission migration avoids retroactive rewards and respects onboardin
   assert.equal(currentMission(explicit).completed, false);
 });
 
-test("hidden idle-result stages normalize uniquely while sound and speed persist", () => {
+test("hidden idle-result stages normalize uniquely while audio and speed persist", () => {
   const account = normalizeAccount(
     {
       ...newAccount(now),
       settings: {
-        sound: true,
+        audio: { musicEnabled: false, sfxEnabled: true, musicVolume: 0.25, sfxVolume: 0.6 },
         speed: 2,
         hiddenIdleResults: [1, 1, 0, 2, 20, 21, -1, "3", 1.5],
       },
@@ -471,7 +479,7 @@ test("hidden idle-result stages normalize uniquely while sound and speed persist
     now,
   );
   assert.deepEqual(account.settings, {
-    sound: true,
+    audio: { musicEnabled: false, sfxEnabled: true, musicVolume: 0.25, sfxVolume: 0.6 },
     speed: 2,
     hiddenIdleResults: [1, 2, 20],
   });

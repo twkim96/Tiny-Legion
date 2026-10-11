@@ -1,0 +1,14 @@
+Chiptune Adventures — Juhani Junkala (SubspaceAudio)
+Source: https://opengameart.org/content/4-chiptunes-adventure
+License: CC0 1.0 Universal
+https://creativecommons.org/publicdomain/zero/1.0/
+
+License confirmed on the author's OpenGameArt entry and archive INFO.txt.
+Files converted from OGG to mono MP3 (32 kHz, 64 kbps), metadata removed.
+
+meadow.mp3: 1. Stage 1
+workshop.mp3: 2. Stage 2
+boss.mp3: 3. Boss Fight
+journey.mp3: 4. Stage Select
+
+Original author statement: These music tracks have been released under CC0 creative commons license.

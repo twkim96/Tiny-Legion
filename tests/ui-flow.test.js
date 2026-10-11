@@ -2,8 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
-import { newAccount, currentMission, recordMissionBattle, claimMission, accrue, recordIdle, isOnboarding, recruitOnboardingCompanion, growthUnlocked, sequenceUnlocked, sequenceForMode, setSequence, playableSequence, growUnit, refundUnitLevels, unitLevelRefund, levelCost, recruitEarlyRabbit, applyGuideSequence, canUseUnit, ownsUnit } from '../dist/src/account.js';
+import { newAccount, currentMission, recordMissionBattle, claimMission, accrue, recordIdle, isOnboarding, recruitOnboardingCompanion, growthUnlocked, sequenceUnlocked, sequenceForMode, setSequence, playableSequence, growUnit, refundUnitLevels, unitLevelRefund, levelCost, recruitEarlyRabbit, applyGuideSequence, canUseUnit, ownsUnit, speedrunStageRecord, speedrunProgress, speedrunReward } from '../dist/src/account.js';
 import { STAGES, UNITS, stageLabel } from '../dist/src/data.js';
+import { SPEEDRUN_LIMIT_SECONDS, SPEEDRUN_TARGET_SECONDS, SPEEDRUN_STAGES, speedrunStageReward } from '../dist/src/speedrun.js';
 import { recruitPanel } from '../dist/src/recruitment-ui.js';
 import { modalLayout, messagePanel } from '../dist/src/modal-ui.js';
 import { companionStats, upgradeUnitAbility, gemPresetForMode, advancedContentUnlocked, collectReturnIncome, effectiveUnitLevel, baseLevelRoster, sharedLevel } from '../dist/src/account.js';
@@ -49,7 +50,7 @@ function harness(names) {
   account.highestCleared = 1;
   const calls = [];
   const context = {
-    $, account, calls, hostedMode:false, testLoginEnabled:false, testLoginRequested:false, cloudIdentity:null, adminPanel, accountClient:null, sendCommand:async()=>null, updatePreference:async()=>true, STAGES, stageLabel, currentMission, recordMissionBattle, claimMission, accrue, recordIdle, isOnboarding, recruitOnboardingCompanion, growthUnlocked, sequenceUnlocked, sequenceForMode, setSequence, playableSequence, growUnit, refundUnitLevels, unitLevelRefund, levelCost, recruitEarlyRabbit, applyGuideSequence, canUseUnit, ownsUnit, UNITS,
+    $, account, calls, hostedMode:false, testLoginEnabled:false, testLoginRequested:false, cloudIdentity:null, adminPanel, accountClient:null, sendCommand:async()=>null, updatePreference:async()=>true, STAGES, stageLabel, currentMission, recordMissionBattle, claimMission, accrue, recordIdle, isOnboarding, recruitOnboardingCompanion, growthUnlocked, sequenceUnlocked, sequenceForMode, setSequence, playableSequence, growUnit, refundUnitLevels, unitLevelRefund, levelCost, recruitEarlyRabbit, applyGuideSequence, canUseUnit, ownsUnit, UNITS, speedrunStageRecord, speedrunProgress, speedrunReward, speedrunStageReward, SPEEDRUN_LIMIT_SECONDS, SPEEDRUN_TARGET_SECONDS, SPEEDRUN_STAGES,
     bindSequenceDrag(){}, moveSequenceItem, modalHistory:[], modalLayout, messagePanel, modalKind:null, modalRender:null, lastFocused:null, hideTooltip(){},
     readyBattle(){calls.push("ready");}, openCodex(){},
     gemViewPreset:0, drawGem,gemByUid,gemDefinition,gemDescription,gemOptionText,gemUpgradeCost,gemTransferCost,gemUpgradeMaterials,upgradeGem,transferGem,equipGem,GEM_BANNERS,GEM_OPTIONS,gemPage,gemDetail,gemCard,
@@ -357,22 +358,50 @@ test('tutorial banners use collection layout and their next notice returns to co
   }
 });
 
-test('speedrun success keeps reward and practice actions, final challenge has only idle',()=>{
+test('speedrun results show one daily reward and next stage only after target, final challenge has only idle',()=>{
   const c=harness(['showResult']);
   c.speedrunReward=()=>50;
+  c.account.highestCleared=11;
+  c.account.speedrunUnlocked=2;
+  c.account.daily.stages[1]={best:30,practice:null,claimed:false};
   c.mode='speedrun';
   c.showResult({won:true,time:30},{gold:0,diamonds:0});
+  assert.match(c.$('battle-result').innerHTML,/claim-speedrun/);
+  assert.match(c.$('battle-result').innerHTML,/next-speedrun/);
+  assert.doesNotMatch(c.$('battle-result').innerHTML,/retry-battle|next-battle/);
+  assert.doesNotMatch(c.$('battle-result').innerHTML,/next-battle/);
+  c.account.daily.stages[1].claimed=true;
+  c.showResult({won:true,time:30},{gold:0,diamonds:0});
+  assert.match(c.$('battle-result').innerHTML,/오늘 보상 수령 완료/);
+  assert.match(c.$('battle-result').innerHTML,/연습하기/);
+  assert.match(c.$('battle-result').innerHTML,/next-speedrun/);
+  assert.doesNotMatch(c.$('battle-result').innerHTML,/claim-speedrun/);
+  c.account.daily.stages[1]={best:70,practice:null,claimed:false};
+  c.showResult({won:true,time:70},{gold:0,diamonds:0});
   assert.match(c.$('battle-result').innerHTML,/retry-battle/);
   assert.match(c.$('battle-result').innerHTML,/claim-speedrun/);
-  assert.doesNotMatch(c.$('battle-result').innerHTML,/next-battle/);
-  c.account.daily.claimed=true;
-  c.showResult({won:true,time:30},{gold:0,diamonds:0});
-  assert.match(c.$('battle-result').innerHTML,/연습하기/);
-  assert.doesNotMatch(c.$('battle-result').innerHTML,/claim-speedrun/);
+  assert.doesNotMatch(c.$('battle-result').innerHTML,/next-speedrun/);
   c.mode='challenge'; c.stageId=STAGES.length;
   c.showResult({won:true,time:30},{gold:0,diamonds:0});
   assert.equal([...c.$('battle-result').innerHTML.matchAll(/<button/g)].length,1);
   assert.match(c.$('battle-result').innerHTML,/return-idle/);
+});
+
+test('speedrun daily list shows all stages with compact target, reward, record and lock state',()=>{
+  const c=harness(['renderDaily']);
+  c.settleProduction=()=>{};
+  c.account.highestCleared=11;
+  c.account.speedrunUnlocked=1;
+  c.account.daily.stages[1]={best:65,practice:null,claimed:false};
+  c.renderDaily();
+  const html=c.$('modal-content').innerHTML;
+  assert.match(html,/class="speedrun-list"/);
+  assert.match(html,/목표 60초 이내 · 최대 보석 조각 10개 · 90초 제한/);
+  assert.match(html,/1-1 · 첫 숲길/);
+  assert.match(html,/보상 8개 · 기록 65/);
+  assert.match(html,/data-speedrun-claim="1"/);
+  assert.match(html,/2-1 · .*잠김/);
+  assert.equal([...html.matchAll(/data-speedrun-stage=/g)].length,20);
 });
 
 
@@ -454,7 +483,8 @@ test('ordinary victories never offer retry at any stage, while speedrun still do
     assert.equal(html.includes('next-battle'),stage.id<STAGES.length);
   }
   c.mode='speedrun'; c.speedrunReward=()=>5;
-  c.showResult({won:true,time:60},{gold:0,diamonds:0});
+  c.account.daily.stages[1]={best:70,practice:null,claimed:false};
+  c.showResult({won:true,time:70},{gold:0,diamonds:0});
   assert.match(c.$('battle-result').innerHTML,/retry-battle/);
 });
 test('failed challenges expose earned mission rewards once and open growth or recruitment',()=>{

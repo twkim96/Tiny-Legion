@@ -25,7 +25,7 @@ function play(stageId, level, mode = 'challenge', lineup = STARTERS, modifiers =
   return { state, bosses: [...bosses.values()] };
 }
 
-test('ordinary modes cap defaults and explicit durations at 90; speedrun retains 120 and its waves', () => {
+test('ordinary modes and speedrun cap at 90; speedrun preserves authored waves within the limit', () => {
   for (const stage of STAGES) for (const mode of ['idle', 'challenge']) {
     assert.equal(createBattle({ mode, stageId: stage.id }).duration, 90);
     for (const duration of [120, 900, Infinity, NaN]) {
@@ -41,9 +41,15 @@ test('ordinary modes cap defaults and explicit durations at 90; speedrun retains
     assert.equal(createBattle({ mode, duration: 30 }).duration, 30);
   }
   const speedrun = createBattle({ mode: 'speedrun', stageId: 1 });
-  assert.equal(speedrun.duration, 120);
-  assert.ok(speedrun._spawnSchedule.some(spawn => spawn.time === 102));
-  assert.deepEqual(speedrun._spawnSchedule, createBattle({ mode: 'speedrun', stageId: 1, duration: 120 })._spawnSchedule);
+  assert.equal(speedrun.duration, 90);
+  assert.ok(speedrun._spawnSchedule.some(spawn => spawn.time > 85));
+  assert.ok(speedrun._spawnSchedule.every(spawn => spawn.time <= 89));
+  for (const stage of STAGES) {
+    const battle = createBattle({ mode: 'speedrun', stageId: stage.id });
+    assert.equal(battle.duration, 90);
+    assert.equal(battle._spawnSchedule.length, createBattle({ mode: 'speedrun', stageId: stage.id, duration: 120 })._spawnSchedule.length);
+    assert.ok(battle._spawnSchedule.every(spawn => spawn.time <= 89));
+  }
   for (const phase of ['intro', 'first-battle', 'retry-battle']) {
     assert.equal(createBattle({ mode: 'challenge', onboardingPhase: phase, duration: 900 }).duration,
       { intro: 45, 'first-battle': 60, 'retry-battle': 90 }[phase]);

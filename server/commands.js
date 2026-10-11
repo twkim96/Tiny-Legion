@@ -27,7 +27,7 @@ export function applyCommand(a, activeBattle, type, args, now) {
     case 'gem.equip': result = required(equipGem(a, args.presetIndex, args.slotIndex, args.uid)); break;
     case 'gem.upgrade': result = required(upgradeGem(a, args.uid, args.materialUids)); break;
     case 'gem.transfer': result = required(transferGem(a, args.sourceUid, args.targetUid)); break;
-    case 'speedrun.claim': result = required(account.claimSpeedrun(a, now) || null); break;
+    case 'speedrun.claim': result = required(account.claimSpeedrun(a, args.stageId ?? 1, now) || null); break;
     case 'idle.select':
       if (!Number.isInteger(args.stageId) || args.stageId < 1 || args.stageId > a.highestCleared + (a.highestCleared > 0 && a.highestCleared % 10 === 0 ? 1 : 0) || !STAGES.some(s => s.id === args.stageId)) throw new GameError('stage_locked');
       a.idleStage = args.stageId; result = true; break;
@@ -38,9 +38,13 @@ export function applyCommand(a, activeBattle, type, args, now) {
       result = true; break;
     case 'idle.popup.reset': a.settings.hiddenIdleResults = []; result = true; break;
     case 'settings':
-      if (args.sound !== undefined) {
-        if (typeof args.sound !== 'boolean') throw new GameError('invalid_preference');
-        a.settings.sound = args.sound;
+      if (args.audio !== undefined) {
+        if (!args.audio || typeof args.audio !== 'object' || Array.isArray(args.audio)) throw new GameError('invalid_preference');
+        for (const [key, value] of Object.entries(args.audio)) {
+          if (!['musicEnabled', 'sfxEnabled', 'musicVolume', 'sfxVolume'].includes(key) ||
+              (key.endsWith('Enabled') ? typeof value !== 'boolean' : typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > 1)) throw new GameError('invalid_preference');
+        }
+        Object.assign(a.settings.audio, args.audio);
       }
       if (args.speed !== undefined) {
         if (![1, 2].includes(args.speed)) throw new GameError('invalid_preference');

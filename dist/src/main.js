@@ -1,3 +1,4 @@
+import { GameAudio } from "./audio.js";
 import { enemyCombatStats } from "./character-stats.js";
 import { signInPath, signInIntent, entryPanel, accountIdentityPanel } from "./sign-in.js";
 import { testLoginPanel, bindTestLogin, adminPanel } from "./test-access-ui.js";
@@ -57,8 +58,11 @@ import {
   recordIdle,
   completeChallenge,
   recordSpeedrun,
+  advanceSpeedrun,
   claimSpeedrun,
   speedrunReward,
+  speedrunStageRecord,
+  speedrunProgress,
   recruitUnits,
   ownsUnit,
   isOnboarding,
@@ -72,6 +76,7 @@ import {
   sequenceUnlocked,
   recruitEarlyRabbit,
 } from "./account.js";
+import { SPEEDRUN_LIMIT_SECONDS, SPEEDRUN_TARGET_SECONDS, SPEEDRUN_STAGES, speedrunStageReward } from "./speedrun.js";
 
 const hostedMode = globalThis.TINY_LEGION_SERVER === true;
 const sitesSignedIn = globalThis.TINY_LEGION_SIGNED_IN === true;
@@ -389,12 +394,13 @@ let idleIncome = { gold: 0, diamonds: 0 };
 let toastTimer,
   tooltipTimer,
   longPressTimer,
-  audioContext = null,
   lastFrame = performance.now(),
   accumulator = 0,
   lastUi = 0,
   lastAccrual = Date.now(),
   lastSound = 0;
+const gameAudio = new GameAudio();
+let audioPreview = null;
 let storageWarning = false;
 function persist() {
   if (hostedMode) return true;
@@ -478,30 +484,12 @@ function toast(text) {
   $("toast").hidden = false;
   toastTimer = setTimeout(() => ($("toast").hidden = true), 3300);
 }
+function syncAudio() {
+  gameAudio.configure({ ...account.settings.audio, ...audioPreview }, stageId, !document.hidden && !hostedHalted);
+}
 function chirp(type = "tap") {
-  if (!account.settings.sound) return;
-  try {
-    audioContext ??= new (window.AudioContext || window.webkitAudioContext)();
-    audioContext.resume();
-    const o = audioContext.createOscillator(),
-      gain = audioContext.createGain(),
-      t = audioContext.currentTime;
-    o.type = "sine";
-    o.frequency.setValueAtTime(
-      type === "win" ? 660 : type === "summon" ? 360 : 440,
-      t,
-    );
-    o.frequency.exponentialRampToValueAtTime(
-      type === "win" ? 880 : 250,
-      t + 0.09,
-    );
-    gain.gain.setValueAtTime(0.035, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.14);
-    o.connect(gain);
-    gain.connect(audioContext.destination);
-    o.start(t);
-    o.stop(t + 0.15);
-  } catch {}
+  syncAudio();
+  gameAudio.chirp(type);
 }
 function createHand() {
   const hand = handUnits()
@@ -539,8 +527,12 @@ async function startBattle() {
     toast("1-1 방치 미션을 완료하고 보상을 받아 주세요.");
     return;
   }
-  if (!isOnboarding(account) && !growthUnlocked(account) && stageId > 2) {
+  if (!isOnboarding(account) && mode === "challenge" && !growthUnlocked(account) && stageId > 2) {
     toast("1-2 방치 미션을 먼저 완료하세요.");
+    return;
+  }
+  if (mode === "speedrun" && (!advancedContentUnlocked(account) || stageId > speedrunProgress(account))) {
+    toast("먼저 열린 속공 스테이지를 선택하세요.");
     return;
   }
   if (!isOnboarding(account) && mode === "challenge" && stageId === 2 && account.earlyGuide?.phase === "rabbit-recruit") {
@@ -605,7 +597,7 @@ async function startBattle() {
     modifiers: gemModifiers(account, mode),
     ownedUnits: UNITS.filter((u) => canUseUnit(account, u.id)).map((u) => u.id),
     onboardingPhase: isOnboarding(account) ? account.onboarding.phase : null,
-    earlyGuidePhase: stageId === 2 ? account.earlyGuide?.phase : null,
+    earlyGuidePhase: mode !== "speedrun" && stageId === 2 ? account.earlyGuide?.phase : null,
   });
   idleIncome = { gold: 0, diamonds: 0 };
   battleSnapshot = {
@@ -619,6 +611,7 @@ async function startBattle() {
     gemEffects: structuredClone(gemModifiers(account, mode)),
     gemPreset: gemPresetForMode(account, mode),
     dailyKey: account.daily.key,
+    speedrunStageId: mode === "speedrun" ? stageId : null,
   };
   paused = false;
   waiting = false;
@@ -641,7 +634,7 @@ function readyBattle() {
   restartAt = 0;
   $("battle-result").hidden = true;
   $("battle-ready").hidden = false;
-  $("ready-stage").textContent = mode === "speedrun" ? "일일" : stageId === 0 ? "0" : stageLabel(stageId);
+  $("ready-stage").textContent = mode === "speedrun" ? stageLabel(stageId) : stageId === 0 ? "0" : stageLabel(stageId);
   $("ready-title").textContent = currentStage().name;
   updateUi();
 }
@@ -1075,11 +1068,16 @@ function finishBattle() {
     if (wasLocked && advancedContentUnlocked(account))
       setTimeout(() => toast("보석과 속공이 열렸습니다."), 900);
   }
-  if (mode === "speedrun" && r.won) {
+  if (mode === "speedrun" && r.won && battleSnapshot.speedrunStageId === stageId) {
     settleProduction();
     if (battleSnapshot.dailyKey === account.daily.key)
-      recordSpeedrun(account, r.time);
-    else toast("새로운 하루가 시작됐습니다. 다시 도전해 주세요.");
+      recordSpeedrun(account, stageId, r.time);
+    else {
+      advanceSpeedrun(account, stageId, r.time);
+      toast("새로운 하루가 시작돼 오늘 기록은 저장되지 않았어요.");
+    }
+  } else if (mode === "speedrun" && r.won) {
+    toast("속공 스테이지를 확인하지 못해 기록하지 않았어요.");
   }
   persist();
   showResult(r, rewards);
@@ -1153,7 +1151,7 @@ async function finishHostedBattle() {
       setTimeout(() => toast("보석과 속공이 열렸습니다."), 900);
   }
   if (mode === "speedrun" && result.won && battleSnapshot.dailyKey !== account.daily.key)
-    toast("새로운 하루가 시작됐습니다. 다시 도전해 주세요.");
+    toast("새로운 하루가 시작돼 오늘 기록은 저장되지 않았어요.");
   showResult(result, rewards);
   updateUi();
 }
@@ -1351,9 +1349,9 @@ function finishOnboardingBattle(result, { phase = account.onboarding.phase, serv
   }
   updateUi();
 }
-function claimSpeedrunReward(onClaimed = () => {}) {
+function claimSpeedrunReward(speedrunStageId, onClaimed = () => {}) {
   if (hostedMode) {
-    void sendCommand("speedrun.claim", {}).then((envelope) => {
+    void sendCommand("speedrun.claim", { stageId: speedrunStageId }).then((envelope) => {
       if (!envelope) return;
       const reward = envelope.result;
       if (reward) toast(`보석 조각 +${reward}`);
@@ -1362,7 +1360,7 @@ function claimSpeedrunReward(onClaimed = () => {}) {
     });
     return;
   }
-  const reward = claimSpeedrun(account);
+  const reward = claimSpeedrun(account, speedrunStageId);
   if (reward) {
     persist();
     toast(`보석 조각 +${reward}`);
@@ -1373,15 +1371,28 @@ function showResult(r, rewards) {
   const growthHelp = mode === "challenge" && !r.won && growthUnlocked(account);
   const mission = growthHelp ? currentMission(account) : null;
   const support = growthHelp ? `<div class="result-support"><p>${mission?.completed ? "받지 않은 미션 보상이 있어요." : "동료를 키우거나 새 친구를 모집해 보세요."}</p><div>${mission?.completed ? '<button class="secondary-button" id="result-mission">미션 보상</button>' : ""}<button class="secondary-button" id="result-growth">동료</button><button class="secondary-button" id="result-recruit">모집</button></div></div>` : "";
-  const daily = mode === "speedrun",
-    rewardMarkup =
-      daily && r.won
-        ? `<span>${icon("gem")}${speedrunReward(account)}</span>`
+  const daily = mode === "speedrun";
+  const speedrunRecord = daily ? speedrunStageRecord(account, stageId) : null;
+  const speedrunRewardCount = daily ? speedrunReward(account, stageId) : 0;
+  const targetWon = daily && r.won && r.time <= SPEEDRUN_TARGET_SECONDS;
+  const nextSpeedrunAvailable = targetWon && stageId < SPEEDRUN_STAGES.length && speedrunProgress(account) >= stageId + 1;
+  const speedrunHint = daily
+    ? targetWon
+      ? stageId < SPEEDRUN_STAGES.length
+        ? `목표 ${precise(SPEEDRUN_TARGET_SECONDS)} 달성 · 다음 스테이지가 열렸어요.`
+        : `목표 ${precise(SPEEDRUN_TARGET_SECONDS)} 달성 · 마지막 스테이지예요.`
+      : r.won
+        ? `목표 ${precise(SPEEDRUN_TARGET_SECONDS)} 안에 다시 클리어하면 다음 스테이지가 열려요.`
+        : `${SPEEDRUN_LIMIT_SECONDS}초 안에 성을 무너뜨리면 보석 조각을 받을 수 있어요.`
+    : "";
+  const rewardMarkup =
+      daily && r.won && !speedrunRecord?.claimed && speedrunRewardCount
+        ? `<span>${icon("gem")}보석 조각 +${speedrunRewardCount}</span>`
         : r.won && rewards.gold
           ? `<span>${icon("acorn")}+${fmt(rewards.gold)}</span><span>${icon("gem")}+${rewards.diamonds}</span>`
           : "";
   $("battle-result").innerHTML =
-    `<div class="result-card">${icon(r.won ? "trophy" : "shield")}<h2>${r.won ? "완료" : "다시 한 번"}</h2><div class="result-time">${precise(r.time)}</div>${rewardMarkup ? `<div class="result-rewards">${rewardMarkup}</div>` : ""}<div class="result-actions"><button class="secondary-button" id="return-idle">방치로</button>${!r.won || daily ? `<button class="secondary-button" id="retry-battle">${daily && account.daily.claimed ? "연습하기" : "다시 도전"}</button>` : ""}${daily && r.won && !account.daily.claimed ? '<button class="primary-button" id="claim-speedrun">보상받기</button>' : !daily && r.won && stageId < STAGES.length ? `<button class="primary-button" id="next-battle">${stageLabel(stageId + 1)} 도전</button>` : ""}</div>${daily && account.daily.claimed ? '<div class="new-record">오늘 보상 수령 완료</div>' : ""}${support}</div>`;
+    `<div class="result-card">${icon(r.won ? "trophy" : "shield")}<h2>${r.won ? "완료" : "다시 한 번"}</h2><div class="result-time">${precise(r.time)}</div>${rewardMarkup ? `<div class="result-rewards">${rewardMarkup}</div>` : ""}${daily ? `<p class="settings-note">${speedrunHint}</p>` : ""}<div class="result-actions"><button class="secondary-button" id="return-idle">방치로</button>${!r.won || (daily && (!targetWon || speedrunRecord?.claimed)) ? `<button class="secondary-button" id="retry-battle">${daily && speedrunRecord?.claimed ? "연습하기" : "다시 도전"}</button>` : ""}${daily && r.won && !speedrunRecord?.claimed && speedrunRewardCount ? '<button class="primary-button" id="claim-speedrun">보석 조각 받기</button>' : ""}${nextSpeedrunAvailable ? `<button class="primary-button" id="next-speedrun">${stageLabel(stageId + 1)} 속공</button>` : !daily && r.won && stageId < STAGES.length ? `<button class="primary-button" id="next-battle">${stageLabel(stageId + 1)} 도전</button>` : ""}</div>${daily && speedrunRecord?.claimed ? '<div class="new-record">오늘 보상 수령 완료 · 계속 연습할 수 있어요.</div>' : ""}${support}</div>`;
   $("battle-result").hidden = false;
   const completedStageId = stageId;
   $("return-idle").onclick = mode === "challenge" && stageId === 2 && account.earlyGuide?.phase === "idle-defense"
@@ -1389,7 +1400,7 @@ function showResult(r, rewards) {
     : mode === "challenge" && r.won && stageId % 10 === 0
       ? () => enterRegionIdle(completedStageId)
       : () => setMode("idle");
-  if (!r.won || daily) $("retry-battle").onclick = startBattle;
+  if (!r.won || (daily && !targetWon)) $("retry-battle").onclick = startBattle;
   if (growthHelp) {
     $("result-growth").onclick = () => openModal("동료", "growth", renderGrowth);
     $("result-recruit").onclick = () => openModal("모집", "recruit", renderRecruit);
@@ -1415,13 +1426,15 @@ function showResult(r, rewards) {
   }
   if ($("next-battle"))
     $("next-battle").onclick = () => startChallenge(stageId + 1);
+  if ($("next-speedrun"))
+    $("next-speedrun").onclick = () => { stageId += 1; startBattle(); };
   if ($("claim-speedrun"))
     $("claim-speedrun").onclick = () => {
       if (hostedMode) {
-        claimSpeedrunReward(() => { showResult(r, rewards); updateUi(); });
+        claimSpeedrunReward(stageId, () => { showResult(r, rewards); updateUi(); });
         return;
       }
-      const reward = claimSpeedrun(account);
+      const reward = claimSpeedrun(account, stageId);
       if (reward) {
         persist();
         toast(`보석 조각 +${reward}`);
@@ -1431,6 +1444,7 @@ function showResult(r, rewards) {
     };
 }
 function updateUi() {
+  syncAudio();
   const manualCombat = mode !== "idle" && !!battle && !battle.finished;
   $("game").dataset.manualCombat = String(manualCombat);
   $("game").dataset.mode = mode;
@@ -1448,7 +1462,7 @@ function updateUi() {
   const record = account.records[account.idleStage];
   $("income-rate").innerHTML =
     `${fmt((record?.gold || 0) * 3600 / (record?.productionSeconds ?? 120))}<span class="muted"> / 시간</span>`;
-  $("stage-number").textContent = mode === "speedrun" ? "일일" : stageId === 0 ? "0" : stageLabel(stageId);
+  $("stage-number").textContent = stageId === 0 ? "0" : stageLabel(stageId);
   $("stage-name").textContent = currentStage().regionName ?? "초원";
   $("current-mode").textContent = {
     idle: "방치",
@@ -1501,7 +1515,7 @@ function updateUi() {
       : mode === "idle"
         ? "자동 소환 중"
         : mode === "speedrun"
-          ? account.daily.claimed
+          ? speedrunStageRecord(account, stageId).claimed
             ? "연습 중"
             : "최단 시간에 도전"
           : "적 성을 향해";
@@ -2074,29 +2088,41 @@ function renderIncome() {
 }
 function renderDaily() {
   settleProduction();
-  $("modal-content").innerHTML =
-    `<div class="speedrun-summary"><span>오늘 최고 기록</span><strong>${account.daily.best === null ? "—" : precise(account.daily.best)}</strong></div><div class="speedrun-summary"><span>보석 조각</span><strong>${speedrunReward(account)}</strong></div>${account.daily.claimed ? '<p class="settings-note">오늘 보상을 받았습니다. 계속 연습할 수 있습니다.</p>' : '<p class="settings-note">원하는 기록이 나오면 보상을 받으세요.<br>보상은 하루에 한 번 받을 수 있습니다.</p>'}<div class="modal-footer"><button class="secondary-button" id="daily-play">${account.daily.claimed ? "연습하기" : "도전"}</button><button class="primary-button" id="daily-claim" ${account.daily.claimed || account.daily.best === null ? "disabled" : ""}>${account.daily.claimed ? "수령 완료" : "보상받기"}</button></div>`;
-  $("daily-play").onclick = () => {
-    settleProduction();
-    closeModal();
-    closeIdleResult();
-    mode = "speedrun";
-    stageId = 1;
-    startBattle();
-  };
-  $("daily-claim").onclick = () => {
-    if (hostedMode) {
-      claimSpeedrunReward(() => renderDaily());
-      return;
-    }
-    const r = claimSpeedrun(account);
-    if (r) {
-      persist();
-      toast(`보석 조각 +${r}`);
-    }
-    renderDaily();
-    updateUi();
-  };
+  const unlocked = speedrunProgress(account);
+  $("modal-content").innerHTML = `<p class="settings-note">목표 ${SPEEDRUN_TARGET_SECONDS}초 이내 · 최대 보석 조각 ${speedrunStageReward(SPEEDRUN_TARGET_SECONDS)}개 · ${SPEEDRUN_LIMIT_SECONDS}초 제한</p><div class="speedrun-list">${SPEEDRUN_STAGES.map((stage) => {
+    const record = speedrunStageRecord(account, stage.id);
+    const reward = speedrunReward(account, stage.id);
+    const isUnlocked = stage.id <= unlocked;
+    const best = record.best === null ? "기록 —" : `기록 ${precise(record.best)}`;
+    const amount = reward ? `보상 ${reward}개` : `최대 ${speedrunStageReward(SPEEDRUN_TARGET_SECONDS)}개`;
+    const claim = record.claimed ? "수령 완료" : reward ? "보상받기" : "";
+    return `<div class="income-row" style="gap:8px;align-items:center"><button class="${stage.id === stageId && mode === "speedrun" ? "selected" : ""}" data-speedrun-stage="${stage.id}" ${isUnlocked ? "" : "disabled"} style="flex:1;min-width:0;text-align:left;padding:3px 0"><strong>${stageLabel(stage.id)} · ${stage.name}${isUnlocked ? "" : " · 잠김"}</strong><span style="display:block;font-size:10px">${amount} · ${best}${record.claimed && record.practice !== null ? ` · 연습 ${precise(record.practice)}` : ""}</span></button>${reward ? `<button class="${record.claimed ? "secondary-button" : "primary-button"}" data-speedrun-claim="${stage.id}" ${record.claimed ? "disabled" : ""}>${claim}</button>` : ""}</div>`;
+  }).join("")}</div>`;
+  $("modal-content").querySelectorAll("[data-speedrun-stage]").forEach((button) => {
+    button.onclick = () => {
+      mode = "speedrun";
+      stageId = Number(button.dataset.speedrunStage);
+      closeModal();
+      closeIdleResult();
+      startBattle();
+    };
+  });
+  $("modal-content").querySelectorAll("[data-speedrun-claim]").forEach((button) => {
+    button.onclick = () => {
+      const selected = Number(button.dataset.speedrunClaim);
+      if (hostedMode) {
+        claimSpeedrunReward(selected, () => renderDaily());
+        return;
+      }
+      const reward = claimSpeedrun(account, selected);
+      if (reward) {
+        persist();
+        toast(`보석 조각 +${reward}`);
+      }
+      renderDaily();
+      updateUi();
+    };
+  });
 }
 async function switchToExistingAccount() {
   try {
@@ -2167,12 +2193,40 @@ function renderAdmin() {
     };
   });
 }
+function audioSettingsMarkup() {
+  return [["music", "배경음"], ["sfx", "효과음"]].map(([key, label]) => {
+    const settings = account.settings.audio;
+    return `<div class="settings-row"><span>${label}</span><div class="audio-controls"><button class="secondary-button" data-audio-toggle="${key}" aria-pressed="${settings[key + 'Enabled']}">${settings[key + 'Enabled'] ? '켜짐' : '꺼짐'}</button><input type="range" data-audio-volume="${key}" aria-label="${label} 볼륨" min="0" max="100" value="${Math.round(settings[key + 'Volume'] * 100)}"><output data-audio-output="${key}">${Math.round(settings[key + 'Volume'] * 100)}%</output></div></div>`;
+  }).join('');
+}
+function bindAudioSettings() {
+  const commit = async (patch) => {
+    if (hostedMode) {
+      const ok = await updatePreference({ audio: patch });
+      audioPreview = null;
+      syncAudio(); if (ok && modalKind === 'settings') renderSettings();
+      return;
+    }
+    Object.assign(account.settings.audio, patch); audioPreview = null; persist(); syncAudio(); renderSettings();
+  };
+  document.querySelectorAll('[data-audio-toggle]').forEach(button => {
+    button.onclick = () => { const key = button.dataset.audioToggle + 'Enabled'; void commit({ [key]: !account.settings.audio[key] }); };
+  });
+  document.querySelectorAll('[data-audio-volume]').forEach(input => {
+    input.oninput = () => {
+      const value = Number(input.value) / 100, key = input.dataset.audioVolume;
+      document.querySelector(`[data-audio-output="${key}"]`).value = `${input.value}%`;
+      audioPreview = { [key + 'Volume']: value }; syncAudio();
+    };
+    input.onchange = () => void commit({ [input.dataset.audioVolume + 'Volume']: Number(input.value) / 100 });
+  });
+}
 function renderSettings() {
   const hostedAccountRows = hostedMode
     ? `<div class="settings-row settings-account"><span>계정</span>${accountIdentityPanel(cloudIdentity)}<div>${cloudIdentity?.kind === "guest" ? `<a class="secondary-button" id="login-account" href="${signInPath()}" target="_top">계정 로그인</a> ${cloudIdentity?.canLink ? '<button class="secondary-button" id="link-account">계정 연결</button>' : ""}` : '<button class="secondary-button" id="switch-to-guest">게스트로</button>'}${testLoginEnabled ? ' <button class="secondary-button" id="test-login">테스트 로그인</button>' : ''}</div></div>`
     : "";
   $("modal-content").innerHTML =
-    `<div class="settings-row"><span>소리</span><button class="secondary-button" id="setting-sound">${account.settings.sound ? "켜짐" : "꺼짐"}</button></div><div class="settings-row"><span>화면</span><button class="secondary-button" id="fullscreen">${icon("fullscreen")}전체 화면</button></div><div class="settings-row"><span>저장 파일</span><div><button class="secondary-button" id="export-save">내려받기</button>${hostedMode ? "" : ' <button class="secondary-button" id="import-save">불러오기</button><input type="file" id="save-file" accept="application/json,.json" hidden>'}</div></div><div class="settings-row"><span>방치 결과</span><button class="secondary-button" id="restore-idle-results" ${account.settings.hiddenIdleResults.length ? "" : "disabled"}>다시 표시</button></div>${hostedAccountRows}<div class="settings-row"><span>계정</span><button class="secondary-button" id="reset-account">계정 초기화</button></div>${hostedMode && cloudBootstrapEnvelope.created ? '<p class="settings-note">새 온라인 계정을 만들었습니다. 기존 브라우저 저장 기록은 그대로 보존됩니다.</p>' : hostedMode ? '<p class="settings-note">진행도는 온라인 계정에 저장됩니다.</p>' : '<p class="settings-note">진행도는 이 브라우저에 저장됩니다.<br>다른 기기로 옮기려면 저장 파일을 사용하세요.</p>'}<p class="settings-note">키보드: 1–9·0 소환 · Space 일시 정지 · Esc 뒤로 / 닫기</p>`;
+    `${audioSettingsMarkup()}<div class="settings-row"><span>화면</span><button class="secondary-button" id="fullscreen">${icon("fullscreen")}전체 화면</button></div><div class="settings-row"><span>저장 파일</span><div><button class="secondary-button" id="export-save">내려받기</button>${hostedMode ? "" : ' <button class="secondary-button" id="import-save">불러오기</button><input type="file" id="save-file" accept="application/json,.json" hidden>'}</div></div><div class="settings-row"><span>방치 결과</span><button class="secondary-button" id="restore-idle-results" ${account.settings.hiddenIdleResults.length ? "" : "disabled"}>다시 표시</button></div>${hostedAccountRows}<div class="settings-row"><span>계정</span><button class="secondary-button" id="reset-account">계정 초기화</button></div>${hostedMode && cloudBootstrapEnvelope.created ? '<p class="settings-note">새 온라인 계정을 만들었습니다. 기존 브라우저 저장 기록은 그대로 보존됩니다.</p>' : hostedMode ? '<p class="settings-note">진행도는 온라인 계정에 저장됩니다.</p>' : '<p class="settings-note">진행도는 이 브라우저에 저장됩니다.<br>다른 기기로 옮기려면 저장 파일을 사용하세요.</p>'}<p class="settings-note">키보드: 1–9·0 소환 · Space 일시 정지 · Esc 뒤로 / 닫기</p>`;
   if ($("link-account")) $("link-account").onclick = () => linkGuestAccount();
   if (testLoginEnabled) $("test-login").onclick = () => openModal("테스트 로그인", "test-login", renderTestLogin);
   if (hostedMode && $("login-account") && sitesSignedIn) $("login-account").onclick = (event) => {
@@ -2198,21 +2252,7 @@ function renderSettings() {
     persist();
     renderSettings();
   };
-  $("setting-sound").onclick = () => {
-    if (hostedMode) {
-      const sound = !account.settings.sound;
-      void updatePreference({ sound }).then((ok) => {
-        if (!ok) return;
-        updateUi();renderSettings();chirp();
-      });
-      return;
-    }
-    account.settings.sound = !account.settings.sound;
-    persist();
-    updateUi();
-    renderSettings();
-    chirp();
-  };
+  bindAudioSettings();
   $("fullscreen").onclick = async () => {
     try {
       if (document.fullscreenElement) await document.exitFullscreen();
@@ -2375,6 +2415,7 @@ document.addEventListener("pointerout", (e) => {
   hideTooltip();
 });
 document.addEventListener("pointerdown", (e) => {
+  syncAudio(); gameAudio.unlock();
   if (e.pointerType === "mouse") return;
   hideTooltip();
   const el = e.target.closest("[data-tip]");
@@ -2388,6 +2429,7 @@ document.addEventListener("pointerup", () => clearTimeout(longPressTimer));
 document.addEventListener("pointercancel", hideTooltip);
 document.addEventListener("scroll", hideTooltip, true);
 document.addEventListener("keydown", (e) => {
+  syncAudio(); gameAudio.unlock();
   if (e.key === "Escape") {
     if (!backModal()) closeModal();
     closeIdleResult();
@@ -2509,6 +2551,7 @@ document.addEventListener("visibilitychange", () => {
   updateUi();
 });
 window.addEventListener("pagehide", () => {
+  gameAudio.stop();
   settleProduction();
   if (!hostedMode) persist();
 });

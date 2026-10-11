@@ -1,6 +1,8 @@
+import { normalizeAudioSettings } from "./audio.js";
 import { UNITS, getUnit } from "./characters.js";
 import { unitCombatStats } from "./character-stats.js";
 import { STAGES, RARITIES, bannerById, bannerPool, bannerRarities, stageLabel } from "./data.js";
+import { SPEEDRUN_STAGE_COUNT, SPEEDRUN_TARGET_SECONDS, SPEEDRUN_LIMIT_SECONDS, speedrunStageReward } from "./speedrun.js";
 import { MARK_TYPES, DUPLICATE_MARKS, markTypeFor, unitAbilities, normalizeAbilities, abilityCost } from "./abilities.js";
 import { initialGemState, normalizeGemState, gemEffects, drawGem } from "./gems.js";
 import { legacyStarterSave, restoreLegacyProgress } from "./save-compat.js";
@@ -82,8 +84,9 @@ export function newAccount(now = Date.now()) {
     lastSettled: now,
     gems: { attack: 0, hp: 0, gold: 0 },
     equippedGem: null,
-    daily: { key: dailyKey(now), best: null, practice: null, claimed: false },
-    settings: { sound: false, speed: 1, hiddenIdleResults: [] },
+    daily: { key: dailyKey(now), stages: {} },
+    speedrunUnlocked: 0,
+    settings: { audio: normalizeAudioSettings(), speed: 1, hiddenIdleResults: [] },
     challengeRewards: [],
     missions: { idleCompleted: false, claimed: [] },
     gemGuide: { drawn: false, equipped: false },
@@ -135,6 +138,7 @@ export function normalizeAccount(raw, now = Date.now()) {
     welcomeClaimed: raw.recruitment?.welcomeClaimed === true,
   };
   a.highestCleared = Math.floor(cap(raw.highestCleared, 0, STAGES.length));
+  a.speedrunUnlocked = Math.floor(cap(raw.speedrunUnlocked, 0, SPEEDRUN_STAGE_COUNT));
   a.idleStage = Math.floor(
     cap(raw.idleStage ?? 1, 1, Math.min(STAGES.length, a.highestCleared + 1)),
   );
@@ -160,17 +164,17 @@ export function normalizeAccount(raw, now = Date.now()) {
       : null;
   a.lastSettled = cap(raw.lastSettled ?? now, 0, now);
   if (raw.daily?.key === a.daily.key) {
-    a.daily.best =
-      Number.isFinite(raw.daily.best) && raw.daily.best > 0
-        ? raw.daily.best
-        : null;
-    a.daily.practice =
-      Number.isFinite(raw.daily.practice) && raw.daily.practice > 0
-        ? raw.daily.practice
-        : null;
-    a.daily.claimed = raw.daily.claimed === true;
+    const savedSpeedruns = raw.daily.stages && typeof raw.daily.stages === "object" ? raw.daily.stages : {};
+    for (let id = 1; id <= SPEEDRUN_STAGE_COUNT; id++) {
+      const saved = savedSpeedruns[id];
+      if (!saved) continue;
+      const best = Number.isFinite(saved.best) && saved.best > 0 && saved.best <= SPEEDRUN_LIMIT_SECONDS ? saved.best : null;
+      const practice = Number.isFinite(saved.practice) && saved.practice > 0 && saved.practice <= SPEEDRUN_LIMIT_SECONDS ? saved.practice : null;
+      if (best !== null || practice !== null || saved.claimed === true)
+        a.daily.stages[id] = { best, practice, claimed: saved.claimed === true };
+    }
   }
-  a.settings.sound = raw.settings?.sound === true;
+  a.settings.audio = normalizeAudioSettings(raw.settings?.audio);
   a.settings.speed = [1, 2].includes(raw.settings?.speed)
     ? raw.settings.speed
     : 1;
@@ -203,6 +207,7 @@ export function normalizeAccount(raw, now = Date.now()) {
     a.sequencePresets[mode] = [...preset, ...Array(10).fill(null)].slice(0, 10);
   }
   restoreLegacyProgress(a, raw, EARLY_PHASES.has(phase));
+  if (advancedContentUnlocked(a)) a.speedrunUnlocked = Math.max(1, a.speedrunUnlocked);
   if (["wall-retry", "idle-defense", "remove-rabbit", "idle-retry"].includes(a.earlyGuide.phase) && !ownsUnit(a, "rabbit")) {
     a.earlyGuide.phase = "rabbit-recruit";
   }
@@ -339,9 +344,7 @@ export function accrue(a, now = Date.now()) {
   if (a.daily.key !== dailyKey(now))
     a.daily = {
       key: dailyKey(now),
-      best: null,
-      practice: null,
-      claimed: false,
+      stages: {},
     };
   return { gold, diamonds, seconds };
 }
@@ -576,25 +579,52 @@ export function claimMission(account) {
   account.diamonds += mission.diamonds;
   return { gold: mission.gold, diamonds: mission.diamonds, id: mission.id };
 }
-export function recordSpeedrun(a, time, now = Date.now()) {
+function speedrunDayRecord(a, stageId) {
+  a.daily.stages ??= {};
+  return a.daily.stages[stageId] ??= { best: null, practice: null, claimed: false };
+}
+export function speedrunStageRecord(a, stageId) {
+  if (!Number.isInteger(stageId) || stageId < 1 || stageId > SPEEDRUN_STAGE_COUNT)
+    return { best: null, practice: null, claimed: false };
+  const saved = a.daily.stages?.[stageId];
+  return saved ? { best: saved.best ?? null, practice: saved.practice ?? null, claimed: saved.claimed === true } : { best: null, practice: null, claimed: false };
+}
+export function speedrunProgress(a) {
+  return advancedContentUnlocked(a) ? Math.max(a.speedrunUnlocked ?? 0, 1) : 0;
+}
+export function advanceSpeedrun(a, stageId, time) {
+  if (!advancedContentUnlocked(a) || !Number.isInteger(stageId) || stageId < 1 ||
+      stageId > SPEEDRUN_STAGE_COUNT || stageId > speedrunProgress(a) ||
+      !Number.isFinite(time) || time <= 0 || time > SPEEDRUN_TARGET_SECONDS) return false;
+  a.speedrunUnlocked = Math.max(speedrunProgress(a), Math.min(SPEEDRUN_STAGE_COUNT, stageId + 1));
+  return true;
+}
+export function recordSpeedrun(a, stageId, time, now = Date.now()) {
   accrue(a, now);
-  if (a.daily.claimed)
-    a.daily.practice =
-      a.daily.practice === null ? time : Math.min(time, a.daily.practice);
+  if (!Number.isInteger(stageId) || stageId < 1 || stageId > SPEEDRUN_STAGE_COUNT ||
+      !advancedContentUnlocked(a) || stageId > speedrunProgress(a) ||
+      !Number.isFinite(time) || time <= 0 || time > SPEEDRUN_LIMIT_SECONDS) return false;
+  advanceSpeedrun(a, stageId, time);
+  const record = speedrunDayRecord(a, stageId);
+  if (record.claimed)
+    record.practice = record.practice === null ? time : Math.min(time, record.practice);
   else
-    a.daily.best = a.daily.best === null ? time : Math.min(time, a.daily.best);
+    record.best = record.best === null ? time : Math.min(time, record.best);
+  return true;
 }
-export function speedrunReward(a) {
-  return a.daily.best === null
-    ? 0
-    : Math.max(1, Math.min(10, Math.ceil((120 - a.daily.best) / 12)));
+export function speedrunReward(a, stageId = 1) {
+  const record = speedrunStageRecord(a, stageId);
+  return record.best === null ? 0 : speedrunStageReward(record.best);
 }
-export function claimSpeedrun(a, now = Date.now()) {
+export function claimSpeedrun(a, stageId = 1, now = Date.now()) {
   accrue(a, now);
-  if (a.daily.claimed || a.daily.best === null) return 0;
-  const reward = speedrunReward(a);
+  if (!advancedContentUnlocked(a) || !Number.isInteger(stageId) || stageId < 1 || stageId > speedrunProgress(a)) return 0;
+  const record = speedrunDayRecord(a, stageId);
+  if (record.claimed || record.best === null) return 0;
+  const reward = speedrunStageReward(record.best);
+  if (!reward) return 0;
   a.tickets += reward;
-  a.daily.claimed = true;
+  record.claimed = true;
   return reward;
 }
 export const RECRUIT_COSTS = { 1: 30, 10: 270 };

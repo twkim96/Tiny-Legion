@@ -34,6 +34,7 @@ npm run dev
 | `dist/src/abilities.js`, `dist/src/companion-ui.js` | 동료 특수능력·상세 성장 |
 | `dist/src/recruitment-ui.js` | 동료 모집·확률·카드 공개 연출 |
 | `dist/src/main.js` | UI·입력·전투/계정 연결 |
+| `dist/src/audio.js`, `dist/assets/music/` | 채널별 소리 설정·입력 후 재생·스테이지 곡과 CC0 라이선스 |
 | `tests/` | Node 기본 테스트 러너로 검증하는 동작 |
 
 캐릭터를 추가·변경할 때는 [캐릭터 관리 계약](../SPEC/characters.md)을 따릅니다. 도감이나 엔진에 별도 속성/스탯 정의를 넣지 않습니다.
@@ -42,7 +43,7 @@ npm run dev
 
 ## 로컬 Git 관리
 
-- 기존 Git 이력을 이어서 사용하며 기본 브랜치는 `main`입니다. Sites source helper가 사이트 원격과 동기화합니다. Git 원격·브랜치 상태는 작업 시 확인합니다. Git 커밋과 Sites 배포는 별도 작업입니다.
+- 기존 Git 이력을 이어서 사용하며 기본 브랜치는 `main`입니다. `origin`은 GitHub `twkim96/Tiny-Legion`이며 Sites source helper는 별도의 사이트 원격과 동기화합니다. Git 원격·브랜치 상태는 작업 시 확인합니다. Git 커밋과 Sites 배포는 별도 작업입니다.
 - `dist/`, 테스트, 프로젝트 문서, `.openai/hosting.json`은 추적합니다. 의존성·로컬 Sites 상태·배포 아카이브·로그·환경 변수 파일·내보낸 진행도 파일은 `.gitignore`에서 제외합니다.
 - 작업 전 `git status --short`와 `git log -5 --oneline`으로 진행 중 변경과 기준 커밋을 확인합니다. 마친 뒤 관련 파일만 지정해 스테이징하고 `git diff --cached`를 확인한 다음 기능 단위로 커밋합니다.
 
