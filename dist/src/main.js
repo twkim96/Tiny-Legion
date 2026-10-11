@@ -119,10 +119,12 @@ function showCloudGate(state = cloudGateState) {
   }
   root.hidden = false;
   root.style.display = "grid";
-  const heading = replaced ? "다른 기기에서 접속했습니다" : loginRequired ? "ChatGPT 로그인이 필요합니다" : "서버에 연결할 수 없습니다";
+  const connecting = state.status === "connecting" || state.status === "retrying";
+  const heading = replaced ? "다른 기기에서 접속했습니다" : loginRequired ? "ChatGPT 로그인이 필요합니다" : connecting ? "연결 중" : "서버에 연결할 수 없습니다";
   const useAccountChoice = state.error?.payload?.error === "account_exists";
-  const action = replaced ? "여기서 계속하기" : loginRequired ? "ChatGPT로 로그인" : useAccountChoice ? "기존 계정으로" : "다시 연결";
+  const action = replaced ? "여기서 계속하기" : loginRequired ? "ChatGPT로 로그인" : useAccountChoice ? "기존 계정으로" : connecting ? "연결 중" : "다시 연결";
   root.innerHTML = `<div style="max-width:320px"><strong style="display:block;margin-bottom:16px">${useAccountChoice ? "이미 연결된 계정이 있습니다" : heading}</strong><button id="cloud-gate-action" style="padding:10px 18px;border:0;border-radius:10px;background:#e8d89a;color:#26271f;font:inherit">${action}</button></div>`;
+  root.querySelector("#cloud-gate-action").disabled = connecting;
   root.querySelector("#cloud-gate-action").onclick = async () => {
     const button = root.querySelector("#cloud-gate-action");
     button.disabled = true;
