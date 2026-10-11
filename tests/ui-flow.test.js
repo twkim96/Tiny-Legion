@@ -726,3 +726,17 @@ test('companion details expose only the optional abilities assigned to that unit
   assert.match(c.$('modal-content').innerHTML,/data-ability="range"/);
   assert.doesNotMatch(c.$('modal-content').innerHTML,/data-ability="move"/);
 });
+
+test('account choices remain available from settings during the first tutorial', () => {
+  const c = harness(['openModal']);
+  c.account.onboarding.phase = 'intro';
+  c.openModal('설정', 'settings', () => {});
+  c.openModal('게스트로 시작', 'guest-choice', () => {}, { layout: 'message' });
+  assert.equal(c.$('modal-backdrop').dataset.kind, 'guest-choice');
+  assert.equal(c.$('modal-backdrop').dataset.layout, 'message');
+  assert.equal(c.backModal(), true);
+  assert.equal(c.$('modal-backdrop').dataset.kind, 'settings');
+  c.openModal('기존 계정', 'account-choice', () => {}, { layout: 'message' });
+  assert.equal(c.$('modal-backdrop').dataset.kind, 'account-choice');
+  assert.equal(c.backModal(), true);
+});

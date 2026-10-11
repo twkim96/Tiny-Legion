@@ -1557,7 +1557,7 @@ function openModal(title, kind, render, { layout = modalLayout(kind), navigation
     toast("1-2 방치에서 처음 실패하면 편성 교체가 열립니다.");
     return;
   }
-  if (isOnboarding(account) && !["onboarding", "menu", "settings", "import", "codex", "reset-account", "leave-battle"].includes(kind)) return;
+  if (isOnboarding(account) && !["onboarding", "menu", "settings", "import", "codex", "reset-account", "leave-battle", "guest-choice", "account-choice"].includes(kind)) return;
   if (modalKind === "onboarding" && kind !== "onboarding") return;
   const root = $("modal-backdrop").hidden || navigation === "root";
   if (root) {
@@ -2089,15 +2089,14 @@ async function linkGuestAccount() {
     if (code === "login_required") {
       location.assign("/signin-with-chatgpt?return_to=/");
     } else if (code === "account_exists") {
-      const kind = isOnboarding(account) ? "onboarding" : "account-choice";
-      openModal("기존 계정", kind, () => {
+      openModal("기존 계정", "account-choice", () => {
         $("modal-content").innerHTML = messagePanel({
           text: "이 로그인에는 이미 게임 계정이 있습니다. 게스트 진행도는 남겨 두고 기존 계정을 여기서 엽니다.",
           actions: '<button class="secondary-button" id="cancel-account-choice">취소</button><button class="primary-button" id="use-existing-account">기존 계정으로</button>',
         });
         $("cancel-account-choice").onclick = () => returnModal("설정", "settings", renderSettings);
         $("use-existing-account").onclick = () => switchToExistingAccount();
-      });
+      }, { layout: "message" });
     } else if (!(error instanceof SessionReplacedError)) {
       toast("계정을 연결하지 못했습니다. 다시 시도해 주세요.");
     }
@@ -2118,7 +2117,7 @@ function renderSettings() {
       });
       $("cancel-guest-choice").onclick = () => returnModal("설정", "settings", renderSettings);
       $("confirm-guest-choice").onclick = () => switchToGuestAccount();
-    });
+    }, { layout: "message" });
   };
   $("restore-idle-results").onclick = () => {
     if (hostedMode) {
