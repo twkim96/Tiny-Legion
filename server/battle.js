@@ -35,7 +35,7 @@ export function startBattle(a, { mode, stageId }, now) {
   const battle = createBattle(options);
   const snapshot = { stageId, duration: battle.duration, balanceVersion: BALANCE_VERSION,
     levels: options.levels, abilities: options.abilities, sequence: options.sequence,
-    gem: a.equippedGem, gemEffects: options.modifiers, gemPreset: account.gemPresetForMode(a, mode), dailyKey: a.daily.key,
+    gemEquipment: structuredClone(a.gemEquipment), gemEffects: options.modifiers, dailyKey: a.daily.key,
     speedrunStageId: mode === 'speedrun' ? stageId : null };
   return { battleId: crypto.randomUUID(), options, snapshot, startedAt: now };
 }

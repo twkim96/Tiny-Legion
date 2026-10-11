@@ -23,26 +23,6 @@ const MISSION_IDS = new Set([
   "gem-intro",
   ...STAGES.slice(1).map((stage) => `challenge-${stage.id}`),
 ]);
-export const GEMS = [
-  {
-    id: "attack",
-    name: "용기",
-    description: "모든 동료의 공격력이 10% 증가합니다.",
-    color: "#c49172",
-  },
-  {
-    id: "hp",
-    name: "온기",
-    description: "모든 동료의 체력이 15% 증가합니다.",
-    color: "#90a877",
-  },
-  {
-    id: "gold",
-    name: "풍요",
-    description: "새로 기록하는 방치 도토리 수익이 15% 증가합니다.",
-    color: "#b7a25d",
-  },
-];
 const cap = (v, a, b) => Math.max(a, Math.min(b, Number(v) || 0));
 export function dailyKey(now = Date.now()) {
   return new Intl.DateTimeFormat("en-CA", {
@@ -82,8 +62,6 @@ export function newAccount(now = Date.now()) {
     records: {},
     idleStage: 1,
     lastSettled: now,
-    gems: { attack: 0, hp: 0, gold: 0 },
-    equippedGem: null,
     daily: { key: dailyKey(now), stages: {} },
     speedrunUnlocked: 0,
     settings: { audio: normalizeAudioSettings(), speed: 1, hiddenIdleResults: [] },
@@ -156,12 +134,6 @@ export function normalizeAccount(raw, now = Date.now()) {
       a.records[s.id] = { ...r, gold: r.gold, diamonds: r.diamonds };
     }
   }
-  for (const g of GEMS)
-    a.gems[g.id] = Math.floor(cap(raw.gems?.[g.id], 0, 1e6));
-  a.equippedGem =
-    GEMS.some((g) => g.id === raw.equippedGem) && a.gems[raw.equippedGem] > 0
-      ? raw.equippedGem
-      : null;
   a.lastSettled = cap(raw.lastSettled ?? now, 0, now);
   if (raw.daily?.key === a.daily.key) {
     const savedSpeedruns = raw.daily.stages && typeof raw.daily.stages === "object" ? raw.daily.stages : {};
@@ -235,7 +207,7 @@ export function initializeLineups(a, raw = {}) {
       const sequence = (index !== active && Array.isArray(candidate?.sequence) ? candidate.sequence : fallback).slice(0,10).map(id => ownsUnit(a,id) ? id : null);
       while(sequence.length < 10) sequence.push(null);
       if(!sequence.some(Boolean)) sequence[0] = "sheep";
-      return { sequence, gemPreset: Math.floor(cap(candidate?.gemPreset,0,9)) };
+      return { sequence };
     });
     // The selected preset remains mirrored in the old fields for save compatibility.
     const sequence = a.lineupPresets[mode][active].sequence;
@@ -247,13 +219,9 @@ export function sequenceForMode(a, mode = "idle", index = a.activeLineup?.[mode]
   if(index !== (a.activeLineup?.[mode] ?? 0)) return a.lineupPresets?.[mode]?.[index]?.sequence ?? [];
   return mode === "idle" ? a.sequence : a.sequencePresets?.[mode] ?? a.sequence;
 }
-export function gemPresetForMode(a, mode = "idle", index = a.activeLineup?.[mode] ?? 0) {
-  return a.lineupPresets?.[mode]?.[index]?.gemPreset ?? 0;
-}
-export function setSequence(a, sequence, mode = "idle", index = a.activeLineup?.[mode] ?? 0, gemPreset = gemPresetForMode(a,mode,index)) {
+export function setSequence(a, sequence, mode = "idle", index = a.activeLineup?.[mode] ?? 0) {
   if (!CONTENT_MODES.includes(mode) || !sequenceUnlocked(a) ||
-      !Number.isInteger(index) || index < 0 || index >= 10 || !Number.isInteger(gemPreset) || gemPreset < 0 || gemPreset >= 10 ||
-      (!advancedContentUnlocked(a) && gemPreset !== 0) ||
+      !Number.isInteger(index) || index < 0 || index >= 10 ||
       !Array.isArray(sequence) || sequence.length !== 10 ||
       !sequence.some(Boolean) || !sequence.every((id) => id === null || canUseUnit(a, id))) return false;
   if (mode === "idle") {
@@ -271,7 +239,7 @@ export function setSequence(a, sequence, mode = "idle", index = a.activeLineup?.
     a.sequencePresets[mode] = [...sequence];
   }
   a.activeLineup[mode] = index;
-  a.lineupPresets[mode][index] = {sequence: mode === "idle" ? a.sequence : a.sequencePresets[mode], gemPreset};
+  a.lineupPresets[mode][index] = {sequence: mode === "idle" ? a.sequence : a.sequencePresets[mode]};
   return true;
 }
 export function advancedContentUnlocked(a) {
@@ -427,14 +395,8 @@ export function effectiveUnitLevel(a, id) {
   if (!ownsUnit(a, id)) return 1;
   return Math.max(a.levels?.[id] ?? 1, sharedLevel(a));
 }
-export function gemModifiers(a, mode = "idle") {
-  const effects = gemEffects(a, gemPresetForMode(a,mode));
-  // Direct legacy callers and pre-migration battle snapshots retain their effects.
-  if(!a.gemItems?.length) {
-    if(a.equippedGem === "attack") effects.attack *= 1.1;
-    if(a.equippedGem === "hp") effects.hp *= 1.15;
-    if(a.equippedGem === "gold") effects.acorn *= 1.15;
-  }
+export function gemModifiers(a) {
+  const effects = gemEffects(a);
   return {...effects, killGold: advancedContentUnlocked(a) ? effects.killGold : 0};
 }
 export function combatPower(a) {

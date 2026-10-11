@@ -7,11 +7,11 @@ import { STAGES, UNITS, stageLabel } from '../dist/src/data.js';
 import { SPEEDRUN_LIMIT_SECONDS, SPEEDRUN_TARGET_SECONDS, SPEEDRUN_STAGES, speedrunStageReward } from '../dist/src/speedrun.js';
 import { recruitPanel } from '../dist/src/recruitment-ui.js';
 import { modalLayout, messagePanel } from '../dist/src/modal-ui.js';
-import { companionStats, upgradeUnitAbility, gemPresetForMode, advancedContentUnlocked, collectReturnIncome, effectiveUnitLevel, baseLevelRoster, sharedLevel } from '../dist/src/account.js';
+import { companionStats, upgradeUnitAbility, advancedContentUnlocked, collectReturnIncome, effectiveUnitLevel, baseLevelRoster, sharedLevel } from '../dist/src/account.js';
 import { companionPanel } from '../dist/src/companion-ui.js';
-import {drawGem,gemByUid,gemDefinition,gemDescription,gemOptionText,gemUpgradeCost,gemTransferCost,gemUpgradeMaterials,upgradeGem,transferGem,equipGem,GEM_BANNERS,GEM_OPTIONS} from '../dist/src/gems.js';
+import {drawGem,gemByUid,gemDefinition,gemDescription,gemOptionText,gemUpgradeCost,gemTransferCost,gemUpgradeMaterials,upgradeGem,transferGem,equipGem,unequipGem,isGemEquipped,GEM_TYPES,GEM_BANNERS,GEM_OPTIONS} from '../dist/src/gems.js';
 import { moveSequenceItem } from '../dist/src/sequence-ui.js';
-import {gemPage,gemDetail,gemCard} from '../dist/src/gem-ui.js';
+import {gemPage,gemDetail,gemCard,gemArt} from '../dist/src/gem-ui.js';
 import { entryPanel, signInPath, signInIntent, accountIdentityPanel } from '../dist/src/sign-in.js';
 import { testLoginPanel, bindTestLogin, adminPanel } from '../dist/src/test-access-ui.js';
 
@@ -53,10 +53,10 @@ function harness(names) {
     $, account, calls, hostedMode:false, testLoginEnabled:false, testLoginRequested:false, cloudIdentity:null, adminPanel, accountClient:null, sendCommand:async()=>null, updatePreference:async()=>true, STAGES, stageLabel, currentMission, recordMissionBattle, claimMission, accrue, recordIdle, isOnboarding, recruitOnboardingCompanion, growthUnlocked, sequenceUnlocked, sequenceForMode, setSequence, playableSequence, growUnit, refundUnitLevels, unitLevelRefund, levelCost, recruitEarlyRabbit, applyGuideSequence, canUseUnit, ownsUnit, UNITS, speedrunStageRecord, speedrunProgress, speedrunReward, speedrunStageReward, SPEEDRUN_LIMIT_SECONDS, SPEEDRUN_TARGET_SECONDS, SPEEDRUN_STAGES,
     bindSequenceDrag(){}, moveSequenceItem, modalHistory:[], modalLayout, messagePanel, modalKind:null, modalRender:null, lastFocused:null, hideTooltip(){},
     readyBattle(){calls.push("ready");}, openCodex(){},
-    gemViewPreset:0, drawGem,gemByUid,gemDefinition,gemDescription,gemOptionText,gemUpgradeCost,gemTransferCost,gemUpgradeMaterials,upgradeGem,transferGem,equipGem,GEM_BANNERS,GEM_OPTIONS,gemPage,gemDetail,gemCard,
-    companionStats, upgradeUnitAbility, gemPresetForMode, advancedContentUnlocked, collectReturnIncome, effectiveUnitLevel, baseLevelRoster, sharedLevel, companionPanel, unitAbilityLines:()=>[],
+    drawGem,gemByUid,gemDefinition,gemDescription,gemOptionText,gemUpgradeCost,gemTransferCost,gemUpgradeMaterials,upgradeGem,transferGem,equipGem,unequipGem,isGemEquipped,GEM_TYPES,GEM_BANNERS,GEM_OPTIONS,gemPage,gemDetail,gemCard,gemArt,
+    companionStats, upgradeUnitAbility, advancedContentUnlocked, collectReturnIncome, effectiveUnitLevel, baseLevelRoster, sharedLevel, companionPanel, unitAbilityLines:()=>[],
     renderGems(){calls.push('gems-screen');}, renderGrowth(){calls.push('growth-screen');}, renderRecruit(){calls.push('recruit-screen');},
-    sequenceDraftIndex:0, sequenceDraftGem:0, sequenceDraftChoices:null, pendingReturnIncome:null, sequenceDraft:null, sequenceDraftMode:"idle", sequenceDrafts:null, names:Object.fromEntries(UNITS.map(u=>[u.id,u.name])), portrait:id=>`[${id}]`, rarityBadge:()=>"",
+    sequenceDraftIndex:0, sequenceDraftChoices:null, pendingReturnIncome:null, sequenceDraft:null, sequenceDraftMode:"idle", sequenceDrafts:null, names:Object.fromEntries(UNITS.map(u=>[u.id,u.name])), portrait:id=>`[${id}]`, rarityBadge:()=>"",
     mode: 'idle', stageId: 1, idleResultStage: null, resultHandled: false, restartAt: 0, hostedHalted:false,
     battle: {result: {won:true, survival:120, hpRatio:1, reward:80}, finished:true, time:120, events:[]},
     battleSnapshot: {stageId:1, gem:null}, idleIncome:{gold:12,diamonds:.1},
@@ -525,8 +525,8 @@ test('companion detail upgrades deduct marks and acorns, update effects, and kee
   assert.equal(c.account.abilities.squirrel.hp,0);
 });
 
-test('gem guide links a free banner draw to equipment and then the next challenge mission',()=>{
- const c=harness(['actOnMission','openGemGuide','openGems','renderGems','drawResourceGem','openGemDetail','renderGemDetail']);
+test('gem guide links a free banner draw to type-filtered equipment and the next challenge mission',()=>{
+ const c=harness(['actOnMission','openGemGuide','openGems','renderGems','openGemPicker','drawResourceGem','openGemDetail','renderGemDetail']);
  c.account.earlyGuide.phase='complete';c.account.highestCleared=11;c.account.missions.idleCompleted=true;
  c.account.missions.claimed=['idle-intro','idle-second','growth-intro',...Array.from({length:10},(_,i)=>`challenge-${i+2}`)];
  c.actOnMission();assert.ok(c.calls.some(call=>Array.isArray(call)&&call[1]==='gem-guide'));
@@ -534,16 +534,53 @@ test('gem guide links a free banner draw to equipment and then the next challeng
  const diamonds=c.account.diamonds;
  c.$('gem-free').onclick();assert.equal(c.account.gemItems.length,1);assert.equal(c.account.diamonds,diamonds);
  const uid=c.account.gemItems[0].uid;
- assert.equal(c.account.gemPresets[0][0],null);
- c.$('modal-content:data-detail-equip:0').onclick();assert.equal(c.account.gemPresets[0][0],uid);
+ c.account.gemItems.push({uid:'other-type',type:'capacity',level:1,options:[]});
+ c.openGems();assert.match(c.$('modal-content').innerHTML,/같은 종류는 하나만 장착할 수 있어요/);
+ assert.match(c.$('modal-content').innerHTML,/모든 전투 모드.*다음 전투부터/);
+ assert.equal((c.$('modal-content').innerHTML.match(/data-gem-type-pick=/g)||[]).length,GEM_TYPES.filter(type=>!type.legacy).length);
+ assert.equal(c.account.gemEquipment.income,undefined);
+ c.$('modal-content:data-gem-type-pick:income').onclick();
+ assert.ok(c.calls.some(call=>Array.isArray(call)&&call[1]==='gem-picker'));
+ assert.equal((c.$('modal-content').innerHTML.match(/data-gem-equip=/g)||[]).length,1);
+ assert.equal(c.$('modal-content').innerHTML.includes('data-gem-equip="'+uid+'"'),true);
+ assert.equal(c.$('modal-content').innerHTML.includes('other-type'),false);
+ c.$('modal-content:data-gem-equip:'+uid).onclick();assert.equal(c.account.gemEquipment.income,uid);
+ assert.equal(c.account.gemGuide.equipped,true);
  assert.equal(currentMission(c.account).completed,true);
  c.actOnMission();assert.equal(currentMission(c.account).id,'challenge-12');
 });
-test('gem transfer confirmation preserves target options and consumes the donor only after confirm',()=>{
+test('gem page shows each registered type once and legacy types only when owned',()=>{
+ const account=newAccount();
+ let markup=gemPage(account);
+ let typeGrid=markup.match(/<div class="gem-type-grid">([\s\S]*?)<\/div>/)[1];
+ assert.equal((typeGrid.match(/class="gem-type-card/g)||[]).length,GEM_TYPES.filter(type=>!type.legacy).length);
+ assert.doesNotMatch(typeGrid,/온기|풍요|용기/);
+ account.gemItems.push({uid:'legacy-hp',type:'hp',level:1,options:[]});
+ markup=gemPage(account);
+ typeGrid=markup.match(/<div class="gem-type-grid">([\s\S]*?)<\/div>/)[1];
+ assert.equal((typeGrid.match(/class="gem-type-card/g)||[]).length,GEM_TYPES.filter(type=>!type.legacy).length+1);
+ assert.equal((typeGrid.match(/<strong>온기<\/strong>/g)||[]).length,1);
+ assert.doesNotMatch(typeGrid,/<strong>(용기|풍요)<\/strong>/);
+});
+test('gem detail replaces the same type and offers direct unequip',()=>{
+ const c=harness(['openGems','renderGems','openGemPicker','openGemDetail','renderGemDetail']);
+ c.account.earlyGuide.phase='complete';c.account.highestCleared=11;
+ c.account.gemItems=[{uid:'first',type:'income',level:1,options:[]},{uid:'second',type:'income',level:2,options:[]}];
+ c.openGemDetail('first');assert.match(c.$('modal-content').innerHTML,/>장착<\/button>/);
+ c.$('gem-equip').onclick();assert.equal(c.account.gemEquipment.income,'first');
+ c.openGemDetail('second');assert.match(c.$('modal-content').innerHTML,/>교체<\/button>/);
+ c.$('gem-equip').onclick();assert.equal(c.account.gemEquipment.income,'second');
+ assert.equal(c.account.gemGuide.equipped,true);
+ assert.equal(isGemEquipped(c.account,'first'),false);assert.equal(isGemEquipped(c.account,'second'),true);
+ c.openGemDetail('second');assert.match(c.$('modal-content').innerHTML,/>해제<\/button>/);
+ c.$('modal-content:data-detail-unequip:income').onclick();assert.equal(c.account.gemEquipment.income,undefined);
+ assert.equal(isGemEquipped(c.account,'second'),false);
+});
+test('gem transfer confirmation preserves target options and clears the equipped donor only after confirm',()=>{
  const c=harness(['showGemTransfer','openGemDetail','renderGemDetail','settleProduction']);
  c.account.earlyGuide.phase='complete';c.account.highestCleared=11;c.account.gold=5000;
  c.account.gemItems=[{uid:'donor',type:'income',level:3,options:[{id:'hp',value:.01}]},{uid:'target',type:'harvest',level:1,options:[{id:'attack',value:.03}]}];
- c.account.gemPresets[0][0]='donor';
+ c.account.gemEquipment.income='donor';
  c.showGemTransfer('donor');c.$('modal-content:data-gem-target:target').onclick();
  assert.match(c.$('modal-content').innerHTML,/사라집니다/);
  c.$('gem-transfer-cancel').onclick();assert.equal(c.account.gemItems.length,2);
@@ -551,7 +588,8 @@ test('gem transfer confirmation preserves target options and consumes the donor 
  c.$('gem-transfer-confirm').onclick();assert.equal(c.account.gemItems.length,1);
  assert.deepEqual(c.account.gemItems[0].options,[{id:'attack',value:.03}]);
  assert.equal(c.account.gemItems[0].level,3);assert.equal(c.account.gold,3500);
- assert.equal(c.account.gemPresets[0][0],null);
+ assert.equal(c.account.gemEquipment.income,undefined);
+ assert.equal(c.account.gemEquipment.harvest,undefined);
  const after=JSON.stringify(c.account);c.$('gem-transfer-confirm').onclick();assert.equal(JSON.stringify(c.account),after);
 });
 test('gem material picker shows options and consumes only the chosen eligible copy',()=>{
@@ -575,16 +613,17 @@ test('return summary is informational, clears its pending receipt and leaves idl
  c.$('return-income-confirm').onclick();assert.ok(c.calls.includes('close-modal'));
  assert.equal(JSON.stringify(c.account),before);
 });
-test('numbered lineup drafts preserve their own gem selections and only apply the chosen content',()=>{
+test('numbered lineup drafts keep unit selections and expose no gem controls',()=>{
  const c=harness(['openSequence','renderSequence']);
  c.account.earlyGuide.phase='complete';c.account.highestCleared=11;c.account.owned.squirrel=true;
  c.openSequence();c.$('modal-content:data-lineup-index:3').onclick();
+ assert.equal((c.$('modal-content').innerHTML.match(/data-lineup-index=/g)||[]).length,10);
+ assert.doesNotMatch(c.$('modal-content').innerHTML,/gemPreset|gem-preset|sequence-gem|보석 프리셋/);
  c.$('modal-content:data-replace:1').onclick();c.$('modal-content:data-pick:squirrel').onclick();
- c.$('sequence-gem-preset').value='4';c.$('sequence-gem-preset').onchange();
  c.$('modal-content:data-lineup-index:0').onclick();assert.equal(c.sequenceDraft[1],null);
- c.$('modal-content:data-lineup-index:3').onclick();assert.equal(c.sequenceDraft[1],'squirrel');assert.equal(c.sequenceDraftGem,4);
+ c.$('modal-content:data-lineup-index:3').onclick();assert.equal(c.sequenceDraft[1],'squirrel');
  c.$('apply-sequence').onclick();assert.equal(c.account.activeLineup.idle,3);
- assert.equal(sequenceForMode(c.account,'idle')[1],'squirrel');assert.equal(gemPresetForMode(c.account,'idle'),4);
+ assert.equal(sequenceForMode(c.account,'idle')[1],'squirrel');
  assert.equal(c.account.activeLineup.challenge,0);
  assert.equal(sequenceForMode(c.account,'idle',0)[1],null);
 });

@@ -14,8 +14,8 @@ import {
 import { createBattle, fireCannon, stepBattle, summonUnit } from "./engine.js";
 import { icon, portrait } from "./art.js";
 import { modalLayout, messagePanel } from "./modal-ui.js";
-import { drawGem, gemByUid, gemDefinition, gemUpgradeCost, gemTransferCost, gemUpgradeMaterials, upgradeGem, transferGem, equipGem, GEM_BANNERS, GEM_OPTIONS } from "./gems.js";
-import { gemPage, gemDetail, gemCard } from "./gem-ui.js";
+import { drawGem, gemByUid, gemDefinition, gemUpgradeCost, gemTransferCost, gemUpgradeMaterials, upgradeGem, transferGem, equipGem, unequipGem, GEM_TYPES, GEM_BANNERS, GEM_OPTIONS } from "./gems.js";
+import { gemPage, gemDetail, gemCard, gemArt } from "./gem-ui.js";
 import { bindSequenceDrag, moveSequenceItem } from "./sequence-ui.js";
 import { companionPanel } from "./companion-ui.js";
 import { specializationBonus } from "./combat-rules.js";
@@ -33,7 +33,6 @@ import { AccountClient, SessionReplacedError, bootstrapAccount } from "./account
 import {
   collectReturnIncome,
   advancedContentUnlocked,
-  gemPresetForMode,
   canUseUnit,
   playableSequence,
   sequenceForMode,
@@ -365,9 +364,7 @@ let sequenceDraft = null;
 let sequenceDraftMode = "idle";
 let sequenceDrafts = null;
 let sequenceDraftIndex = 0;
-let sequenceDraftGem = 0;
 let sequenceDraftChoices = null;
-let gemViewPreset = 0;
 const modalHistory = [];
 let recruitCleanup = null;
 let recruitReceipt = null;
@@ -608,9 +605,8 @@ async function startBattle() {
     levels: { ...levels },
     abilities: structuredClone(account.abilities),
     sequence: playableSequence(account, mode),
-    gem: account.equippedGem,
     gemEffects: structuredClone(gemModifiers(account, mode)),
-    gemPreset: gemPresetForMode(account, mode),
+    gemEquipment: structuredClone(account.gemEquipment ?? {}),
     dailyKey: account.daily.key,
     speedrunStageId: mode === "speedrun" ? stageId : null,
   };
@@ -708,7 +704,7 @@ function closeIdleResult() {
 function showIdleResult(result) {
   if (account.settings.hiddenIdleResults.includes(stageId) || !$("idle-result-popup").hidden) return;
   idleResultStage = stageId;
-  const bonus = battleSnapshot.gemEffects?.acorn ?? (battleSnapshot.gem === "gold" ? 1.15 : 1);
+  const bonus = battleSnapshot.gemEffects?.acorn ?? 1;
   const gold = Math.floor(result.reward * bonus);
   const income = idleIncome;
   $("idle-result-title").textContent = result.won ? "방치 완료" : "방치 실패";
@@ -813,20 +809,18 @@ function actOnMission() {
 function openGemGuide() {
   if (!advancedContentUnlocked(account)) return;
   openModal("보석", "gem-guide", () => {
-    $("modal-content").innerHTML = messagePanel({text:"2-2의 적은 훨씬 강해요.<br>숲의 보물에서 보석을 무료로 모집하고 세 칸 중 하나에 장착해 보세요.<br>순서에서 콘텐츠별 보석 프리셋을 고를 수 있어요. 속공에서도 보석 조각을 얻습니다.",actions:'<button class="primary-button" id="gem-guide-open">보석 보기</button>'});
+    $("modal-content").innerHTML = messagePanel({text:"2-2의 적은 훨씬 강해요.<br>숲의 보물에서 보석을 무료로 모집하고 장착해 보세요.<br>속공에서도 보석 조각을 얻습니다.",actions:'<button class="primary-button" id="gem-guide-open">보석 보기</button>'});
     $("gem-guide-open").onclick = openGems;
   });
 }
 function openGems() {
   if (!advancedContentUnlocked(account)) { toast("2-1을 완료하면 열립니다."); return; }
-  gemViewPreset = gemPresetForMode(account, mode);
   openModal("보석", "gems", renderGems);
 }
 function renderGems() {
-  $("modal-content").innerHTML = gemPage(account,gemViewPreset);
-  $("modal-content").querySelectorAll("[data-gem-preset]").forEach(button => button.onclick = () => { gemViewPreset=Number(button.dataset.gemPreset); renderGems(); });
+  $("modal-content").innerHTML = gemPage(account);
   $("modal-content").querySelectorAll("[data-gem-uid]").forEach(button => button.onclick = () => openGemDetail(button.dataset.gemUid));
-  $("modal-content").querySelectorAll("[data-gem-slot]").forEach(button => button.onclick = () => openGemPicker(Number(button.dataset.gemSlot)));
+  $("modal-content").querySelectorAll("[data-gem-type-pick]").forEach(button => button.onclick = () => openGemPicker(button.dataset.gemTypePick));
   if($("gem-free")) $("gem-free").onclick = () => drawResourceGem("diamonds",true);
   $("gem-draw-tickets").onclick = () => drawResourceGem("tickets");
   $("gem-draw-diamonds").onclick = () => drawResourceGem("diamonds");
@@ -850,30 +844,24 @@ function drawResourceGem(payment,free=false) {
   if(!item) { toast("모집 재화를 확인해 주세요."); return; }
   persist(); updateUi(); chirp("win"); openGemDetail(item.uid);
 }
-function openGemPicker(slot) {
-  openModal("보석 선택","gems",() => {
-    $("modal-content").innerHTML = `<div class="gem-grid">${account.gemItems.map(item=>gemCard(item,"gem-equip")).join("")}</div><div class="modal-footer"><button class="secondary-button" id="gem-remove">비우기</button><button class="secondary-button" id="gem-picker-back">돌아가기</button></div>`;
+function openGemPicker(type) {
+  const definition = GEM_TYPES.find(item => item.id === type);
+  if (!definition) return;
+  openModal("보석 선택","gem-picker",() => {
+    const items = account.gemItems.filter(item => item.type === type);
+    $("modal-content").innerHTML = `<div class="gem-picker-heading">${gemArt(type)}<strong>${definition.name}</strong></div><div class="gem-grid">${items.map(item=>gemCard(item,"gem-equip",account)).join("") || '<p class="settings-note">보유한 보석이 없습니다.</p>'}</div><div class="modal-footer"><button class="secondary-button" id="gem-picker-back">보석 목록</button></div>`;
     $("modal-content").querySelectorAll("[data-gem-equip]").forEach(button=>button.onclick=()=>{
       if (hostedMode) {
-        void sendCommand("gem.equip", { presetIndex: gemViewPreset, slotIndex: slot, uid: button.dataset.gemEquip }).then((envelope) => {
+        void sendCommand("gem.equip", { uid: button.dataset.gemEquip }).then((envelope) => {
           if (!envelope) return;
           updateUi();
           returnModal("보석","gems",renderGems);
         });
         return;
       }
-      if(!equipGem(account,gemViewPreset,slot,button.dataset.gemEquip)) { toast("같은 보석은 한 프리셋에 한 번만 장착할 수 있어요."); return; }
+      if(!equipGem(account,button.dataset.gemEquip)) { toast("보석을 장착할 수 없습니다."); return; }
       persist(); updateUi(); returnModal("보석","gems",renderGems);
     });
-    $("gem-remove").onclick=()=>{
-      if (hostedMode) {
-        void sendCommand("gem.equip", { presetIndex: gemViewPreset, slotIndex: slot, uid: null }).then((envelope) => {
-          if (envelope) { updateUi(); returnModal("보석","gems",renderGems); }
-        });
-        return;
-      }
-      if(equipGem(account,gemViewPreset,slot,null)){persist();updateUi();}returnModal("보석","gems",renderGems);
-    };
     $("gem-picker-back").onclick=()=>returnModal("보석","gems",renderGems);
   });
 }
@@ -884,18 +872,31 @@ function openGemDetail(uid) {
 function renderGemDetail(uid) {
   const item=gemByUid(account,uid);
   if(!item) { returnModal("보석","gems",renderGems); return; }
-  $("modal-content").innerHTML=gemDetail(account,uid,gemViewPreset);
+  $("modal-content").innerHTML=gemDetail(account,uid);
   $("gem-back").onclick=()=>returnModal("보석","gems",renderGems);
-  $("modal-content").querySelectorAll("[data-detail-equip]").forEach(button=>button.onclick=()=>{
+  const equipButton = $("gem-equip");
+  if (equipButton) equipButton.onclick = () => {
     if (hostedMode) {
-      void sendCommand("gem.equip", { presetIndex: gemViewPreset, slotIndex: Number(button.dataset.detailEquip), uid }).then((envelope) => {
+      void sendCommand("gem.equip", { uid }).then((envelope) => {
         if (!envelope) return;
         updateUi();toast("장착했습니다. 다음 전투부터 적용됩니다.");renderGemDetail(uid);
       });
       return;
     }
-    if(!equipGem(account,gemViewPreset,Number(button.dataset.detailEquip),uid)){toast("같은 보석은 한 프리셋에 한 번만 장착할 수 있어요.");return;}
+    if(!equipGem(account,uid)){toast("보석을 장착할 수 없습니다.");return;}
     persist();updateUi();toast("장착했습니다. 다음 전투부터 적용됩니다.");renderGemDetail(uid);
+  };
+  $("modal-content").querySelectorAll("[data-detail-unequip]").forEach(unequipButton => unequipButton.onclick = () => {
+    const type = unequipButton.dataset.detailUnequip;
+    if (hostedMode) {
+      void sendCommand("gem.unequip", { type }).then((envelope) => {
+        if (!envelope) return;
+        updateUi();toast("해제했습니다. 다음 전투부터 적용됩니다.");renderGemDetail(uid);
+      });
+      return;
+    }
+    if(!unequipGem(account,type)) { toast("보석을 해제할 수 없습니다."); return; }
+    persist();updateUi();toast("해제했습니다. 다음 전투부터 적용됩니다.");renderGemDetail(uid);
   });
   $("gem-upgrade").onclick=()=>showGemUpgrade(uid);
   $("gem-transfer").onclick=()=>showGemTransfer(uid);
@@ -908,7 +909,7 @@ function showGemUpgrade(uid) {
   openModal("강화 재료", "gem-upgrade",()=>{
     const candidates=gemUpgradeMaterials(account,uid);
     const reserves=account.gemReserves[item.type]??0;
-    $("modal-content").innerHTML=`<p class="settings-note">같은 보석 ${cost.copies}개와 도토리 ${fmt(cost.gold)}개가 필요합니다. 선택한 보석은 소모됩니다. 모든 프리셋의 장착 보석과 강화한 보석은 재료에서 제외합니다.</p><p>이전 보석 재료 ${fmt(reserves)}개</p><div class="gem-grid">${candidates.map(candidate=>gemCard(candidate,"gem-material")).join("")}</div><p id="gem-material-count">선택 0 / ${cost.copies}</p><div class="modal-footer"><button class="secondary-button" id="gem-upgrade-cancel">취소</button><button class="primary-button" id="gem-upgrade-confirm">강화</button></div>`;
+    $("modal-content").innerHTML=`<p class="settings-note">같은 보석 ${cost.copies}개와 도토리 ${fmt(cost.gold)}개가 필요합니다. 선택한 보석은 소모됩니다. 장착 중이거나 강화한 보석은 재료에서 제외합니다.</p><p>이전 보석 재료 ${fmt(reserves)}개</p><div class="gem-grid">${candidates.map(candidate=>gemCard(candidate,"gem-material")).join("")}</div><p id="gem-material-count">선택 0 / ${cost.copies}</p><div class="modal-footer"><button class="secondary-button" id="gem-upgrade-cancel">취소</button><button class="primary-button" id="gem-upgrade-confirm">강화</button></div>`;
     $("modal-content").querySelectorAll("[data-gem-material]").forEach(button=>button.onclick=()=>{
       const id=button.dataset.gemMaterial;
       if(selected.has(id)) selected.delete(id); else if(selected.size<cost.copies) selected.add(id);
@@ -1800,15 +1801,14 @@ function showUnitRefund(id) {
 function openSequence(preset = mode) {
   sequenceDraftMode = preset;
   sequenceDraftChoices = {...(account.activeLineup ?? {idle:0,challenge:0,speedrun:0})};
-  sequenceDrafts = Object.fromEntries(["idle", "challenge", "speedrun"].map(id => [id,Array.from({length:10},(_,index) => ({sequence:[...sequenceForMode(account,id,index)],gemPreset:gemPresetForMode(account,id,index)}))]));
+  sequenceDrafts = Object.fromEntries(["idle", "challenge", "speedrun"].map(id => [id,Array.from({length:10},(_,index) => [...sequenceForMode(account,id,index)] )]));
   sequenceDraftIndex = sequenceDraftChoices[preset] ?? 0;
-  sequenceDraft = sequenceDrafts[preset][sequenceDraftIndex].sequence;
-  sequenceDraftGem = sequenceDrafts[preset][sequenceDraftIndex].gemPreset;
+  sequenceDraft = [...sequenceDrafts[preset][sequenceDraftIndex]];
   openModal("순서", "sequence", renderSequence);
 }
 function renderSequence() {
   $("modal-content").innerHTML =
-    `<div class="sequence-presets" role="group" aria-label="콘텐츠 편성">${[["idle", "방치"], ["challenge", "도전"], ["speedrun", "속공"]].map(([id, label]) => `<button data-sequence-preset="${id}" aria-pressed="${sequenceDraftMode === id}">${label}</button>`).join("")}</div><div class="preset-numbers" role="group" aria-label="편성 프리셋">${Array.from({length:10},(_,index) => `<button data-lineup-index="${index}" aria-pressed="${sequenceDraftIndex === index}">${index+1}</button>`).join("")}</div>${advancedContentUnlocked(account) ? `<label class="sequence-gem-label">보석 프리셋 <select id="sequence-gem-preset">${Array.from({length:10},(_,index) => `<option value="${index}" ${sequenceDraftGem === index ? "selected" : ""}>${index+1}</option>`).join("")}</select></label>` : ""}<div class="sequence-list" id="sequence-list" role="list" aria-label="소환 순서">${sequenceDraft.map((id, i) => `<article class="sequence-slot" data-sequence-slot="${i}" tabindex="0" role="listitem" aria-label="${i+1}번 ${names[id] || "빈 슬롯"}, 끌거나 방향키로 순서 이동"><span class="slot-index">${i + 1}</span>${id ? portrait(id) : '<div class="empty-sequence-art"></div>'}<strong>${names[id] || "빈 슬롯"}</strong>${id && !canUseUnit(account, id) ? "<small>2-1에서 사용</small>" : ""}<button class="inspect-button secondary-button" data-replace="${i}" >교체</button></article>`).join("")}</div><span class="sr-only" id="sequence-status" role="status"></span><p class="sequence-hint">${sequenceDraftMode === "idle" ? "골드가 모이면 차례대로 소환합니다. 쿨타임은 건너뜁니다." : "전투에서 사용할 소환 카드의 순서를 정합니다."}</p><div class="modal-footer"><span class="hint">끌어서 순서를 바꿉니다.</span><button class="primary-button" id="apply-sequence">적용</button></div>`;
+    `<div class="sequence-presets" role="group" aria-label="콘텐츠 편성">${[["idle", "방치"], ["challenge", "도전"], ["speedrun", "속공"]].map(([id, label]) => `<button data-sequence-preset="${id}" aria-pressed="${sequenceDraftMode === id}">${label}</button>`).join("")}</div><div class="preset-numbers" role="group" aria-label="편성 프리셋">${Array.from({length:10},(_,index) => `<button data-lineup-index="${index}" aria-pressed="${sequenceDraftIndex === index}">${index+1}</button>`).join("")}</div><div class="sequence-list" id="sequence-list" role="list" aria-label="소환 순서">${sequenceDraft.map((id, i) => `<article class="sequence-slot" data-sequence-slot="${i}" tabindex="0" role="listitem" aria-label="${i+1}번 ${names[id] || "빈 슬롯"}, 끌거나 방향키로 순서 이동"><span class="slot-index">${i + 1}</span>${id ? portrait(id) : '<div class="empty-sequence-art"></div>'}<strong>${names[id] || "빈 슬롯"}</strong>${id && !canUseUnit(account, id) ? "<small>2-1에서 사용</small>" : ""}<button class="inspect-button secondary-button" data-replace="${i}" >교체</button></article>`).join("")}</div><span class="sr-only" id="sequence-status" role="status"></span><p class="sequence-hint">${sequenceDraftMode === "idle" ? "골드가 모이면 차례대로 소환합니다. 쿨타임은 건너뜁니다." : "전투에서 사용할 소환 카드의 순서를 정합니다."}</p><div class="modal-footer"><span class="hint">끌어서 순서를 바꿉니다.</span><button class="primary-button" id="apply-sequence">적용</button></div>`;
   bindSequenceDrag($("sequence-list"), (from, to) => {
     if (!moveSequenceItem(sequenceDraft, from, to)) return;
     renderSequence();
@@ -1848,25 +1848,22 @@ function renderSequence() {
     );
   $("modal-content").querySelectorAll("[data-sequence-preset]").forEach((button) => {
     button.onclick = () => {
-      sequenceDrafts[sequenceDraftMode][sequenceDraftIndex] = {sequence:sequenceDraft,gemPreset:sequenceDraftGem};
+      sequenceDrafts[sequenceDraftMode][sequenceDraftIndex] = [...sequenceDraft];
       sequenceDraftMode = button.dataset.sequencePreset;
       sequenceDraftIndex = sequenceDraftChoices[sequenceDraftMode] ?? 0;
-      sequenceDraft = sequenceDrafts[sequenceDraftMode][sequenceDraftIndex].sequence;
-      sequenceDraftGem = sequenceDrafts[sequenceDraftMode][sequenceDraftIndex].gemPreset;
+      sequenceDraft = [...sequenceDrafts[sequenceDraftMode][sequenceDraftIndex]];
       renderSequence();
     };
   });
   $("modal-content").querySelectorAll("[data-lineup-index]").forEach(button => {
     button.onclick = () => {
-      sequenceDrafts[sequenceDraftMode][sequenceDraftIndex] = {sequence:sequenceDraft,gemPreset:sequenceDraftGem};
+      sequenceDrafts[sequenceDraftMode][sequenceDraftIndex] = [...sequenceDraft];
       sequenceDraftIndex = Number(button.dataset.lineupIndex);
       sequenceDraftChoices[sequenceDraftMode] = sequenceDraftIndex;
-      sequenceDraft = sequenceDrafts[sequenceDraftMode][sequenceDraftIndex].sequence;
-      sequenceDraftGem = sequenceDrafts[sequenceDraftMode][sequenceDraftIndex].gemPreset;
+      sequenceDraft = [...sequenceDrafts[sequenceDraftMode][sequenceDraftIndex]];
       renderSequence();
     };
   });
-  if($("sequence-gem-preset")) $("sequence-gem-preset").onchange = () => sequenceDraftGem = Number($("sequence-gem-preset").value);
   $("apply-sequence").onclick = () => {
     if (!sequenceDraft.every((id) => id === null || canUseUnit(account, id))) {
       toast("숲속 이외 동료는 2-1에서 사용할 수 있습니다.");
@@ -1897,13 +1894,12 @@ function renderSequence() {
           sequence: sequenceDraft,
           mode: sequenceDraftMode,
           index: sequenceDraftIndex,
-          gemPreset: sequenceDraftGem,
         });
         if (envelope) applied();
       })();
       return;
     }
-    if (!setSequence(account, sequenceDraft, sequenceDraftMode, sequenceDraftIndex, sequenceDraftGem)) return;
+    if (!setSequence(account, sequenceDraft, sequenceDraftMode, sequenceDraftIndex)) return;
     persist();
     applied();
   };

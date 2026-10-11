@@ -3615,27 +3615,27 @@ html:fullscreen .game {
   .companion-portrait { width: 72px; height: 72px; flex-basis: 72px; }
 }
 
-/* Saved lineups and three plain gem slots use the shared collection modal. */
+/* Saved lineups and type based gem equipment use the shared collection modal. */
 .preset-numbers { display: grid; grid-template-columns: repeat(10,minmax(0,1fr)); gap: 5px; margin: 0 0 14px; }
 .preset-numbers button { border: 1px solid #c9cfb6; background: #f7f5e9; border-radius: 8px; padding: 8px 0; color: #697b56; font: inherit; cursor: pointer; }
 .preset-numbers button[aria-pressed="true"], .gem-card[aria-pressed="true"] { background: #6b8055; color: #fff; }
-.sequence-gem-label { display: flex; align-items: center; gap: 8px; font-size: 12px; margin-bottom: 12px; }
-.sequence-gem-label select { background: #f7f5e9; border: 1px solid #c9cfb6; border-radius: 7px; padding: 5px 10px; color: inherit; }
-.gem-equipment { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; }
-.gem-equipment-slot { display: flex; min-height: 116px; position: relative; flex-direction: column; align-items: center; justify-content: center; gap: 5px; border: 1px solid #c6cdb4; background: #f6f5ea; color: #4e5941; border-radius: 12px; font: inherit; cursor: pointer; }
-.gem-equipment-slot > small { position: absolute; top: 7px; left: 9px; color: #899578; }
-.gem-equipment-slot .gem-art { width: 40px; height: 40px; }
-.gem-equipment-slot .gem-art .icon { width: 100%; height: 100%; }
-.gem-equipment-slot > .icon { width: 28px; height: 28px; }
-.gem-equipment-slot span { font-size: 11px; }
-.guide-highlight { border: 2px solid #a9a259; background: #f2efdc; }
+.gem-type-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,175px),1fr)); gap: 10px; }
+.gem-type-card { min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 7px; padding: 13px 10px; border: 1px solid #d5dac1; background: #fcfaef; border-radius: 12px; text-align: center; }
+.gem-type-card.is-equipped { border-color: #819964; background: #ebefd9; }
+.gem-type-card > .gem-art { width: 42px; height: 42px; padding: 7px; background: transparent; }
+.gem-type-card > .gem-art .icon { width: 100%; height: 100%; }
+.gem-type-card > strong { font-size: 13px; }
+.gem-type-effect { min-height: 2.5em; color: #687658; font-size: 11px; line-height: 1.4; }
+.gem-type-card button { max-width: 100%; padding: 6px 10px; font-size: 11px; }
+.gem-type-card .gem-type-instance { color: #506344; font-weight: 700; }
+.gem-equipment-note { margin: 10px 0 14px; font-size: 11px; }
+.gem-equipped-state { color: #5f784a !important; font-weight: 700; }
+.gem-picker-heading { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.gem-picker-heading .gem-art { width: 40px; height: 40px; padding: 5px; background: transparent; }
+.gem-picker-heading .icon { width: 100%; height: 100%; }
 .gem-banner { background: #ebeddc; padding: 16px; border-radius: 12px; margin: 18px 0; }
 .gem-banner h3 { font-size: 18px; margin: 0 0 7px; }
 .gem-banner p { font-size: 12px; line-height: 1.5; margin: 0 0 12px; color: #738264; }
-.gem-banner-types { display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 14px; }
-.gem-banner-types .gem-art { width: 24px; height: 24px; }
-.gem-banner-types .icon { width: 100%; height: 100%; }
-.gem-banner-types > span:not(.gem-art) { font-size: 11px; margin-right: 8px; }
 .gem-detail-heading { display: flex; align-items: center; gap: 20px; margin-bottom: 18px; }
 .gem-detail-heading .gem-art { width: 86px; height: 86px; flex: 0 0 86px; }
 .gem-detail-heading .gem-art .icon { width: 100%; height: 100%; }
@@ -3651,14 +3651,12 @@ html:fullscreen .game {
 .return-income-summary .result-rewards { margin: 20px 0; font-size: 20px; }
 .return-income-summary > button { margin-top: 14px; }
 @media (max-height: 450px) {
-  .gem-equipment-slot { min-height: 88px; }
   .gem-banner { padding: 12px; margin: 12px 0; }
   .preset-numbers { margin-bottom: 10px; }
   .preset-numbers button { padding: 6px 0; }
 }
 .gem-card-options { font-size: 10px; line-height: 1.5; text-align: center; margin-top: 5px; }
 .gem-banner .gem-draw-actions { flex-wrap: wrap; gap: 8px; }
-.gem-equipment-slot .gem-art, .gem-banner-types .gem-art { padding: 0; background: transparent; border-radius: 0; }
 .gem-detail-heading .gem-art { box-sizing: border-box; padding: 12px; }
 
 .level-basis { margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid #d8dccb; }
@@ -3746,13 +3744,12 @@ html:fullscreen .game {
 .sequence-presets { margin-bottom: 8px; }
 .sequence-presets > button { padding: 7px 12px; }
 .modal-backdrop[data-kind="sequence"] .preset-numbers { margin-bottom: 8px; }
-.modal-backdrop[data-kind="sequence"] .sequence-gem-label { margin-bottom: 8px; }
 .sequence-hint { margin: 6px 0 0; font-size: 11px; line-height: 1.3; }
 .modal-backdrop[data-kind="sequence"] .modal-footer { margin-top: 10px; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 @media (max-height: 560px) and (orientation: landscape) {
   .modal-backdrop[data-kind="sequence"] .modal-content { padding: 10px 14px; }
-  .sequence-presets, .modal-backdrop[data-kind="sequence"] .preset-numbers, .modal-backdrop[data-kind="sequence"] .sequence-gem-label { margin-bottom: 6px; }
+  .sequence-presets, .modal-backdrop[data-kind="sequence"] .preset-numbers { margin-bottom: 6px; }
   .sequence-presets > button { padding: 6px 10px; }
   .modal-backdrop[data-kind="sequence"] .preset-numbers button { padding: 5px 0; font-size: 11px; }
   .sequence-slot { grid-template-columns: 34px minmax(0, 1fr); padding: 5px; }
@@ -3769,13 +3766,19 @@ html:fullscreen .game {
   .modal-backdrop[data-kind="sequence"] .modal-header .icon-button { width: 32px; height: 32px; }
   .modal-backdrop[data-kind="sequence"] .modal-content { padding: 8px 12px; }
   .sequence-presets > button { padding: 4px 8px; }
-  .sequence-presets, .modal-backdrop[data-kind="sequence"] .preset-numbers, .modal-backdrop[data-kind="sequence"] .sequence-gem-label { margin-bottom: 4px; }
+  .sequence-presets, .modal-backdrop[data-kind="sequence"] .preset-numbers { margin-bottom: 4px; }
   .modal-backdrop[data-kind="sequence"] .preset-numbers button { padding: 3px 0; }
   .sequence-slot { grid-template-columns: 28px minmax(0, 1fr); padding: 4px; }
   .sequence-slot .portrait, .sequence-slot .empty-sequence-art { width: 28px; height: 28px; }
   .sequence-slot > button { min-height: 18px; padding: 2px; }
   .sequence-hint { font-size: 10px; margin-top: 4px; }
   .modal-backdrop[data-kind="sequence"] #apply-sequence { padding: 6px 14px; min-height: 28px; }
+}
+@media (max-width: 520px) {
+  .gem-type-grid { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 7px; }
+  .gem-type-card { padding: 9px 6px; gap: 5px; }
+  .gem-type-card > .gem-art { width: 34px; height: 34px; }
+  .gem-type-effect { font-size: 10px; }
 }
 
 /* Duplicate rewards share the top row with rarity, safely above the portrait. */

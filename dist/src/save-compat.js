@@ -66,7 +66,7 @@ export function restoreLegacyGems(raw, state, { count, nextUid }) {
     state.nextGemUid = allocation.next;
     state.gemItems.push({ uid: allocation.uid, type, level: 1, options: [] });
     state.gemReserves[type] = owned - 1;
-    if (raw.equippedGem === type) state.gemPresets[0][0] = allocation.uid;
+    if (raw.equippedGem === type) state.gemEquipment[type] = allocation.uid;
   }
   return true;
 }

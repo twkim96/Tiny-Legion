@@ -73,7 +73,8 @@ test("combat power follows summoned stats after growth and combat gems", () => {
   growUnit(a, "sheep");
   a.special.rabbit = 3;
   for (const gem of [null, "attack", "hp"]) {
-    a.equippedGem = gem;
+    a.gemItems = gem ? [{uid:gem,type:gem,level:1,options:[]}] : [];
+    a.gemEquipment = gem ? {[gem]:gem} : {};
     const battle = createBattle({
       levels: battleLevels(a),
       modifiers: gemModifiers(a),
@@ -92,7 +93,8 @@ test("combat power follows summoned stats after growth and combat gems", () => {
 test("combat power ignores currency, economic gems and repeated summon slots", () => {
   const a = newAccount(now);
   const power = combatPower(a);
-  a.equippedGem = "gold";
+  a.gemItems = [{uid:"harvest",type:"harvest",level:1,options:[]}];
+  a.gemEquipment = {harvest:"harvest"};
   a.gold += 100000;
   a.diamonds += 100000;
   a.sequence = Array(5).fill("sheep");
@@ -127,7 +129,8 @@ test("a new record settles the old rate and freezes its verified gold bonus", ()
   );
   assert.equal(a.gold, 700);
   assert.equal(a.records[1].gold, 138);
-  a.equippedGem = "attack";
+  a.gemItems = [{uid:"attack",type:"attack",level:1,options:[]}];
+  a.gemEquipment = {attack:"attack"};
   accrue(a, now + 240000);
   assert.equal(a.gold, 838);
 });
@@ -183,7 +186,7 @@ test("first challenge reward is not paid twice and gem draw consumes the right c
   assert.ok(recruitGem(a, "diamonds", () => 0));
   assert.equal(a.diamonds, diamonds - 30);
   assert.equal(a.gemItems[0].type, "income");
-  assert.equal(a.gemPresets[0][0], null);
+  assert.deepEqual(a.gemEquipment, {});
 });
 test("damaged saves cannot introduce negative balances, invalid sequence or unknown equipment", () => {
   const a = normalizeAccount(
@@ -200,7 +203,7 @@ test("damaged saves cannot introduce negative balances, invalid sequence or unkn
   assert.equal(a.gold, 0);
   assert.equal(a.levels.sheep, 100);
   assert.equal(a.sequence.length, 10);
-  assert.equal(a.equippedGem, null);
+  assert.deepEqual(a.gemEquipment, {});
 });
 test("a truncated imported sequence preserves duplicates and pads ten slots without extra summons", () => {
   const a = normalizeAccount(

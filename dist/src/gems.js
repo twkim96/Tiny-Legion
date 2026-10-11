@@ -28,12 +28,11 @@ const safeUid = uid => typeof uid === 'string' && /^[A-Za-z0-9_-]{1,80}$/.test(u
 const rank = level => Number.isInteger(level) && level >= 1 && level <= 10;
 const count = value => Number.isFinite(value) ? Math.floor(Math.max(0, Math.min(1e6, value))) : 0;
 const unlocked = a => a?.onboarding?.phase === 'complete' && a.highestCleared >= 11;
-const index = (value, limit) => Number.isInteger(value) && value >= 0 && value < limit;
 const affordable = (a, key, cost) => Number.isFinite(a[key]) && a[key] >= cost;
 export const gemDefinition = type => GEM_TYPES.find(g => g.id === type) ?? null;
 export const gemByUid = (a, uid) => typeof uid === 'string' ? a?.gemItems?.find(g => g.uid === uid) ?? null : null;
 export function initialGemState() {
-  return { gemItems: [], gemPresets: Array.from({ length: 10 }, () => Array(3).fill(null)), gemReserves: { attack: 0, hp: 0, gold: 0 }, nextGemUid: 1, gemWelcomeClaimed: false };
+  return { gemItems: [], gemEquipment: {}, gemReserves: { attack: 0, hp: 0, gold: 0 }, nextGemUid: 1, gemWelcomeClaimed: false };
 }
 function nextUid(items, counter) {
   let next = Number.isSafeInteger(counter) && counter > 0 && counter < Number.MAX_SAFE_INTEGER ? counter : 1;
@@ -72,15 +71,12 @@ export function normalizeGemState(raw) {
     state.gemItems.push({ uid, type: item.type, level, options });
   }
   for (const type of legacyTypes) state.gemReserves[type] = count(Number(raw.gemReserves?.[type]));
-  state.gemPresets = state.gemPresets.map((slots, p) => {
-    const used = new Set();
-    return slots.map((_, s) => {
-      const uid = raw.gemPresets?.[p]?.[s];
-      if (!originalIds.has(uid) || !seen.has(uid) || used.has(uid)) return null;
-      used.add(uid);
-      return uid;
-    });
-  });
+  // Equipment is keyed by type: each kind contributes at most one instance.
+  for (const def of GEM_TYPES) {
+    const uid = raw.gemEquipment?.[def.id];
+    const item = gemByUid(state, uid);
+    if (originalIds.has(uid) && item?.type === def.id) state.gemEquipment[def.id] = uid;
+  }
   state.nextGemUid = nextUid(state.gemItems, state.nextGemUid).next - 1;
   return state;
 }
@@ -126,10 +122,13 @@ export function drawGem(a, { payment = 'diamonds', free = false, random = Math.r
   if (a.gemGuide && typeof a.gemGuide === 'object') a.gemGuide.drawn = true;
   return item;
 }
-const equipped = (a, uid) => a.gemPresets?.some(slots => slots.includes(uid));
+export const isGemEquipped = (a, uid) => {
+  const item = gemByUid(a, uid);
+  return !!item && a.gemEquipment?.[item.type] === uid;
+};
 export function gemUpgradeMaterials(a, uid) {
   const target = gemByUid(a, uid);
-  return target ? a.gemItems.filter(g => g.uid !== uid && g.type === target.type && g.level === 1 && !equipped(a, g.uid)) : [];
+  return target ? a.gemItems.filter(g => g.uid !== uid && g.type === target.type && g.level === 1 && !isGemEquipped(a, g.uid)) : [];
 }
 export function upgradeGem(a, uid, materialUids = []) {
   const target = gemByUid(a, uid), cost = gemUpgradeCost(target);
@@ -151,26 +150,26 @@ export function transferGem(a, sourceUid, targetUid) {
   a.gold -= gemTransferCost(source);
   target.level = source.level;
   a.gemItems = a.gemItems.filter(g => g.uid !== sourceUid);
-  a.gemPresets = a.gemPresets.map(slots => slots.map(uid => uid === sourceUid ? null : uid));
+  if (a.gemEquipment?.[source.type] === sourceUid) delete a.gemEquipment[source.type];
   return true;
 }
-export function equipGem(a, presetIndex, slotIndex, uid) {
-  if (!unlocked(a) || !index(presetIndex, 10) || !index(slotIndex, 3) || !a.gemPresets?.[presetIndex]) return false;
-  const slots = a.gemPresets[presetIndex];
-  if (uid !== null && (!gemByUid(a, uid) || slots.some((other, i) => i !== slotIndex && other === uid))) return false;
-  slots[slotIndex] = uid;
-  if (uid !== null && a.gemGuide && typeof a.gemGuide === 'object') a.gemGuide.equipped = true;
+export function equipGem(a, uid) {
+  const item = gemByUid(a, uid);
+  if (!unlocked(a) || !item || !gemDefinition(item.type) || !rank(item.level) || !a.gemEquipment) return false;
+  a.gemEquipment[item.type] = uid;
+  if (a.gemGuide && typeof a.gemGuide === 'object') a.gemGuide.equipped = true;
   return true;
 }
-export function gemEffects(a, presetIndex = 0) {
+export function unequipGem(a, type) {
+  if (!unlocked(a) || !gemDefinition(type) || !a.gemEquipment?.[type]) return false;
+  delete a.gemEquipment[type];
+  return true;
+}
+export function gemEffects(a) {
   const effects = { attack: 1, hp: 1, speed: 1, goldIncome: 1, goldCapacity: 1, killGold: 1, acorn: 1, attributeBonuses: Object.fromEntries(['wild', 'machine', 'spirit', 'shadow'].map(id => [id, { attack: 0, effectiveHp: 0 }])) };
-  if (!index(presetIndex, 10)) return effects;
-  const seen = new Set();
-  for (const uid of a?.gemPresets?.[presetIndex] ?? []) {
-    if (seen.has(uid)) continue;
-    seen.add(uid);
-    const item = gemByUid(a, uid), def = gemDefinition(item?.type);
-    if (!def || !rank(item.level)) continue;
+  for (const def of GEM_TYPES) {
+    const item = gemByUid(a, a?.gemEquipment?.[def.id]);
+    if (item?.type !== def.id || !rank(item.level)) continue;
     effects[def.effect] += def.base * (1 + .25 * (item.level - 1));
     for (const option of item.options ?? []) {
       const optionDef = GEM_OPTIONS.find(d => d.id === option?.id);

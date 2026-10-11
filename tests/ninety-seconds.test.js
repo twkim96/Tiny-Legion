@@ -91,7 +91,7 @@ test('region relief, gem baseline and ordinary growth work inside 90 seconds wit
   const account = newAccount();
   account.onboarding.phase = 'complete'; account.earlyGuide.phase = 'complete'; account.highestCleared = 11;
   const gem = drawGem(account, { free: true, random: () => 0 });
-  assert.ok(equipGem(account, 0, 0, gem.uid));
+  assert.ok(equipGem(account, gem.uid));
   for (const state of [play(12, 35, 'challenge', STARTERS, gemModifiers(account, 'challenge')).state,
     play(12, 50).state, play(12, 35, 'challenge', ['sheep', 'teapot', 'rabbit']).state]) {
     assert.equal(state.result.won, true);

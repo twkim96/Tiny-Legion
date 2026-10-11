@@ -308,3 +308,38 @@ test('server verifies speedrun stage progression and replays reward claim receip
   assert.equal(retry.account.tickets, 10);
   assert.equal((await h.command(b, 'speedrun.claim', { stageId: 1 })).error, 'action_unavailable');
 });
+
+
+test('server registers all gem kinds globally and same-kind replacements cannot multiply rewards', async () => {
+  const h=harness(), b=h.browser(); await h.call(b,'session/start');
+  h.seed({onboarding:{phase:'complete'},earlyGuide:{phase:'complete'},highestCleared:11,
+    gemItems:['income','capacity','harvest','bounty'].map(type=>({uid:type,type,level:1,options:[]}))
+      .concat([{uid:'better',type:'income',level:4,options:[{id:'attack',value:.03}]}]),
+    gemEquipment:{},gold:10000});
+  for(const uid of ['income','capacity','harvest','bounty']) {
+    const response=await h.command(b,'gem.equip',{uid});assert.equal(response.status,200);
+  }
+  const replaced=await h.command(b,'gem.equip',{uid:'better'},'register-better');
+  assert.deepEqual(replaced.account.gemEquipment,{income:'better',capacity:'capacity',harvest:'harvest',bounty:'bounty'});
+  const retry=await h.command(b,'gem.equip',{uid:'better'},'register-better');
+  assert.deepEqual(retry.account.gemEquipment,replaced.account.gemEquipment);
+  assert.equal((await h.command(b,'gem.equip',{uid:'missing'})).error,'action_unavailable');
+  // Old clients cannot place one item into arbitrary slots or presets.
+  assert.equal((await h.command(b,'gem.equip',{uid:'income',presetIndex:9,slotIndex:2})).status,200);
+  const started=await h.command(b,'battle.start',{mode:'speedrun',stageId:1});
+  assert.equal(started.status,200);
+  assert.equal(started.result.options.modifiers.goldIncome,1.1);
+  assert.equal(started.result.options.modifiers.goldCapacity,1.15);
+  assert.equal(started.result.options.modifiers.killGold,1.2);
+  assert.deepEqual(started.result.snapshot.gemEquipment,{income:'income',capacity:'capacity',harvest:'harvest',bounty:'bounty'});
+  const upgraded=await h.command(b,'gem.equip',{uid:'better'});
+  assert.equal(upgraded.status,200);
+  const unequipped=await h.command(b,'gem.unequip',{type:'income'});
+  assert.equal(unequipped.status,200);
+  assert.deepEqual(unequipped.account.gemEquipment,{capacity:'capacity',harvest:'harvest',bounty:'bounty'});
+  assert.equal((await h.command(b,'gem.unequip',{type:'income'})).error,'action_unavailable');
+  const row=h.sqlite.prepare('SELECT battle_json FROM game_accounts LIMIT 1').get();
+  const active=JSON.parse(row.battle_json);
+  assert.equal(active.options.modifiers.goldIncome,1.1);
+  assert.equal(active.snapshot.gemEquipment.income,'income');
+});
