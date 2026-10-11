@@ -3662,3 +3662,17 @@ html:fullscreen .game {
   .sequence-hint { font-size: 10px; margin-top: 4px; }
   .modal-backdrop[data-kind="sequence"] #apply-sequence { padding: 6px 14px; min-height: 28px; }
 }
+
+/* Duplicate rewards share the top row with rarity, safely above the portrait. */
+.draw-card-header { display: flex; align-items: center; justify-content: space-between; gap: 4px; align-self: stretch; padding: 0 5px; min-height: 18px; }
+.draw-mark { display: inline-flex; align-items: center; gap: 3px; flex-shrink: 0; font-size: 13px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+.draw-mark .icon { width: 17px; height: 17px; stroke-width: 2; }
+@media (max-height: 560px) and (orientation: landscape), (max-width: 1000px) and (orientation: landscape) {
+  .draw-card-header { min-height: 14px; padding: 0 3px; }
+  .draw-mark { font-size: 11px; gap: 2px; }
+  .draw-mark .icon { width: 14px; height: 14px; }
+}
+.draw-grid:not(.single-draw) .card-revealed .portrait { height: 76px; }
+@media (max-height: 560px) and (orientation: landscape), (max-width: 1000px) and (orientation: landscape) {
+  .draw-grid:not(.single-draw) .card-revealed .portrait { height: 54px; }
+}

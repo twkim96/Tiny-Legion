@@ -1,8 +1,17 @@
 import { UNITS, RARITIES, RECRUIT_BANNERS, bannerById, bannerPool, bannerRarities, ATTRIBUTES } from "./data.js";
 import { portrait, icon } from "./art.js";
 import { RECRUIT_COSTS } from "./account.js";
-import { DUPLICATE_MARKS, markTypeFor, markName } from "./abilities.js";
+import { DUPLICATE_MARKS, MARK_TYPES, markTypeFor, markName } from "./abilities.js";
 export const duplicateRewardText = (result) => `${markName(result.markAttribute ?? markTypeFor(result.unit))} +${result.marks ?? DUPLICATE_MARKS[result.unit.rarity]}`;
+function duplicateMarkBadge(result) {
+  if (result.isNew) return "";
+  const type = result.markAttribute ?? markTypeFor(result.unit);
+  const mark = MARK_TYPES.find(item => item.id === type) ?? MARK_TYPES[0];
+  const symbol = {wild:"leaf", machine:"settings", spirit:"star", shadow:"moon"}[mark.id];
+  const amount = result.marks ?? DUPLICATE_MARKS[result.unit.rarity];
+  const label = duplicateRewardText(result);
+  return `<span class="draw-mark" style="color:${mark.color}" data-tip="${label}" title="${label}" aria-label="${label}">${icon(symbol)}<span>${amount}</span></span>`;
+}
 export const rarityOf = (unit) =>
   RARITIES.find((rarity) => rarity.id === unit.rarity) ?? RARITIES[0];
 export const rarityBadge = (unit) =>
@@ -26,7 +35,7 @@ export function revealRecruit(root, results, { done, again, inspect, sound }) {
   let timers = [],
     alive = true;
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  root.innerHTML = `<div class="draw-scene"><div class="draw-heading"><strong>동료 모집</strong><button class="secondary-button" id="draw-skip">모두 보기</button></div><div class="draw-grid ${results.length === 1 ? "single-draw" : ""}">${results.map((r, index) => `<button class="draw-card sealed" data-reveal="${index}" style="--rarity:${rarityOf(r.unit).color}" aria-label="${index + 1}번째 동료 공개"><span class="card-seal">${icon("envelope")}<small>열기</small></span><span class="card-revealed">${rarityBadge(r.unit)}${portrait(r.unit.id)}<strong>${r.unit.name}</strong><small>${r.isNew ? "NEW" : duplicateRewardText(r)}${r.guaranteed ? " · 보장" : ""}</small></span></button>`).join("")}</div><div class="draw-actions"><button class="secondary-button" id="draw-again" disabled>한 번 더</button><button class="primary-button" id="draw-done" disabled>확인</button></div><span class="draw-status" role="status" aria-live="polite">동료를 만나고 있습니다.</span></div>`;
+  root.innerHTML = `<div class="draw-scene"><div class="draw-heading"><strong>동료 모집</strong><button class="secondary-button" id="draw-skip">모두 보기</button></div><div class="draw-grid ${results.length === 1 ? "single-draw" : ""}">${results.map((r, index) => `<button class="draw-card sealed" data-reveal="${index}" style="--rarity:${rarityOf(r.unit).color}" aria-label="${index + 1}번째 동료 공개"><span class="card-seal">${icon("envelope")}<small>열기</small></span><span class="card-revealed"><span class="draw-card-header">${rarityBadge(r.unit)}${duplicateMarkBadge(r)}</span>${portrait(r.unit.id)}<strong>${r.unit.name}</strong>${r.isNew || r.guaranteed ? `<small>${r.isNew ? "NEW" : ""}${r.guaranteed ? (r.isNew ? " · 보장" : "보장") : ""}</small>` : ""}</span></button>`).join("")}</div><div class="draw-actions"><button class="secondary-button" id="draw-again" disabled>한 번 더</button><button class="primary-button" id="draw-done" disabled>확인</button></div><span class="draw-status" role="status" aria-live="polite">동료를 만나고 있습니다.</span></div>`;
   const cards = [...root.querySelectorAll("[data-reveal]")];
   const reveal = (index) => {
     if (!alive || !cards[index].classList.contains("sealed")) return;
