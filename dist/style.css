@@ -487,12 +487,12 @@ body {
   bottom: 23px;
   left: 50%;
   transform: translateX(-50%);
-  width: min(860px, calc(100% - 230px));
-  height: 106px;
-  padding: 8px 11px;
+  width: min(600px, calc(100% - 230px));
+  height: 86px;
+  padding: 0;
   display: flex;
   align-items: center;
-  gap: 11px;
+  gap: 10px;
   background: none;
   border: 0;
   border-radius: 17px;
@@ -539,23 +539,23 @@ body {
 }
 .unit-hand {
   display: flex;
-  gap: 9px;
+  gap: 6px;
   flex: 1;
-  height: 100%;
+  height: 78px;
   min-width: 0;
 }
 .unit-card {
   flex: 1;
   position: relative;
   min-width: 0;
-  border: 0;
-  border-radius: 12px;
-  background: none;
+  border: 2px solid var(--ink);
+  border-radius: 2px;
+  background: #fff;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 3px 5px 4px;
+  padding: 0;
   box-shadow: none;
   overflow: hidden;
   transition:
@@ -563,19 +563,21 @@ body {
     transform 0.15s;
   isolation: isolate;
   backdrop-filter: none;
+  color: var(--ink);
+  text-shadow: none;
 }
 .unit-card:hover {
-  border-color: transparent;
-  background: none;
-  filter: brightness(1.1);
+  border-color: var(--green);
+  background: #fff;
+  filter: none;
 }
 .unit-card:active {
   transform: translateY(2px);
 }
 .unit-card.current {
-  border: 0;
-  background: none;
-  box-shadow: none;
+  border: 2px solid var(--green);
+  background: #fff;
+  box-shadow: inset 0 0 0 1px #65795033;
   backdrop-filter: none;
 }
 .unit-card.current:before {
@@ -583,42 +585,48 @@ body {
   position: absolute;
   top: 0;
   left: 50%;
-  width: 15px;
+  width: 22px;
   height: 3px;
   transform: translateX(-50%);
-  background: #ffe18c;
-  border-radius: 0 0 4px 4px;
+  background: var(--green);
+  border-radius: 0;
+  z-index: 3;
 }
 .unit-card .portrait {
-  width: 65px;
-  height: 62px;
+  width: 100%;
+  height: calc(100% - 14px);
   flex-shrink: 0;
-  position: relative;
+  position: absolute;
   z-index: 1;
+  top: 0;
+  left: 0;
 }
 .unit-card-text {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 5px;
+  gap: 0;
   z-index: 1;
-  position: relative;
+  position: absolute;
   white-space: nowrap;
-  width: 100%;
+  width: auto;
   line-height: 1.2;
+  bottom: 3px;
+  right: 4px;
 }
 .unit-card-name {
   font-size: 9px;
   font-weight: 600;
+  display: none;
 }
 .unit-cost {
   display: flex;
   align-items: center;
   gap: 2px;
-  font-size: 10px;
-  font-weight: 700;
+  font-size: 13px;
+  font-weight: 800;
   font-variant-numeric: tabular-nums;
-  color: #ffe18c;
+  color: var(--ink);
 }
 .unit-cost .icon {
   width: 11px;
@@ -626,34 +634,42 @@ body {
 }
 .unit-card-number {
   position: absolute;
-  top: 5px;
-  left: 7px;
+  top: 3px;
+  left: 4px;
   font-size: 9px;
   font-weight: 700;
-  color: #fff;
+  color: #77806d;
   z-index: 2;
 }
 .unit-cooldown {
   position: absolute;
   inset: 0;
-  background: none;
+  background: #25302170;
   transform-origin: bottom;
   z-index: 2;
   pointer-events: none;
 }
 .unit-cooldown-text {
   position: absolute;
-  bottom: 8px;
-  left: 10px;
+  bottom: auto;
+  left: 0;
   font-size: 12px;
   color: white;
   text-shadow: 0 1px 2px #333;
   font-weight: 700;
   z-index: 3;
   pointer-events: none;
+  top: 50%;
+  right: 0;
+  transform: translateY(-50%);
+  text-align: center;
 }
 .unit-card.unaffordable .unit-cost {
-  color: #d1d5ce;
+  color: #85877f;
+}
+.unit-card.unaffordable .portrait {
+  filter: grayscale(0.65);
+  opacity: 0.6;
 }
 .sequence-button {
   width: 39px;
@@ -2148,9 +2164,9 @@ html:fullscreen .game {
     width: calc(
       100% - 195px - env(safe-area-inset-left) - env(safe-area-inset-right)
     );
-    max-width: 780px;
-    height: 78px;
-    padding: 5px 7px;
+    max-width: 570px;
+    height: 70px;
+    padding: 0;
     gap: 7px;
     border-radius: 12px;
     border-width: 1.5px;
@@ -2171,16 +2187,17 @@ html:fullscreen .game {
     height: 3px;
   }
   .unit-hand {
+    height: 62px;
     gap: 6px;
   }
   .unit-card {
-    border-radius: 8px;
-    padding: 2px 3px;
+    border-radius: 2px;
+    padding: 0;
     justify-content: center;
   }
   .unit-card .portrait {
-    width: 47px;
-    height: 46px;
+    width: 100%;
+    height: calc(100% - 14px);
   }
   .unit-card-text {
     gap: 3px;
@@ -2189,7 +2206,7 @@ html:fullscreen .game {
     font-size: 8px;
   }
   .unit-cost {
-    font-size: 9px;
+    font-size: 11px;
     gap: 1px;
   }
   .unit-cost .icon {
@@ -2203,8 +2220,12 @@ html:fullscreen .game {
   }
   .unit-cooldown-text {
     font-size: 10px;
-    bottom: 6px;
-    left: 6px;
+    bottom: auto;
+    left: 0;
+    top: 50%;
+    right: 0;
+    transform: translateY(-50%);
+    text-align: center;
   }
   .sequence-button {
     width: 29px;
@@ -2350,16 +2371,17 @@ html:fullscreen .game {
     width: calc(
       100% - 161px - env(safe-area-inset-left) - env(safe-area-inset-right)
     );
-    height: 74px;
+    height: 66px;
     gap: 5px;
-    padding: 5px;
+    padding: 0;
   }
   .unit-hand {
+    height: 58px;
     gap: 4px;
   }
   .unit-card .portrait {
-    width: 40px;
-    height: 37px;
+    width: 100%;
+    height: calc(100% - 14px);
   }
   .unit-card-text {
     flex-direction: column;
@@ -2369,7 +2391,7 @@ html:fullscreen .game {
     font-size: 7px;
   }
   .unit-cost {
-    font-size: 8px;
+    font-size: 10px;
   }
   .unit-cost .icon {
     width: 8px;
@@ -2432,6 +2454,9 @@ html:fullscreen .game {
   }
 }
 @media (max-height: 340px) and (orientation: landscape) {
+  .unit-hand {
+    height: 50px;
+  }
   .castle-health {
     top: 66px;
   }
@@ -2440,13 +2465,14 @@ html:fullscreen .game {
   }
   .summon-bar {
     bottom: 8px;
-    height: 66px;
+    height: 54px;
   }
   .field-note {
     top: 66px;
   }
   .unit-card .portrait {
-    height: 29px;
+    height: calc(100% - 14px);
+    width: 100%;
   }
   .skill-button {
     bottom: 12px;
