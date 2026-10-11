@@ -1314,6 +1314,13 @@ function renderSettings() {
 function showTooltip(el, x, y, longpress = false) {
   const text = el.dataset.tip;
   if (!text) return;
+  const fixedDescription = el.matches(".unit-card[data-unit]");
+  const tooltip = $("tooltip");
+  const host = fixedDescription ? el.closest(".summon-bar") : document.body;
+  host.append(tooltip);
+  tooltip.classList.toggle("summon-description", fixedDescription);
+  tooltip.style.removeProperty("left");
+  tooltip.style.removeProperty("top");
   const labels = new Map(ATTRIBUTES.map((attribute) => [`${attribute.name}특화`, attribute]));
   const pieces = text.split(/(야생특화|기계특화|정령특화|그림자특화)/);
   $("tooltip").replaceChildren(...pieces.map((piece) => {
@@ -1327,6 +1334,7 @@ function showTooltip(el, x, y, longpress = false) {
   }));
   $("tooltip").hidden = false;
   $("tooltip").dataset.longpress = String(longpress);
+  if (fixedDescription) return;
   const r = $("tooltip").getBoundingClientRect();
   $("tooltip").style.left =
     `${Math.max(8, Math.min(innerWidth - r.width - 8, x - r.width / 2))}px`;
@@ -1342,11 +1350,16 @@ function hideTooltip() {
 document.addEventListener("pointerover", (e) => {
   if (e.pointerType !== "mouse") return;
   const el = e.target.closest("[data-tip]");
+  if (el?.contains(e.relatedTarget)) return;
+  clearTimeout(tooltipTimer);
   if (el)
     tooltipTimer = setTimeout(() => showTooltip(el, e.clientX, e.clientY), 400);
 });
 document.addEventListener("pointerout", (e) => {
-  if (e.pointerType === "mouse") hideTooltip();
+  if (e.pointerType !== "mouse") return;
+  const el = e.target.closest("[data-tip]");
+  if (el?.contains(e.relatedTarget)) return;
+  hideTooltip();
 });
 document.addEventListener("pointerdown", (e) => {
   if (e.pointerType === "mouse") return;

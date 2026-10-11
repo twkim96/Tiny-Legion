@@ -1443,6 +1443,34 @@ body {
   pointer-events: none;
   box-shadow: 0 4px 16px #28321c22;
 }
+.tooltip.summon-description {
+  position: absolute;
+  left: 0;
+  top: auto;
+  bottom: calc(100% + 10px);
+  width: 100%;
+  max-width: none;
+  min-height: 64px;
+  padding: 10px 14px;
+  background: #faf8eff5;
+  color: var(--ink);
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.6;
+  text-align: left;
+  text-shadow: none;
+  -webkit-text-stroke: 0;
+  box-shadow: none;
+}
+@media (max-height: 560px) and (orientation: landscape),
+  (max-width: 1000px) and (orientation: landscape) {
+  .tooltip.summon-description {
+    bottom: calc(100% + 6px);
+    min-height: 56px;
+    padding: 8px 10px;
+    font-size: 11px;
+  }
+}
 .toast {
   position: fixed;
   bottom: 28px;
