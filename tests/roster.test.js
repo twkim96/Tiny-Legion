@@ -70,8 +70,8 @@ function assertWellFormedSvg(svg, id) {
   assert.deepEqual(stack, [], `${id} has unclosed SVG tags`);
 }
 
-test("every companion has unique, well-formed portrait and battle SVG art", () => {
-  const ids = UNITS.map((unit) => unit.id);
+test("every companion and enemy has unique, well-formed portrait and battle SVG art", () => {
+  const ids = [...UNITS, ...ENEMIES].map((unit) => unit.id);
   const sprites = ids.map((id) => spriteSvg(id));
   assert.equal(new Set(sprites).size, ids.length);
 
@@ -143,7 +143,7 @@ test("new companions receive finite visible idle, windup, and recovery poses", (
   }
 });
 
-test("renderer draws every roster companion and keeps enemy art aliases", async () => {
+test("renderer draws every roster companion and uses distinct enemy art with aliased poses", async () => {
   const keys = ["Image", "ResizeObserver", "document", "devicePixelRatio"];
   const original = new Map(
     keys.map((key) => [key, Object.getOwnPropertyDescriptor(globalThis, key)]),
@@ -212,6 +212,16 @@ test("renderer draws every roster companion and keeps enemy art aliases", async 
       ([name]) => name === "drawImage",
     );
     assert.equal(spriteDraws.length, units.length + 1);
+    for (const unit of units.filter((u) => u.artId && u.artId !== u.id)) {
+      const source =
+        "data:image/svg+xml;charset=utf-8," +
+        encodeURIComponent(spriteSvg(unit.id));
+      assert.ok(
+        spriteDraws.some(([, image]) => image.src === source),
+        `${unit.id} lost its distinct art`,
+      );
+      assert.notEqual(spriteSvg(unit.id), spriteSvg(unit.artId));
+    }
   } finally {
     for (const key of keys) {
       const descriptor = original.get(key);

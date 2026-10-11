@@ -18,7 +18,7 @@ npm run dev
 | `dist/src/data.js` | 동료·적·스테이지·웨이브 데이터 |
 | `dist/src/engine.js` | 화면과 독립된 결정적 전투 계산 |
 | `dist/src/account.js` | 성장·재화·진행·기록·저장 |
-| `dist/src/art.js`, `dist/src/renderer.js` | SVG 리소스와 Canvas 렌더링 |
+| `dist/src/character-art.js`, `dist/src/art.js`, `dist/src/renderer.js` | 계열별 캐릭터 SVG·아이콘과 Canvas 렌더링 |
 | `dist/src/recruitment-ui.js` | 동료 모집·확률·카드 공개 연출 |
 | `dist/src/main.js` | UI·입력·전투/계정 연결 |
 | `tests/` | Node 기본 테스트 러너로 검증하는 동작 |

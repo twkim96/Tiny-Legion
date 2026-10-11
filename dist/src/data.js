@@ -345,7 +345,9 @@ export const ENEMIES = [
   {
     id: "beetle",
     attribute: "wild",
-    name: "딱정벌레",
+    name: "들판 너구리",
+    description:
+      "햇볕 아래 오래 지내 털이 짙어진 너구리예요. 바랜 풀잎 옷을 걸치고 앞줄로 다가와요.",
     role: "melee",
     hp: 190,
     attack: 24,
@@ -354,13 +356,15 @@ export const ENEMIES = [
     attackInterval: 1.35,
     attackWindup: 0.22,
     attackRecovery: 0.2,
-    color: "#718c5a",
+    color: "#b78b5e",
   },
   {
     id: "mushroom",
     attribute: "spirit",
     regeneration: { hpRatio: 0.025, interval: 2 },
-    name: "버섯 몽이",
+    name: "햇살 토끼",
+    description:
+      "햇볕에 그을린 들판의 토끼예요. 빛의 물결을 보내고 정령의 힘으로 상처를 회복해요.",
     role: "ranged",
     hp: 155,
     attack: 20,
@@ -370,12 +374,14 @@ export const ENEMIES = [
     attackWindup: 0.32,
     attackRecovery: 0.24,
     projectile: { kind: "spore", speed: 430 },
-    color: "#d07b73",
+    color: "#bb915f",
   },
   {
     id: "boar",
     attribute: "wild",
-    name: "멧돼지",
+    name: "덤불 멧돼지",
+    description:
+      "야외 생활로 짙은 갈색이 된 멧돼지예요. 두꺼운 털과 엄니를 앞세워 전선을 밀어요.",
     role: "heavy",
     hp: 420,
     attack: 52,
@@ -384,14 +390,14 @@ export const ENEMIES = [
     attackInterval: 1.65,
     attackWindup: 0.38,
     attackRecovery: 0.3,
-    color: "#906f62",
+    color: "#a27649",
   },
   {
     id: "clock-beetle",
     artId: "beetle",
-    name: "태엽 딱정벌레",
+    name: "고철 두더지",
     description:
-      "얇은 방어막을 두른 기계예요. 모든 공격으로 방어막을 깎을 수 있어요.",
+      "그을린 털 위에 낡은 판금과 고글을 두른 두더지예요. 얇은 방어막은 모든 공격으로 깎을 수 있어요.",
     attribute: "machine",
     role: "melee",
     shield: { hpRatio: 0.4 },
@@ -402,14 +408,14 @@ export const ENEMIES = [
     attackInterval: 1.5,
     attackWindup: 0.28,
     attackRecovery: 0.24,
-    color: "#a5aaa0",
+    color: "#a9794e",
   },
   {
     id: "shadow-mushroom",
     artId: "mushroom",
-    name: "그늘 버섯",
+    name: "그늘 여우",
     description:
-      "빠른 포자를 날리며 조금씩 재생해요. 화력을 모으거나 회복을 억제해요.",
+      "햇볕에 그을린 여우가 바랜 그림자 망토를 걸쳤어요. 어둠을 빠르게 날리며 조금씩 재생해요.",
     attribute: "shadow",
     role: "ranged",
     regeneration: { hpRatio: 0.02, interval: 2 },
@@ -421,7 +427,7 @@ export const ENEMIES = [
     attackWindup: 0.24,
     attackRecovery: 0.2,
     projectile: { kind: "spore", speed: 480 },
-    color: "#9d91a0",
+    color: "#a3714d",
   },
 ];
 

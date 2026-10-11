@@ -1000,7 +1000,7 @@ export class Renderer {
     const baseSize = Math.min(82, h * 0.29, w * 0.078);
     for (const u of units) {
       const artId = u.artId ?? u.id;
-      const sprite = SPRITES[artId] ?? SPRITES[u.id];
+      const sprite = SPRITES[u.id] ?? SPRITES[artId];
       if (!sprite?.complete || !sprite.naturalWidth) continue;
       const visualUnit = artId === u.id ? u : { ...u, id: artId };
       const uid =
