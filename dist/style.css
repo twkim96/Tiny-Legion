@@ -3255,9 +3255,11 @@ html:fullscreen .game {
 .content-menu-item:disabled { opacity: .45; }
 @media (max-height: 560px) and (orientation: landscape),
   (max-width: 1000px) and (orientation: landscape) {
-  .guide-mission { top: 102px; left: var(--safe-left); width: 186px; padding: 7px 9px; gap: 3px; font-size: 10px; }
-  .guide-mission > strong { font-size: 11px; }
-  #mission-progress { font-size: 9px; }
+  .guide-mission { top: 98px; left: var(--safe-left); width: 186px; padding: 4px 8px; gap: 1px 5px; font-size: 10px; line-height: 1.2; grid-template-columns: 58px 1fr; }
+  .guide-mission > strong { font-size: 10px; grid-column: 1 / -1; }
+  #mission-title { grid-column: 1 / -1; }
+  #mission-progress { font-size: 9px; grid-column: 1; grid-row: 3; }
+  .mission-rewards { grid-column: 2; grid-row: 3; align-items: center; font-size: 9px; gap: 8px; }
   .mission-rewards .icon { width: 13px; height: 13px; }
   .game[data-mode="idle"] .income-button { top: 190px; }
   .unit-auto .icon { width: 22px; height: 22px; }
