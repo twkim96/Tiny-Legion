@@ -12,6 +12,7 @@ import {
 } from "./data.js";
 import { createBattle, fireCannon, stepBattle, summonUnit } from "./engine.js";
 import { icon, portrait } from "./art.js";
+import { modalLayout, messagePanel } from "./modal-ui.js";
 import { Renderer } from "./renderer.js";
 import {
   recruitPanel,
@@ -54,6 +55,7 @@ import {
   recordMissionBattle,
   claimMission,
   growthUnlocked,
+  sequenceUnlocked,
   recruitEarlyRabbit,
   applyGuideSequence,
 } from "./account.js";
@@ -531,10 +533,10 @@ function renderMenu() {
     ["income", "방치", "leaf", !tutorial],
     ["daily", "속공", "bolt", !tutorial && unlocked],
     ["gems", "보석", "gem", !tutorial && unlocked],
-    ["sequence", "순서", "sequence", !tutorial],
+    ["sequence", "순서", "sequence", sequenceUnlocked(account)],
     ["settings", "설정", "settings", true],
   ];
-  $("modal-content").innerHTML = `<div class="content-menu-grid">${items.map(([id, title, glyph, enabled]) => `<button class="content-menu-item" data-content-menu="${id}" ${enabled ? "" : "disabled"} aria-label="${title}${enabled ? "" : " 잠김"}"><span>${icon(glyph)}</span><strong>${title}</strong>${!enabled ? `<small>${icon("lock")}${tutorial ? "" : "1-3"}</small>` : ""}</button>`).join("")}</div>`;
+  $("modal-content").innerHTML = `<div class="content-menu-grid">${items.map(([id, title, glyph, enabled]) => `<button class="content-menu-item" data-content-menu="${id}" ${enabled ? "" : "disabled"} aria-label="${title}${enabled ? "" : " 잠김"}"><span>${icon(glyph)}</span><strong>${title}</strong>${!enabled ? `<small>${icon("lock")}${tutorial ? "" : id === "sequence" ? "1-2" : "1-3"}</small>` : ""}</button>`).join("")}</div>`;
   $("modal-content").querySelectorAll("[data-content-menu]").forEach((button) => {
     button.onclick = () => {
       const id = button.dataset.contentMenu;
@@ -575,7 +577,10 @@ function finishBattle() {
     if (earlyPhase === "idle-defense" && account.earlyGuide?.phase === "remove-rabbit") showDefenseGuide();
     if (earlyPhase === "idle-retry" && account.earlyGuide?.phase === "growth") {
       openModal("레벨업", "growth-guide", () => {
-        $("modal-content").innerHTML = '<p class="settings-note">성을 지켜냈어요! 이제 도토리로 동료의 레벨을 올릴 수 있습니다.<br>방치 미션 보상을 받고 동료를 성장시켜 보세요.</p><button class="primary-button" id="growth-guide-done">확인</button>';
+        $("modal-content").innerHTML = messagePanel({
+          text: "성을 지켜냈어요! 이제 도토리로 동료의 레벨을 올릴 수 있습니다.<br>방치 미션 보상을 받고 동료를 성장시켜 보세요.",
+          actions: '<button class="primary-button" id="growth-guide-done">확인</button>',
+        });
         $("growth-guide-done").onclick = () => { closeModal(); actOnMission(); };
       });
     }
@@ -608,11 +613,6 @@ function finishBattle() {
   }
   persist();
   showResult(r, rewards);
-  if (mode === "challenge" && stageId === 2 && r.won && account.earlyGuide?.phase === "idle-defense") {
-    $("next-battle").textContent = "1-2 방치";
-    $("next-battle").onclick = enterSecondIdle;
-    $("return-idle").onclick = enterSecondIdle;
-  }
   updateUi();
 }
 function enterSecondIdle() {
@@ -642,12 +642,16 @@ function showEarlyDraw() {
       $("draw-done").textContent = "함께 출정";
       $("draw-skip").focus();
     };
-  });
+  }, { layout: "collection" });
 }
 function showDefenseGuide() {
   // Idle continues while this information and the sequence editor are open.
   openModal("방치 편성", "defense-guide", () => {
-    $("modal-content").innerHTML = `${portrait("rabbit")}<p class="settings-note">속공 토끼는 성을 무너뜨리는 데 특화되어 있어요.<br>성을 지키는 방치에서는 토끼를 빼고 방패와 다람쥐에 골드를 써 보세요.<br>순서 → 토끼의 교체 → 비우기 → 적용을 누르면 됩니다.</p><button class="primary-button" id="defense-edit">편성 바꾸기</button>`;
+    $("modal-content").innerHTML = messagePanel({
+      companion: "rabbit",
+      text: "속공 토끼는 성을 무너뜨리는 데 특화되어 있어요.<br>성을 지키는 방치에서는 토끼를 빼고 방패와 다람쥐에 골드를 써 보세요.<br>순서 → 토끼의 교체 → 비우기 → 적용을 누르면 됩니다.",
+      actions: '<button class="primary-button" id="defense-edit">편성 바꾸기</button>',
+    });
     $("defense-edit").onclick = () => {
       closeIdleResult();
       sequenceDraft = [...account.sequence];
@@ -664,7 +668,10 @@ function resumeEarlyGuide() {
 }
 function onboardingMessage(title, text, label, action, companion = "sheep") {
   openModal(title, "onboarding", () => {
-    $("modal-content").innerHTML = `<div class="onboarding-message">${portrait(companion)}<p>${text}</p><button class="primary-button" id="onboarding-next">${label}</button></div>`;
+    $("modal-content").innerHTML = messagePanel({
+      text, companion,
+      actions: `<button class="primary-button" id="onboarding-next">${label}</button>`,
+    });
     $("onboarding-next").onclick = action;
   });
   $("onboarding-next").focus();
@@ -697,7 +704,7 @@ function showOnboardingDraw() {
       $("draw-skip").focus();
     };
     $("modal-content").querySelector('[data-draw-count="1"]').focus();
-  });
+  }, { layout: "collection" });
 }
 function showOnboardingRetry() {
   recruitCleanup?.();
@@ -763,15 +770,12 @@ function showResult(r, rewards) {
           ? `<span>${icon("acorn")}+${fmt(rewards.gold)}</span><span>${icon("gem")}+${rewards.diamonds}</span>`
           : "";
   $("battle-result").innerHTML =
-    `<div class="result-card">${icon(r.won ? "trophy" : "shield")}<h2>${r.won ? "완료" : "다시 한 번"}</h2><div class="result-time">${precise(r.time)}</div>${rewardMarkup ? `<div class="result-rewards">${rewardMarkup}</div>` : ""}<div class="result-actions"><button class="secondary-button" id="return-idle">방치로</button><button class="secondary-button" id="retry-battle">${daily && account.daily.claimed ? "연습하기" : "다시 도전"}</button>${daily && r.won && !account.daily.claimed ? '<button class="primary-button" id="claim-speedrun">보상받기</button>' : !daily && r.won && stageId < STAGES.length ? '<button class="primary-button" id="next-battle">다음</button>' : ""}</div>${daily && account.daily.claimed ? '<div class="new-record">오늘 보상 수령 완료</div>' : ""}</div>`;
+    `<div class="result-card">${icon(r.won ? "trophy" : "shield")}<h2>${r.won ? "완료" : "다시 한 번"}</h2><div class="result-time">${precise(r.time)}</div>${rewardMarkup ? `<div class="result-rewards">${rewardMarkup}</div>` : ""}<div class="result-actions"><button class="secondary-button" id="return-idle">방치로</button>${!r.won || daily ? `<button class="secondary-button" id="retry-battle">${daily && account.daily.claimed ? "연습하기" : "다시 도전"}</button>` : ""}${daily && r.won && !account.daily.claimed ? '<button class="primary-button" id="claim-speedrun">보상받기</button>' : !daily && r.won && stageId < STAGES.length ? `<button class="primary-button" id="next-battle">${stageLabel(stageId + 1)} 도전</button>` : ""}</div>${daily && account.daily.claimed ? '<div class="new-record">오늘 보상 수령 완료</div>' : ""}</div>`;
   $("battle-result").hidden = false;
-  $("return-idle").onclick = () => setMode("idle");
-  $("retry-battle").onclick = startBattle;
+  $("return-idle").onclick = mode === "challenge" && stageId === 2 && account.earlyGuide?.phase === "idle-defense" ? enterSecondIdle : () => setMode("idle");
+  if (!r.won || daily) $("retry-battle").onclick = startBattle;
   if ($("next-battle"))
-    $("next-battle").onclick = () => {
-      stageId = Math.min(STAGES.length, stageId + 1);
-      startBattle();
-    };
+    $("next-battle").onclick = () => startChallenge(stageId + 1);
   if ($("claim-speedrun"))
     $("claim-speedrun").onclick = () => {
       const reward = claimSpeedrun(account);
@@ -903,6 +907,7 @@ function updateUi() {
   for (const id of ["stage-select", "mode-select", "profile-button", "edit-sequence", "nav-units", "nav-recruit", "income"]) {
     $(id).disabled = isOnboarding(account) || (manualCombat && ["stage-select", "mode-select"].includes(id));
   }
+  $("edit-sequence").disabled = !sequenceUnlocked(account);
   $("mode-select").disabled = true;
   $("speed-text").textContent = `${account.settings.speed}×`;
   $("upgrade-dot").hidden = !UNITS.some(
@@ -912,7 +917,11 @@ function updateUi() {
       account.gold >= levelCost(account.levels[u.id]),
   );
 }
-function openModal(title, kind, render) {
+function openModal(title, kind, render, { layout = modalLayout(kind) } = {}) {
+  if (["sequence", "sequence-pick"].includes(kind) && !sequenceUnlocked(account)) {
+    toast("1-2 방치에서 처음 실패하면 편성 교체가 열립니다.");
+    return;
+  }
   if (isOnboarding(account) && !["onboarding", "menu", "settings", "import", "codex", "reset-account"].includes(kind)) return;
   if (modalKind === "onboarding" && kind !== "onboarding") return;
   recruitCleanup?.();
@@ -922,6 +931,7 @@ function openModal(title, kind, render) {
   modalKind = kind;
   modalRender = render;
   $("modal-backdrop").dataset.kind = kind;
+  $("modal-backdrop").dataset.layout = layout;
   $("modal-title").textContent = title;
   $("modal-backdrop").hidden = false;
   $("close-modal").hidden = kind === "onboarding";
@@ -1024,7 +1034,7 @@ function renderGrowth() {
   $("refund-levels").onclick = () =>
     openModal("초기화", "refund", () => {
       $("modal-content").innerHTML =
-        '<p class="settings-note">사용한 레벨업 도토리를 모두 돌려받습니다.<br>동료의 레벨은 1이 되고, 방치 기록은 다시 측정해야 합니다.<br>모집 조각과 강화는 유지됩니다.</p><div class="modal-footer"><button class="secondary-button" id="cancel-refund">돌아가기</button><button class="primary-button" id="confirm-refund">초기화</button></div>';
+        messagePanel({ text: "사용한 레벨업 도토리를 모두 돌려받습니다.<br>동료의 레벨은 1이 되고, 방치 기록은 다시 측정해야 합니다.<br>모집 조각과 강화는 유지됩니다.", actions: '<button class="secondary-button" id="cancel-refund">돌아가기</button><button class="primary-button" id="confirm-refund">초기화</button>' });
       $("cancel-refund").onclick = () =>
         openModal("동료", "growth", renderGrowth);
       $("confirm-refund").onclick = () => {
@@ -1451,7 +1461,7 @@ function renderSettings() {
   $("import-save").onclick = () => $("save-file").click();
   $("reset-account").onclick = () => {
     openModal("계정 초기화", "reset-account", () => {
-      $("modal-content").innerHTML = '<p class="settings-note">동료·재화·성장·전투 기록을 모두 지우고 0스테이지부터 다시 시작합니다.<br>복구하려면 초기화 전에 저장 파일을 내려받아 두세요.</p><div class="modal-footer"><button class="secondary-button" id="cancel-reset-account">취소</button><button class="primary-button" id="confirm-reset-account">초기화하고 시작</button></div>';
+      $("modal-content").innerHTML = messagePanel({ text: "동료·재화·성장·전투 기록을 모두 지우고 0스테이지부터 다시 시작합니다.<br>복구하려면 초기화 전에 저장 파일을 내려받아 두세요.", actions: '<button class="secondary-button" id="cancel-reset-account">취소</button><button class="primary-button" id="confirm-reset-account">초기화하고 시작</button>' });
       $("cancel-reset-account").onclick = () => openModal("설정", "settings", renderSettings);
       $("confirm-reset-account").onclick = () => {
         const fresh = resetAccount();
@@ -1489,7 +1499,7 @@ function renderSettings() {
       const imported = normalizeAccount(raw);
       openModal("불러오기", "import", () => {
         $("modal-content").innerHTML =
-          '<p class="settings-note">현재 진행도가 저장 파일의 진행도로 바뀝니다.</p><div class="modal-footer"><button class="secondary-button" id="cancel-import">취소</button><button class="primary-button" id="confirm-import">불러오기</button></div>';
+          messagePanel({ text: "현재 진행도가 저장 파일의 진행도로 바뀝니다.", actions: '<button class="secondary-button" id="cancel-import">취소</button><button class="primary-button" id="confirm-import">불러오기</button>' });
         $("cancel-import").onclick = () =>
           openModal("설정", "settings", renderSettings);
         $("confirm-import").onclick = () => {

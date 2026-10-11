@@ -2,9 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
-import { newAccount, currentMission, recordMissionBattle, claimMission, accrue, recordIdle, isOnboarding, recruitOnboardingCompanion, growthUnlocked, recruitEarlyRabbit, applyGuideSequence, canUseUnit, ownsUnit } from '../dist/src/account.js';
+import { newAccount, currentMission, recordMissionBattle, claimMission, accrue, recordIdle, isOnboarding, recruitOnboardingCompanion, growthUnlocked, sequenceUnlocked, recruitEarlyRabbit, applyGuideSequence, canUseUnit, ownsUnit } from '../dist/src/account.js';
 import { STAGES, UNITS, stageLabel } from '../dist/src/data.js';
 import { recruitPanel } from '../dist/src/recruitment-ui.js';
+import { modalLayout, messagePanel } from '../dist/src/modal-ui.js';
 
 const source = fs.readFileSync(new URL('../dist/src/main.js', import.meta.url), 'utf8');
 function functionSource(name) {
@@ -34,7 +35,8 @@ function harness(names) {
   account.highestCleared = 1;
   const calls = [];
   const context = {
-    $, account, calls, STAGES, stageLabel, currentMission, recordMissionBattle, claimMission, accrue, recordIdle, isOnboarding, recruitOnboardingCompanion, growthUnlocked, recruitEarlyRabbit, applyGuideSequence, canUseUnit, ownsUnit, UNITS,
+    $, account, calls, STAGES, stageLabel, currentMission, recordMissionBattle, claimMission, accrue, recordIdle, isOnboarding, recruitOnboardingCompanion, growthUnlocked, sequenceUnlocked, recruitEarlyRabbit, applyGuideSequence, canUseUnit, ownsUnit, UNITS,
+    modalLayout, messagePanel, modalKind:null, modalRender:null, lastFocused:null, hideTooltip(){},
     sequenceDraft:null, names:Object.fromEntries(UNITS.map(u=>[u.id,u.name])), portrait:id=>`[${id}]`, rarityBadge:()=>"",
     mode: 'idle', stageId: 1, idleResultStage: null, resultHandled: false, restartAt: 0,
     battle: {result: {won:true, survival:120, hpRatio:1, reward:80}, finished:true, time:120, events:[]},
@@ -138,7 +140,7 @@ test('second free banner action guarantees rabbit and retries the exact wall sta
   assert.equal(c.calls.filter(x=>x==='start').length,1);
 });
 test('defense lesson uses real replace, clear and apply actions without removing ownership', () => {
-  const c=harness(['showDefenseGuide','renderSequence']);
+  const c=harness(['openModal','showDefenseGuide','renderSequence']);
   c.account.earlyGuide.phase='remove-rabbit';
   c.account.owned.squirrel=true;
   c.account.owned.rabbit=true;
@@ -146,6 +148,9 @@ test('defense lesson uses real replace, clear and apply actions without removing
   c.closeIdleResult=()=>{};
   c.showDefenseGuide();
   assert.match(c.$('modal-content').innerHTML,/교체/);
+  assert.equal(c.$('modal-backdrop').dataset.layout,'message');
+  assert.match(c.$('modal-content').innerHTML,/<div class="modal-message-art"><svg/);
+  assert.equal(c.paused,false);
   c.$('defense-edit').onclick();
   c.$('modal-content:data-replace:2').onclick();
   c.$('clear-sequence-slot').onclick();
@@ -188,4 +193,89 @@ test('second idle completion announces growth and its mission opens the growth s
   assert.equal(currentMission(c.account).id,'growth-intro');
   c.actOnMission();
   assert.ok(c.calls.includes('growth-screen'));
+});
+
+
+test('challenge success offers idle and next challenge, preserving result when the idle lesson blocks entry',()=>{
+  const c=harness(['showResult','startChallenge','enterSecondIdle','settleProduction','closeIdleResult']);
+  c.mode='challenge'; c.stageId=2;
+  c.account.highestCleared=2; c.account.earlyGuide.phase='idle-defense';
+  c.showResult({won:true,time:58},{gold:240,diamonds:10});
+  const html=c.$('battle-result').innerHTML;
+  assert.equal([...html.matchAll(/<button/g)].length,2);
+  assert.match(html,/1-3 도전/);
+  assert.doesNotMatch(html,/retry-battle|1-2 방치/);
+  c.$('next-battle').onclick();
+  assert.ok(c.calls.includes('1-2 방치 미션을 먼저 완료하세요.'));
+  assert.equal(c.stageId,2);
+  assert.equal(c.mode,'challenge');
+  assert.equal(c.$('battle-result').hidden,false);
+  assert.ok(!c.calls.includes('start'));
+  c.$('return-idle').onclick();
+  assert.equal(c.mode,'idle');
+  assert.equal(c.stageId,2);
+  assert.equal(c.account.idleStage,2);
+  assert.ok(c.calls.includes('start'));
+});
+test('next challenge opens after the idle lesson, and failures retain retry',()=>{
+  const c=harness(['showResult','startChallenge','settleProduction','closeIdleResult']);
+  c.mode='challenge'; c.stageId=2;
+  c.account.highestCleared=2; c.account.earlyGuide.phase='growth';
+  c.showResult({won:true,time:58},{gold:0,diamonds:0});
+  c.$('next-battle').onclick();
+  assert.equal(c.stageId,3);
+  assert.equal(c.mode,'challenge');
+  assert.equal(c.calls.filter(x=>x==='start').length,1);
+  c.showResult({won:false,time:120},{gold:0,diamonds:0});
+  assert.match(c.$('battle-result').innerHTML,/retry-battle/);
+  assert.doesNotMatch(c.$('battle-result').innerHTML,/next-battle/);
+  c.$('retry-battle').onclick();
+  assert.equal(c.calls.filter(x=>x==='start').length,2);
+});
+test('sequence windows stay locked until the first stage two idle failure',()=>{
+  const c=harness(['openModal']);
+  c.account.highestCleared=2; c.account.earlyGuide.phase='idle-defense';
+  let renders=0;
+  for(const kind of ['sequence','sequence-pick']) c.openModal('순서',kind,()=>renders++);
+  assert.equal(renders,0);
+  assert.equal(c.$('modal-backdrop').hidden,true);
+  recordMissionBattle(c.account,{mode:'idle',stageId:2,won:false});
+  c.openModal('순서','sequence',()=>renders++);
+  assert.equal(renders,1);
+  assert.equal(c.$('modal-backdrop').hidden,false);
+  assert.equal(c.$('modal-backdrop').dataset.layout,'panel');
+});
+test('tutorial banners use collection layout and their next notice returns to compact layout',()=>{
+  for(const flow of ['showOnboardingDraw','showEarlyDraw']) {
+    const c=harness(['openModal','onboardingMessage',flow]);
+    c.account.earlyGuide.phase='rabbit-recruit';
+    c[flow]();
+    assert.equal(c.$('modal-backdrop').dataset.layout,'collection');
+    assert.equal(c.$('close-modal').hidden,true);
+    assert.match(c.$('modal-content').innerHTML,/숲속 친구들/);
+    let next=false;
+    c.onboardingMessage('안내','다음 단계','확인',()=>next=true,'rabbit');
+    assert.equal(c.$('modal-backdrop').dataset.layout,'message');
+    assert.match(c.$('modal-content').innerHTML,/<div class="modal-message-art"><svg/);
+    c.$('onboarding-next').onclick();
+    assert.equal(next,true);
+  }
+});
+
+test('speedrun success keeps reward and practice actions, final challenge has only idle',()=>{
+  const c=harness(['showResult']);
+  c.speedrunReward=()=>50;
+  c.mode='speedrun';
+  c.showResult({won:true,time:30},{gold:0,diamonds:0});
+  assert.match(c.$('battle-result').innerHTML,/retry-battle/);
+  assert.match(c.$('battle-result').innerHTML,/claim-speedrun/);
+  assert.doesNotMatch(c.$('battle-result').innerHTML,/next-battle/);
+  c.account.daily.claimed=true;
+  c.showResult({won:true,time:30},{gold:0,diamonds:0});
+  assert.match(c.$('battle-result').innerHTML,/연습하기/);
+  assert.doesNotMatch(c.$('battle-result').innerHTML,/claim-speedrun/);
+  c.mode='challenge'; c.stageId=STAGES.length;
+  c.showResult({won:true,time:30},{gold:0,diamonds:0});
+  assert.equal([...c.$('battle-result').innerHTML.matchAll(/<button/g)].length,1);
+  assert.match(c.$('battle-result').innerHTML,/return-idle/);
 });

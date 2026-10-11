@@ -20,6 +20,7 @@ npm run dev
 | `dist/src/onboarding.js` | 신규 0스테이지·1-1·1-2 성 공략과 방치 편성 전투 구성 |
 | `dist/src/account.js` | 성장·재화·진행·기록·저장 |
 | `dist/src/character-art.js`, `dist/src/art.js`, `dist/src/renderer.js` | 계열별 캐릭터 SVG·아이콘과 Canvas 렌더링 |
+| `dist/src/modal-ui.js` | 종류별 모달 크기 선택과 공통 안내·확인 본문 |
 | `dist/src/recruitment-ui.js` | 동료 모집·확률·카드 공개 연출 |
 | `dist/src/main.js` | UI·입력·전투/계정 연결 |
 | `tests/` | Node 기본 테스트 러너로 검증하는 동작 |

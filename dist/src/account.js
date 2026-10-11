@@ -206,6 +206,9 @@ export function normalizeAccount(raw, now = Date.now()) {
   }
   return a;
 }
+export function sequenceUnlocked(a) {
+  return !isOnboarding(a) && ["remove-rabbit", "idle-retry", "growth", "complete"].includes(a.earlyGuide?.phase ?? "complete");
+}
 export function growthUnlocked(a) {
   return !isOnboarding(a) && ["growth", "complete"].includes(a.earlyGuide?.phase ?? "complete");
 }

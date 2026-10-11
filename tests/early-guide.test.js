@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { newAccount, normalizeAccount, growthUnlocked, growUnit, enhanceUnit, recruitUnits, recruitEarlyRabbit, applyGuideSequence, currentMission, claimMission, recordMissionBattle, completeChallenge } from '../dist/src/account.js';
+import { newAccount, normalizeAccount, sequenceUnlocked, growthUnlocked, growUnit, enhanceUnit, recruitUnits, recruitEarlyRabbit, applyGuideSequence, currentMission, claimMission, recordMissionBattle, completeChallenge } from '../dist/src/account.js';
 const now = Date.UTC(2026,9,11,3);
 function firstIdleDone() {
   const a = newAccount(now);
@@ -15,6 +15,7 @@ function firstIdleDone() {
 const reload = a => normalizeAccount(JSON.parse(JSON.stringify(a)),now);
 test('wall loss, guaranteed free banner recruit, defense removal and first growth survive reload', () => {
   let a=firstIdleDone();
+  assert.equal(sequenceUnlocked(a),false);
   a.fragments.sheep=3;
   const gold=a.gold, diamonds=a.diamonds;
   assert.equal(growUnit(a,'sheep'),false);
@@ -25,6 +26,7 @@ test('wall loss, guaranteed free banner recruit, defense removal and first growt
   recordMissionBattle(a,{mode:'challenge',stageId:2,won:false});
   a=reload(a);
   assert.equal(a.earlyGuide.phase,'rabbit-recruit');
+  assert.equal(sequenceUnlocked(a),false);
   const counters={...a.recruitment};
   assert.equal(recruitEarlyRabbit(a).unit.id,'rabbit');
   assert.equal(a.sequence[2],'rabbit');
@@ -38,6 +40,7 @@ test('wall loss, guaranteed free banner recruit, defense removal and first growt
   recordMissionBattle(a,{mode:'challenge',stageId:2,won:true});
   a=reload(a);
   assert.equal(a.earlyGuide.phase,'idle-defense');
+  assert.equal(sequenceUnlocked(a),false);
   assert.ok(a.sequence.includes('rabbit'));
   claimMission(a);
   assert.equal(currentMission(a).id,'idle-second');
@@ -45,9 +48,11 @@ test('wall loss, guaranteed free banner recruit, defense removal and first growt
   assert.equal(applyGuideSequence(a,['sheep','squirrel']),false);
   recordMissionBattle(a,{mode:'idle',stageId:1,won:false});
   assert.equal(a.earlyGuide.phase,'idle-defense');
+  assert.equal(sequenceUnlocked(a),false);
   recordMissionBattle(a,{mode:'idle',stageId:2,won:false});
   a=reload(a);
   assert.equal(currentMission(a).title,'속공 토끼를 편성에서 빼기');
+  assert.equal(sequenceUnlocked(a),true);
   assert.equal(applyGuideSequence(a,['sheep','rabbit']),false);
   assert.equal(applyGuideSequence(a,Array(10).fill(null)),false);
   a.sequence=['sheep','squirrel',...Array(8).fill(null)];
@@ -95,6 +100,7 @@ test('preexisting cleared or grown saves retain investments and bypass new tutor
     assert.equal(a.levels.sheep,raw.levels.sheep);
     assert.equal(a.highestCleared,raw.highestCleared);
     assert.equal(growthUnlocked(a),true);
+    assert.equal(sequenceUnlocked(a),true);
     assert.notEqual(currentMission(a).id,'idle-second');
   }
 });

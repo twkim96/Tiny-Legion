@@ -3061,24 +3061,6 @@ html:fullscreen .game {
   }
 }
 
-.onboarding-message {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 16px;
-  padding: 12px;
-  text-align: center;
-}
-.onboarding-message > .portrait {
-  width: 104px;
-  height: 98px;
-}
-.onboarding-message p {
-  margin: 0;
-  max-width: 420px;
-  line-height: 1.7;
-}
-
 /* Keep all ten slots in place, including the initial single companion. */
 .summon-bar {
   height: 162px;
@@ -3228,13 +3210,13 @@ html:fullscreen .game {
 .idle-result-dismiss { display: flex; align-items: center; gap: 5px; font-size: 11px; margin: 12px 0; }
 .idle-result-dismiss input { accent-color: #657950; }
 .idle-result-popup > .primary-button { width: 100%; }
-.modal-backdrop[data-kind="menu"] {
+.modal-backdrop[data-layout="drawer"] {
   padding: 0;
   justify-content: flex-end;
   background: #14251a22;
   backdrop-filter: none;
 }
-.modal-backdrop[data-kind="menu"] .modal {
+.modal-backdrop[data-layout="drawer"] .modal {
   width: min(360px, 48vw);
   height: 100dvh;
   max-height: 100dvh;
@@ -3244,8 +3226,8 @@ html:fullscreen .game {
   color: #fff;
   box-shadow: none;
 }
-.modal-backdrop[data-kind="menu"] .modal-header { background: transparent; border: 0; padding-right: max(16px, env(safe-area-inset-right)); }
-.modal-backdrop[data-kind="menu"] .modal-content { padding: 12px max(16px, env(safe-area-inset-right)) 24px 16px; }
+.modal-backdrop[data-layout="drawer"] .modal-header { background: transparent; border: 0; padding-right: max(16px, env(safe-area-inset-right)); }
+.modal-backdrop[data-layout="drawer"] .modal-content { padding: 12px max(16px, env(safe-area-inset-right)) 24px 16px; }
 .content-menu-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .content-menu-item { position: relative; min-height: 85px; padding: 12px 4px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; border-radius: 8px; background: #ffffff0c; color: #f1f1e7; font-size: 12px; }
 .content-menu-item > span { color: #d6e4c5; }
@@ -3420,4 +3402,49 @@ html:fullscreen .game {
   font-weight: 800;
   text-shadow: none;
   -webkit-text-stroke: 0;
+}
+
+/* Common modal sizes: the kind registry selects one layout for every call. */
+.modal-backdrop {
+  --modal-width: 640px;
+  --modal-height: 560px;
+  padding: max(12px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+}
+.modal-backdrop[data-layout="message"] { --modal-width: 440px; --modal-height: 400px; }
+.modal-backdrop[data-layout="collection"] { --modal-width: 800px; --modal-height: 640px; }
+.modal-backdrop .modal {
+  width: min(var(--modal-width), 100%);
+  max-height: min(var(--modal-height), 100%);
+  min-height: 0;
+}
+.modal-backdrop .modal-content { min-height: 0; }
+.modal-message {
+  display: grid;
+  justify-items: center;
+  gap: 18px;
+  text-align: center;
+}
+.modal-message-art { width: 96px; height: 96px; }
+.modal-message-art > .portrait { display: block; width: 100%; height: 100%; }
+.modal-message > p { margin: 0; font-size: 14px; line-height: 1.65; }
+.modal-message-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; width: 100%; }
+.modal-message-actions > button { min-height: 40px; }
+.result-card {
+  box-sizing: border-box;
+  width: min(420px, calc(100vw - 32px));
+  min-width: 0;
+  max-height: calc(100dvh - 24px);
+  overflow: auto;
+}
+.result-actions { flex-wrap: wrap; }
+@media (max-height: 560px) and (orientation: landscape) {
+  .modal-backdrop .modal-header { padding: 10px 14px; }
+  .modal-backdrop .modal-content { padding: 14px 16px; }
+  .modal-message { gap: 12px; }
+  .modal-message:has(.modal-message-art) { grid-template-columns: 72px minmax(0, 1fr); align-items: center; text-align: left; }
+  .modal-message-art { width: 72px; height: 72px; }
+  .modal-message > p { font-size: 12px; line-height: 1.6; }
+  .modal-message-actions { grid-column: 1 / -1; }
+  .modal-message-actions > button { min-height: 36px; }
+  .result-card { padding: 18px 24px; }
 }
