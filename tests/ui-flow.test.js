@@ -666,3 +666,18 @@ test('gem transfer prunes consumed donor screens and back cannot charge again', 
   assert.equal(c.account.gold,balance);
   assert.equal(c.backModal(),false);
 });
+
+test('companion details expose only the optional abilities assigned to that unit', () => {
+  const c=harness(['openModal','openUnitDetail','renderUnitDetail']);
+  c.account.earlyGuide.phase='complete';c.account.highestCleared=10;
+  c.account.owned.rabbit=true;c.account.owned.whale=true;
+  c.openUnitDetail('sheep');
+  assert.doesNotMatch(c.$('modal-content').innerHTML,/data-ability="(?:move|range)"/);
+  for(const id of ['hp','attack','counter']) assert.ok(c.$('modal-content').innerHTML.includes(`data-ability="${id}"`));
+  c.openUnitDetail('rabbit');
+  assert.match(c.$('modal-content').innerHTML,/data-ability="move"/);
+  assert.doesNotMatch(c.$('modal-content').innerHTML,/data-ability="range"/);
+  c.openUnitDetail('whale');
+  assert.match(c.$('modal-content').innerHTML,/data-ability="range"/);
+  assert.doesNotMatch(c.$('modal-content').innerHTML,/data-ability="move"/);
+});

@@ -99,7 +99,7 @@ test('old fragments migrate exactly once, preserve purchased levels and records,
   migrated.abilities.sheep={hp:999,attack:NaN,signature:30,move:-2,evil:10};
   const clean=normalizeAccount(migrated);
   assert.equal(clean.abilities.sheep.hp,10);assert.equal(clean.abilities.sheep.attack,0);
-  assert.equal(clean.abilities.sheep.signature,1);assert.equal(clean.abilities.sheep.move,0);
+  assert.equal(clean.abilities.sheep.signature,1);assert.equal(clean.abilities.sheep.move,undefined);
   assert.equal(clean.abilities.sheep.evil,undefined);
 });
 test('unit abilities stay in battle and production snapshots and survive an individual level refund',()=>{
@@ -127,10 +127,15 @@ test('extra attributes and specialty upgrades affect real hits and remain separa
   assert.ok(upgraded.enemy.hp<normal.enemy.hp);
   assert.equal(specializationBonus(normal.player,{attribute:'machine'},'attack'),0);
   assert.equal(specializationBonus(upgraded.player,{attribute:'machine'},'attack'),.5);
-  const movement=duel('sheep',{sheep:{range:5,move:5}}).player;
-  assert.equal(movement.range,62);
-  // The fixture stops motion, so inspect the captured combat definition.
-  assert.ok(Math.abs(movement.definition.speed-37.4)<1e-8);
+  const disallowed=duel('sheep',{sheep:{range:5,move:5}}).player;
+  assert.equal(disallowed.range,unit('sheep').range);
+  assert.equal(disallowed.definition.speed,unit('sheep').speed);
+  const movement=duel('rabbit',{rabbit:{range:5,move:5}}).player;
+  assert.equal(movement.range,unit('rabbit').range);
+  assert.ok(Math.abs(movement.definition.speed-unit('rabbit').speed*1.1)<1e-8);
+  const ranged=duel('whale',{whale:{range:5,move:5}}).player;
+  assert.equal(ranged.range,unit('whale').range+20);
+  assert.equal(ranged.definition.speed,unit('whale').speed);
 });
 test('one-time castle skill increases castle damage rather than damage to every target',()=>{
   const damages=[];
@@ -199,4 +204,61 @@ test('repeated poison applications refresh duration but do not stack tick damage
   assert.ok(enemy.poison);
   assert.ok(Math.abs(enemy.poison.damage-player.attack*.08)<1e-8);
   assert.ok(enemy.poison.remaining<=3);
+});
+
+test('only the three core abilities are common; movement and range follow unit eligibility', () => {
+  for (const u of UNITS) {
+    const abilities = unitAbilities(u);
+    assert.deepEqual(abilities.slice(0,3).map(a=>a.id), ['hp','attack','counter']);
+    assert.equal(abilities.some(a=>a.id==='move'), ['rabbit','fox','deer','penguin'].includes(u.id));
+    assert.equal(abilities.some(a=>a.id==='range'), u.id==='whale');
+    const stats=applyUnitAbilities(u,{});
+    assert.ok(Number.isFinite(stats.speed) && Number.isFinite(stats.range));
+  }
+  for (const overrides of [{rarity:'epic'},{role:'tank'},{cost:500},{cooldown:3}]) {
+    assert.equal(unitAbilities({...unit('whale'),...overrides}).some(a=>a.id==='range'),false);
+  }
+  const a=account();
+  for (const [id, option] of [['sheep','move'],['squirrel','range'],['turtle','range'],['owl','range']]) {
+    const before=JSON.stringify(a);
+    assert.equal(upgradeUnitAbility(a,id,option),false);
+    assert.equal(JSON.stringify(a),before);
+  }
+  assert.equal(upgradeUnitAbility(a,'rabbit','move'),true);
+  assert.equal(upgradeUnitAbility(a,'whale','range'),true);
+});
+test('removed legacy upgrades refund their exact old costs once while eligible purchases and progress survive', () => {
+  const raw=account();raw.gold=1000;
+  raw.abilities.sheep={hp:4,attack:2,counter:3,move:3,range:5,signature:1};
+  raw.abilities.rabbit={move:2,range:2};
+  raw.abilities.whale={move:1,range:3};
+  raw.levels.sheep=8;
+  raw.records[1]={gold:80,diamonds:.1,snapshot:{abilities:structuredClone(raw.abilities)}};
+  const clean=normalizeAccount(raw);
+  assert.equal(clean.gold,1000+2000+320+120);
+  assert.equal(clean.marks.wild,raw.marks.wild+21+3);
+  assert.equal(clean.marks.spirit,raw.marks.spirit+1);
+  assert.equal(clean.abilities.sheep.move,undefined);
+  assert.equal(clean.abilities.sheep.range,undefined);
+  assert.equal(clean.abilities.sheep.hp,4);
+  assert.equal(clean.abilities.sheep.signature,1);
+  assert.equal(clean.abilities.rabbit.move,2);
+  assert.equal(clean.abilities.whale.range,3);
+  assert.equal(clean.levels.sheep,8);
+  assert.deepEqual(clean.records,raw.records);
+  assert.deepEqual(clean.sequence,raw.sequence);
+  assert.deepEqual(clean.owned,raw.owned);
+  const roundTrip=normalizeAccount(JSON.parse(JSON.stringify(clean)));
+  assert.equal(roundTrip.gold,clean.gold);
+  assert.deepEqual(roundTrip.marks,clean.marks);
+  assert.deepEqual(roundTrip.abilities,clean.abilities);
+});
+test('legacy optional refunds ignore invalid, negative and unowned ranks and cap the old five-step maximum', () => {
+  const raw=account();raw.gold=1000;
+  raw.abilities.sheep={range:999,move:-2};
+  raw.abilities.squirrel={range:NaN,move:Infinity};
+  raw.owned.cloud=false;raw.abilities.cloud={range:5,move:5};
+  const clean=normalizeAccount(raw);
+  assert.equal(clean.gold,2400);
+  assert.equal(clean.marks.wild,raw.marks.wild+15);
 });

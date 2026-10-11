@@ -1,5 +1,5 @@
 import { UNITS, STAGES, RARITIES, STARTER_UNIT_IDS, bannerById, bannerPool, bannerRarities, stageLabel } from "./data.js";
-import { MARK_TYPES, DUPLICATE_MARKS, markTypeFor, unitAbilities, normalizeAbilities, abilityCost, unitCombatStats } from "./abilities.js";
+import { MARK_TYPES, DUPLICATE_MARKS, markTypeFor, unitAbilities, normalizeAbilities, removedAbilityRefund, abilityCost, unitCombatStats } from "./abilities.js";
 import { initialGemState, normalizeGemState, gemEffects, drawGem } from "./gems.js";
 export const SAVE_KEY = "tiny-legion.save.v1";
 const ONBOARDING_PHASES = new Set([
@@ -118,6 +118,13 @@ export function normalizeAccount(raw, now = Date.now()) {
       a.marks[markTypeFor(unit)] += a.fragments[unit.id] * DUPLICATE_MARKS[unit.rarity];
       a.fragments[unit.id] = 0;
     }
+  }
+  for (const unit of UNITS) {
+    if (!ownsUnit(a, unit.id)) continue;
+    const refund = removedAbilityRefund(unit.id, raw.abilities?.[unit.id]);
+    a.gold = Math.min(1e12, a.gold + refund.gold);
+    const mark = markTypeFor(unit);
+    a.marks[mark] = Math.min(1e9, a.marks[mark] + refund.marks);
   }
   const sequence = Array.isArray(raw.sequence)
     ? raw.sequence.slice(0, 10).map((id) => ownsUnit(a, id) ? id : null)

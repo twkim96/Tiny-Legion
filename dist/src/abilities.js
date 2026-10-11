@@ -14,10 +14,15 @@ export const markName = (id) => MARK_TYPES.find((mark) => mark.id === id)?.name 
 const basic = [
   { id: "hp", name: "체력", max: 10, step: "체력 +1%", effect: "hp", amount: .01 },
   { id: "attack", name: "공격력", max: 10, step: "공격력 +1%", effect: "attack", amount: .01 },
-  { id: "move", name: "가벼운 발걸음", max: 5, step: "이동속도 +2%", effect: "move", amount: .02 },
-  { id: "range", name: "긴 사거리", max: 5, step: "사거리 +4", effect: "range", amount: 4 },
   { id: "counter", name: "속성 숙련", max: 10, step: "유효 속성 보너스 +1%p", effect: "counter", amount: .01 },
 ];
+const optional = {
+  move: { id: "move", name: "가벼운 발걸음", max: 5, step: "이동속도 +2%", effect: "move", amount: .02 },
+  range: { id: "range", name: "긴 사거리", max: 5, step: "사거리 +4", effect: "range", amount: 4 },
+};
+const movementRoles = new Set(["fast", "warrior"]);
+// Range is explicitly assigned, with eligibility guards for future balance edits.
+const rangeUnits = new Set(["whale"]);
 const signature = {
   sheep: { name: "독에 강한 양털", step: "중독 면역", effect: "poisonImmune" },
   rabbit: { name: "성 파괴", step: "적 성 추가 피해 +50%p", effect: "castle", amount: .5 },
@@ -43,7 +48,11 @@ const extraAttributes = {
 export function unitAbilities(unitOrId) {
   const unit = typeof unitOrId === "string" ? UNITS.find((u) => u.id === unitOrId) : unitOrId;
   if (!unit) return [];
-  return [...basic, ...(signature[unit.id] ? [{ id: "signature", max: 1, ...signature[unit.id] }] : []),
+  const options = [
+    ...(movementRoles.has(unit.role) ? [optional.move] : []),
+    ...(rangeUnits.has(unit.id) && unit.rarity === "legendary" && unit.role === "ranged" && unit.cost >= 900 && unit.cooldown >= 6 ? [optional.range] : []),
+  ];
+  return [...basic, ...options, ...(signature[unit.id] ? [{ id: "signature", max: 1, ...signature[unit.id] }] : []),
     ...(extraAttributes[unit.id] ? [{ id: "extra", name: "새로운 특화", max: 1, effect: "attribute", attribute: extraAttributes[unit.id], unlock: 10 }] : [])];
 }
 export function normalizeAbilities(id, raw = {}) {
@@ -51,6 +60,22 @@ export function normalizeAbilities(id, raw = {}) {
     const rank = Number(raw?.[ability.id]);
     return [ability.id, Number.isFinite(rank) ? Math.max(0, Math.min(ability.max, Math.floor(rank))) : 0];
   }));
+}
+// Removed purchases are refunded from the old fixed five-step price schedule.
+// Normalized saves omit these ranks, so loading the new save cannot refund twice.
+export function removedAbilityRefund(id, raw = {}) {
+  const allowed = new Set(unitAbilities(id).map(ability => ability.id));
+  const refund = {gold: 0, marks: 0};
+  for (const ability of Object.values(optional)) {
+    if (allowed.has(ability.id)) continue;
+    const value = Number(raw?.[ability.id]);
+    const rank = Number.isFinite(value) ? Math.max(0, Math.min(5, Math.floor(value))) : 0;
+    for (let step = 0; step < rank; step++) {
+      refund.gold += 120 + 80 * step;
+      refund.marks += 1 + step;
+    }
+  }
+  return refund;
 }
 export function abilityCost(ability, rank = 0) {
   if (!ability || rank >= ability.max) return null;
@@ -64,8 +89,8 @@ export function applyUnitAbilities(unit, raw = {}) {
   const result = structuredClone(unit);
   result.hp *= 1 + ranks.hp * .01;
   result.attack *= 1 + ranks.attack * .01;
-  result.speed *= 1 + ranks.move * .02;
-  result.range += ranks.range * 4;
+  result.speed *= 1 + (ranks.move ?? 0) * .02;
+  result.range += (ranks.range ?? 0) * 4;
   result.specialtyUpgradeBonus = Object.fromEntries(
     Object.keys(ROLE_SPECIALIZATION[unit.role] ?? {}).map((kind) => [kind, ranks.counter * .01]),
   );
