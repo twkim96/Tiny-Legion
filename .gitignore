@@ -9,3 +9,6 @@ artifacts/
 .env.*
 !.env.example
 tiny-legion-save*.json
+/dist/server/
+/dist/.openai/
+.wrangler/

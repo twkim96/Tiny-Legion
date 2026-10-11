@@ -26,6 +26,7 @@ import {
 } from "./recruitment-ui.js";
 import { battlefieldLayout } from "./combat-visuals.js";
 import { onboardingEncounter, earlyGuideEncounter } from "./onboarding.js";
+import { AccountClient, SessionReplacedError, bootstrapAccount } from "./account-client.js";
 import {
   collectReturnIncome,
   advancedContentUnlocked,
@@ -69,6 +70,101 @@ import {
   sequenceUnlocked,
   recruitEarlyRabbit,
 } from "./account.js";
+
+const hostedMode = globalThis.TINY_LEGION_SERVER === true;
+let cloudBootstrapEnvelope = null;
+let cloudIdentity = null;
+let cloudGateRoot = null;
+let cloudGateState = null;
+let cloudAppReady = false;
+let hostedHalted = false;
+let cloudPauseBeforeOffline = null;
+const cloudGameHooks = { halt() {}, pause() {}, resume() {} };
+const accountClient = hostedMode
+  ? new AccountClient({ onState: (state) => showCloudGate(state) })
+  : null;
+
+function ensureCloudGate() {
+  if (!hostedMode || cloudGateRoot) return cloudGateRoot;
+  cloudGateRoot = document.createElement("section");
+  cloudGateRoot.setAttribute("role", "alertdialog");
+  cloudGateRoot.setAttribute("aria-live", "assertive");
+  Object.assign(cloudGateRoot.style, {
+    position: "fixed", inset: "0", zIndex: "10000", display: "none",
+    placeItems: "center", padding: "20px", background: "#171a15eF",
+    color: "#f4f1e7", font: "600 16px system-ui, sans-serif", textAlign: "center",
+  });
+  document.body.append(cloudGateRoot);
+  return cloudGateRoot;
+}
+
+function showCloudGate(state = cloudGateState) {
+  if (!hostedMode || !state) return;
+  cloudGateState = state;
+  const root = ensureCloudGate();
+  const replaced = state.status === "replaced";
+  const offline = state.status === "offline" || state.status === "connecting" || state.status === "retrying";
+  const loginRequired = state.error?.payload?.error === "login_required";
+  if (replaced && cloudAppReady) cloudGameHooks.halt();
+  if (offline && cloudAppReady && cloudPauseBeforeOffline === null) {
+    cloudGameHooks.pause();
+  }
+  if (!offline && !replaced && cloudAppReady && cloudPauseBeforeOffline !== null) {
+    cloudGameHooks.resume();
+  }
+  if (!replaced && !offline) {
+    root.hidden = true;
+    root.style.display = "none";
+    return;
+  }
+  root.hidden = false;
+  root.style.display = "grid";
+  const heading = replaced ? "다른 기기에서 접속했습니다" : loginRequired ? "ChatGPT 로그인이 필요합니다" : "서버에 연결할 수 없습니다";
+  const useAccountChoice = state.error?.payload?.error === "account_exists";
+  const action = replaced ? "여기서 계속하기" : loginRequired ? "ChatGPT로 로그인" : useAccountChoice ? "기존 계정으로" : "다시 연결";
+  root.innerHTML = `<div style="max-width:320px"><strong style="display:block;margin-bottom:16px">${useAccountChoice ? "이미 연결된 계정이 있습니다" : heading}</strong><button id="cloud-gate-action" style="padding:10px 18px;border:0;border-radius:10px;background:#e8d89a;color:#26271f;font:inherit">${action}</button></div>`;
+  root.querySelector("#cloud-gate-action").onclick = async () => {
+    const button = root.querySelector("#cloud-gate-action");
+    button.disabled = true;
+    try {
+      if (loginRequired) {
+        location.assign("/signin-with-chatgpt?return_to=/");
+        return;
+      }
+      if (useAccountChoice) {
+        await accountClient.startNewSession("account");
+        location.reload();
+      } else if (replaced) {
+        await accountClient.startNewSession();
+        location.reload();
+      } else if (state.operation === "command") {
+        await accountClient.retry();
+      } else {
+        await accountClient.retry();
+        location.reload();
+      }
+    } catch (error) {
+      showCloudGate({ status: error instanceof SessionReplacedError ? "replaced" : "offline", operation: state.operation, error });
+    }
+  };
+}
+
+if (hostedMode) {
+  ensureCloudGate();
+  try {
+    cloudBootstrapEnvelope = await accountClient.bootstrap();
+    cloudIdentity = cloudBootstrapEnvelope.identity ?? { kind: "guest", canLink: true };
+    cloudGateRoot.hidden = true;
+  } catch (error) {
+    showCloudGate({
+      status: error instanceof SessionReplacedError ? "replaced" : "offline",
+      operation: "resume",
+      error,
+    });
+  }
+}
+
+if (!hostedMode || cloudBootstrapEnvelope) {
 
 const $ = (id) => document.getElementById(id);
 const fmt = (n) => Math.floor(n).toLocaleString("ko-KR");
@@ -214,7 +310,15 @@ function stageIntelMarkup(stage) {
     .join("");
   return `<h3 class="collection-heading">${stage.name} · 적 구성</h3><p class="settings-note"><strong>속성 비율</strong><br>${attributeSummary || "확인할 적 데이터가 없습니다."}<br><small>적 무리의 수를 기준으로 계산</small></p>${phaseMarkup}`;
 }
-let { account, error: loadError } = loadAccount();
+let { account, error: loadError } = bootstrapAccount({
+  hosted: hostedMode,
+  envelope: cloudBootstrapEnvelope,
+  loadLocal: loadAccount,
+});
+if (hostedMode) {
+  accountClient.setAccountTarget(account);
+  accountClient.identity = cloudIdentity;
+}
 let sequenceDraft = null;
 let sequenceDraftMode = "idle";
 let sequenceDrafts = null;
@@ -228,7 +332,9 @@ let recruitReceipt = null;
 let recruitBanner = "forest";
 let codexRarity = "all",
   codexOwned = "all";
-let pendingReturnIncome = collectReturnIncome(account);
+let pendingReturnIncome = hostedMode
+  ? cloudBootstrapEnvelope.returnIncome
+  : collectReturnIncome(account);
 let mode = isOnboarding(account) ? "challenge" : "idle",
   stageId = onboardingEncounter(account.onboarding?.phase)?.id ?? account.idleStage,
   battle = null,
@@ -254,12 +360,75 @@ let toastTimer,
   lastSound = 0;
 let storageWarning = false;
 function persist() {
+  if (hostedMode) return true;
   if (!saveAccount(account) && !storageWarning) {
     storageWarning = true;
     toast(
       "저장 공간을 사용할 수 없습니다. 설정에서 저장 파일을 내려받아 주세요.",
     );
   }
+}
+async function sendCommand(type, args = {}) {
+  try {
+    return await accountClient.command(type, args);
+  } catch (error) {
+    if (error instanceof SessionReplacedError) return null;
+    if (hostedMode && accountClient.status === "offline")
+      showCloudGate({ status: "offline", operation: "command" });
+    else toast(error?.message === "account_exists" ? "이미 연결된 계정이 있습니다." : "요청을 처리하지 못했습니다.");
+    return null;
+  }
+}
+async function updatePreference(patch) {
+  if (!hostedMode) {
+    Object.assign(account.settings, patch);
+    persist();
+    return true;
+  }
+  return !!(await sendCommand("settings", patch));
+}
+let lastServerSettle = hostedMode ? accountClient.now() : Date.now();
+async function settleServer(force = false) {
+  if (!hostedMode || accountClient.status !== "connected") return null;
+  const now = accountClient.now();
+  if (!force && now - lastServerSettle < 30000) return null;
+  lastServerSettle = now;
+  const envelope = await sendCommand("settle", {});
+  if (mode === "idle" && envelope?.result) {
+    idleIncome.gold += envelope.result.gold ?? 0;
+    idleIncome.diamonds += envelope.result.diamonds ?? 0;
+  }
+  return envelope;
+}
+function haltHostedGameplay() {
+  if (!hostedMode) return;
+  hostedHalted = true;
+  battleStartSerial++;
+  battleStartPending = false;
+  battle = null;
+  waiting = true;
+  paused = true;
+  restartAt = 0;
+  updateUi();
+}
+cloudGameHooks.halt = haltHostedGameplay;
+cloudGameHooks.pause = () => {
+  cloudPauseBeforeOffline = paused;
+  paused = true;
+  accumulator = 0;
+  updateUi();
+};
+cloudGameHooks.resume = () => {
+  paused = cloudPauseBeforeOffline;
+  cloudPauseBeforeOffline = null;
+  accumulator = 0;
+  updateUi();
+};
+let battleStartSerial = 0;
+let battleStartPending = false;
+let manualBattleActions = [];
+function logBattleAction(action, step = Math.round(battle.time * 30)) {
+  manualBattleActions.push({ step, ...action });
 }
 function hydrateIcons(root = document) {
   root
@@ -328,7 +497,7 @@ function handUnits() {
 function currentStage() {
   return onboardingEncounter(account.onboarding?.phase) ?? (stageId === 2 ? earlyGuideEncounter(account.earlyGuide?.phase, mode) : null) ?? STAGES[stageId - 1] ?? STAGES[0];
 }
-function startBattle() {
+async function startBattle() {
   if (!isOnboarding(account) && mode === "challenge" && firstIdleMissionPending()) {
     toast("1-1 방치 미션을 완료하고 보상을 받아 주세요.");
     return;
@@ -348,6 +517,46 @@ function startBattle() {
   if (isOnboarding(account)) {
     mode = "challenge";
     stageId = currentStage().id;
+  }
+  if (hostedMode) {
+    if (battleStartPending || accountClient.status !== "connected") return;
+    battleStartPending = true;
+    waiting = true;
+    battle = null;
+    const serial = ++battleStartSerial;
+    updateUi();
+    const envelope = await sendCommand("battle.start", { mode, stageId });
+    if (!envelope || serial !== battleStartSerial) {
+      battleStartPending = false;
+      if (accountClient.status === "connected") readyBattle();
+      return;
+    }
+    const started = envelope.result;
+    if (!started?.battleId || !started.options || !started.snapshot) {
+      battleStartPending = false;
+      waiting = false;
+      toast("전투를 시작하지 못했습니다.");
+      readyBattle();
+      return;
+    }
+    battle = createBattle(started.options);
+    battleSnapshot = { ...started.snapshot, battleId: started.battleId };
+    manualBattleActions = [];
+    idleIncome = { gold: 0, diamonds: 0 };
+    paused = false;
+    waiting = false;
+    hostedHalted = false;
+    resultHandled = false;
+    skillRemaining = 0;
+    restartAt = 0;
+    accumulator = 0;
+    battleStartPending = false;
+    $("battle-ready").hidden = true;
+    $("battle-result").hidden = true;
+    $("battle-result").innerHTML = "";
+    createHand();
+    updateUi();
+    return;
   }
   const levels = battleLevels(account);
   battle = createBattle({
@@ -380,6 +589,7 @@ function startBattle() {
   skillRemaining = 0;
   restartAt = 0;
   accumulator = 0;
+  manualBattleActions = [];
   $("battle-ready").hidden = true;
   $("battle-result").hidden = true;
   $("battle-result").innerHTML = "";
@@ -433,7 +643,9 @@ function manualSummon(id) {
   if (waiting) startBattle();
   if (paused || !battle || battle.finished || !$("modal-backdrop").hidden) return;
   const eventCount = battle.events.length;
+  const actionStep = Math.round(battle.time * 30);
   if (summonUnit(battle, id)) {
+    if (hostedMode) logBattleAction({ type: "summon", id }, actionStep);
     renderer.consumeEvents(battle.events.slice(eventCount), battle);
     chirp("summon");
     updateUi();
@@ -447,6 +659,10 @@ function setPaused() {
   updateUi();
 }
 function settleProduction() {
+  if (hostedMode) {
+    void settleServer();
+    return { gold: 0, diamonds: 0 };
+  }
   const income = accrue(account);
   if (mode === "idle" && battle) {
     idleIncome.gold += income.gold;
@@ -519,6 +735,15 @@ function actOnMission() {
   const mission = currentMission(account);
   if (!mission || isOnboarding(account)) return;
   if (mission.completed) {
+    if (hostedMode) {
+      void sendCommand("mission.claim", {}).then((envelope) => {
+        if (!envelope) return;
+        const reward = envelope.result;
+        updateUi();
+        toast(`도토리 +${fmt(reward.gold)} · 다이아 +${reward.diamonds}`);
+      });
+      return;
+    }
     const reward = claimMission(account);
     if (reward) {
       persist();
@@ -537,11 +762,20 @@ function actOnMission() {
     closeIdleResult();
     if (mode !== "idle" || stageId !== mission.stageId) {
       settleProduction();
-      account.idleStage = mission.stageId;
-      mode = "idle";
-      stageId = mission.stageId;
-      persist();
-      startBattle();
+      const startSelectedStage = () => {
+        mode = "idle";
+        stageId = mission.stageId;
+        startBattle();
+      };
+      if (hostedMode)
+        void sendCommand("idle.select", { stageId: mission.stageId }).then((envelope) => {
+          if (envelope) startSelectedStage();
+        });
+      else {
+        account.idleStage = mission.stageId;
+        persist();
+        startSelectedStage();
+      }
     }
   }
 }
@@ -571,6 +805,16 @@ function renderGems() {
   });
 }
 function drawResourceGem(payment,free=false) {
+  if (hostedMode) {
+    void sendCommand("recruit.gem", { payment, free, banner: "treasure" }).then((envelope) => {
+      if (!envelope) return;
+      const item = envelope.result;
+      updateUi();
+      chirp("win");
+      openGemDetail(item.uid);
+    });
+    return;
+  }
   const item=drawGem(account,{payment,free});
   if(!item) { toast("모집 재화를 확인해 주세요."); return; }
   persist(); updateUi(); chirp("win"); openGemDetail(item.uid);
@@ -579,10 +823,26 @@ function openGemPicker(slot) {
   openModal("보석 선택","gems",() => {
     $("modal-content").innerHTML = `<div class="gem-grid">${account.gemItems.map(item=>gemCard(item,"gem-equip")).join("")}</div><div class="modal-footer"><button class="secondary-button" id="gem-remove">비우기</button><button class="secondary-button" id="gem-picker-back">돌아가기</button></div>`;
     $("modal-content").querySelectorAll("[data-gem-equip]").forEach(button=>button.onclick=()=>{
+      if (hostedMode) {
+        void sendCommand("gem.equip", { presetIndex: gemViewPreset, slotIndex: slot, uid: button.dataset.gemEquip }).then((envelope) => {
+          if (!envelope) return;
+          updateUi();
+          returnModal("보석","gems",renderGems);
+        });
+        return;
+      }
       if(!equipGem(account,gemViewPreset,slot,button.dataset.gemEquip)) { toast("같은 보석은 한 프리셋에 한 번만 장착할 수 있어요."); return; }
       persist(); updateUi(); returnModal("보석","gems",renderGems);
     });
-    $("gem-remove").onclick=()=>{if(equipGem(account,gemViewPreset,slot,null)){persist();updateUi();}returnModal("보석","gems",renderGems);};
+    $("gem-remove").onclick=()=>{
+      if (hostedMode) {
+        void sendCommand("gem.equip", { presetIndex: gemViewPreset, slotIndex: slot, uid: null }).then((envelope) => {
+          if (envelope) { updateUi(); returnModal("보석","gems",renderGems); }
+        });
+        return;
+      }
+      if(equipGem(account,gemViewPreset,slot,null)){persist();updateUi();}returnModal("보석","gems",renderGems);
+    };
     $("gem-picker-back").onclick=()=>returnModal("보석","gems",renderGems);
   });
 }
@@ -596,6 +856,13 @@ function renderGemDetail(uid) {
   $("modal-content").innerHTML=gemDetail(account,uid,gemViewPreset);
   $("gem-back").onclick=()=>returnModal("보석","gems",renderGems);
   $("modal-content").querySelectorAll("[data-detail-equip]").forEach(button=>button.onclick=()=>{
+    if (hostedMode) {
+      void sendCommand("gem.equip", { presetIndex: gemViewPreset, slotIndex: Number(button.dataset.detailEquip), uid }).then((envelope) => {
+        if (!envelope) return;
+        updateUi();toast("장착했습니다. 다음 전투부터 적용됩니다.");renderGemDetail(uid);
+      });
+      return;
+    }
     if(!equipGem(account,gemViewPreset,Number(button.dataset.detailEquip),uid)){toast("같은 보석은 한 프리셋에 한 번만 장착할 수 있어요.");return;}
     persist();updateUi();toast("장착했습니다. 다음 전투부터 적용됩니다.");renderGemDetail(uid);
   });
@@ -620,6 +887,14 @@ function showGemUpgrade(uid) {
     $("gem-upgrade-cancel").onclick=()=>returnModal("보석","gem-detail",()=>renderGemDetail(uid));
     $("gem-upgrade-confirm").onclick=()=>{
       if(applied) return;
+      if (hostedMode) {
+        applied = true;
+        void sendCommand("gem.upgrade", { uid, materialUids: [...selected] }).then((envelope) => {
+          if (!envelope) { applied = false; return; }
+          updateUi();returnModal("보석","gem-detail",()=>renderGemDetail(uid));chirp();
+        });
+        return;
+      }
       settleProduction();
       if(!upgradeGem(account,uid,[...selected])){toast("선택한 재료와 도토리를 확인해 주세요.");return;}
       applied=true;
@@ -641,6 +916,14 @@ function showGemTransfer(uid) {
         let applied=false;
         $("gem-transfer-confirm").onclick=()=>{
           if(applied) return;
+          if (hostedMode) {
+            applied = true;
+            void sendCommand("gem.transfer", { sourceUid: uid, targetUid }).then((envelope) => {
+              if (!envelope) { applied = false; return; }
+              updateUi();returnModal("보석","gems",renderGems);openGemDetail(targetUid);chirp();
+            });
+            return;
+          }
           settleProduction();
           if(!transferGem(account,uid,targetUid)){toast("전승 대상과 도토리를 확인해 주세요.");return;}
           applied=true;
@@ -698,6 +981,10 @@ function renderMenu() {
 }
 function finishBattle() {
   if (resultHandled || !battle?.result) return;
+  if (hostedMode) {
+    void finishHostedBattle();
+    return;
+  }
   resultHandled = true;
   const r = battle.result;
   if (isOnboarding(account)) {
@@ -759,15 +1046,83 @@ function finishBattle() {
   showResult(r, rewards);
   updateUi();
 }
+async function finishHostedBattle() {
+  if (resultHandled || !battle?.result) return;
+  const completedBattle = battle;
+  resultHandled = true;
+  const before = {
+    onboardingPhase: isOnboarding(account) ? account.onboarding.phase : null,
+    earlyPhase: account.earlyGuide?.phase,
+    highestCleared: account.highestCleared,
+    advancedUnlocked: advancedContentUnlocked(account),
+    battleId: battleSnapshot?.battleId,
+  };
+  const envelope = await sendCommand("battle.finish", {
+    battleId: before.battleId,
+    actions: manualBattleActions.map(({ step, type, id }) => type === "summon" ? { step, type, id } : { step, type }),
+  });
+  if (!envelope || battle !== completedBattle) return;
+  const outcome = envelope.result;
+  const result = outcome?.battleResult;
+  if (!result) {
+    toast("전투 결과를 확인하지 못했습니다.");
+    return;
+  }
+  battle.result = result;
+  chirp("win");
+  if (before.onboardingPhase) {
+    finishOnboardingBattle(result, { phase: before.onboardingPhase, serverApplied: true });
+    return;
+  }
+  if (mode === "idle") {
+    const earned = outcome.income;
+    if (earned) {
+      idleIncome.gold += earned.gold ?? 0;
+      idleIncome.diamonds += earned.diamonds ?? 0;
+    }
+    showIdleResult(result);
+    restartAt = performance.now() + 3000;
+    updateUi();
+    if (before.earlyPhase === "idle-defense" && account.earlyGuide?.phase === "remove-rabbit") showDefenseGuide();
+    if (before.earlyPhase === "idle-retry" && account.earlyGuide?.phase === "growth") {
+      openModal("레벨업", "growth-guide", () => {
+        $("modal-content").innerHTML = messagePanel({
+          text: "성을 지켜냈어요! 이제 도토리로 동료의 레벨을 올릴 수 있습니다.<br>방치 미션 보상을 받고 동료를 성장시켜 보세요.",
+          actions: '<button class="primary-button" id="growth-guide-done">확인</button>',
+        });
+        $("growth-guide-done").onclick = () => {
+          if (currentMission(account)?.completed) actOnMission();
+          closeIdleResult();
+          openModal("동료", "growth", renderGrowth);
+        };
+      });
+    }
+    return;
+  }
+  if (stageId === 2 && mode === "challenge" && account.earlyGuide?.phase === "rabbit-recruit") {
+    onboardingMessage("튼튼한 성", "시간 안에 성을 무너뜨리지 못했어요. 성을 빠르게 공격할 동료를 무료로 모집해 보세요.", "동료 모집", showEarlyDraw, "squirrel");
+    updateUi();
+    return;
+  }
+  const rewards = outcome.rewards ?? { gold: 0, diamonds: 0 };
+  if (mode === "challenge" && result.won) {
+    if (before.highestCleared < 10 && account.highestCleared >= 10) {
+      createHand();
+      toast("2-1 개방 · 공방과 별빛 모집이 열렸습니다.");
+    }
+    if (!before.advancedUnlocked && advancedContentUnlocked(account))
+      setTimeout(() => toast("보석과 속공이 열렸습니다."), 900);
+  }
+  if (mode === "speedrun" && result.won && battleSnapshot.dailyKey !== account.daily.key)
+    toast("새로운 하루가 시작됐습니다. 다시 도전해 주세요.");
+  showResult(result, rewards);
+  updateUi();
+}
 function enterSecondIdle() {
   closeModal(true);
   closeIdleResult();
   settleProduction();
-  account.idleStage = 2;
-  mode = "idle";
-  stageId = 2;
-  persist();
-  startBattle();
+  selectIdleStage(2, () => { mode = "idle"; stageId = 2; startBattle(); });
 }
 function enterRegionIdle(completedStageId) {
   if (completedStageId % 10 !== 0 || completedStageId >= STAGES.length || account.highestCleared < completedStageId) {
@@ -777,30 +1132,47 @@ function enterRegionIdle(completedStageId) {
   closeModal(true);
   closeIdleResult();
   settleProduction();
-  account.idleStage = completedStageId + 1;
-  mode = "idle";
-  stageId = account.idleStage;
+  selectIdleStage(completedStageId + 1, () => { mode = "idle"; stageId = account.idleStage; startBattle(); });
+}
+function selectIdleStage(nextStageId, onSelected = () => {}) {
+  if (hostedMode) {
+    void sendCommand("idle.select", { stageId: nextStageId }).then((envelope) => {
+      if (envelope) onSelected();
+    });
+    return;
+  }
+  account.idleStage = nextStageId;
   persist();
-  startBattle();
+  onSelected();
 }
 function showEarlyDraw() {
   openModal("모집", "onboarding", () => {
     $("modal-content").innerHTML = recruitPanel(account, "forest", { tutorial: true, tutorialText: "성을 공략할 동료를 무료로 만나 보세요." });
     $("modal-content").querySelector('[data-draw-count="1"]').onclick = () => {
+      if (hostedMode) {
+        void sendCommand("recruit.units", { count: 1, free: true, banner: "forest" }).then((envelope) => {
+          if (!envelope) return;
+          revealEarlyRabbit(envelope.result);
+        });
+        return;
+      }
       const result = recruitEarlyRabbit(account);
-      if (!result) return;
-      persist();
-      createHand();
-      updateUi();
-      recruitCleanup = revealRecruit($("modal-content"), [result], {
-        done: () => onboardingMessage("속공 토끼", "빠르게 달려가 적 성에 추가 피해를 줍니다. 양 방패와 다람쥐로 길을 열고 토끼를 소환해 보세요.", "1-2 출정", () => { closeModal(true); startChallenge(2); }, "rabbit"),
-        inspect: () => {}, sound: () => chirp("win"),
-      });
-      $("draw-again").hidden = true;
-      $("draw-done").textContent = "함께 출정";
-      $("draw-skip").focus();
+      revealEarlyRabbit(result ? [result] : null);
     };
   }, { layout: "collection" });
+}
+function revealEarlyRabbit(results) {
+  if (!Array.isArray(results) || !results.length) return;
+  persist();
+  createHand();
+  updateUi();
+  recruitCleanup = revealRecruit($("modal-content"), results, {
+    done: () => onboardingMessage("속공 토끼", "빠르게 달려가 적 성에 추가 피해를 줍니다. 양 방패와 다람쥐로 길을 열고 토끼를 소환해 보세요.", "1-2 출정", () => { closeModal(true); startChallenge(2); }, "rabbit"),
+    inspect: () => {}, sound: () => chirp("win"),
+  });
+  $("draw-again").hidden = true;
+  $("draw-done").textContent = "함께 출정";
+  $("draw-skip").focus();
 }
 function showDefenseGuide() {
   // Idle continues while this information and the sequence editor are open.
@@ -842,16 +1214,29 @@ function showOnboardingDraw() {
   openModal("모집", "onboarding", () => {
     $("modal-content").innerHTML = recruitPanel(account, "forest", { tutorial: true });
     $("modal-content").querySelector('[data-draw-count="1"]').onclick = () => {
-      const result = recruitOnboardingCompanion(account);
-      if (!result) {
-        resumeOnboarding();
+      if (hostedMode) {
+        void sendCommand("recruit.units", { count: 1, free: true, banner: "forest" }).then((envelope) => {
+          if (!envelope) return;
+          finishOnboardingRecruit(envelope.result);
+        });
         return;
       }
+      const result = recruitOnboardingCompanion(account);
+      finishOnboardingRecruit(result ? [result] : null);
+    };
+    $("modal-content").querySelector('[data-draw-count="1"]').focus();
+  }, { layout: "collection" });
+}
+function finishOnboardingRecruit(results) {
+  if (!Array.isArray(results) || !results.length) {
+    resumeOnboarding();
+    return;
+  }
+  persist();
       // Persist the grant before revealing; reloading cannot draw it again.
-      persist();
       createHand();
       updateUi();
-      recruitCleanup = revealRecruit($("modal-content"), [result], {
+      recruitCleanup = revealRecruit($("modal-content"), results, {
         done: showOnboardingRetry,
         inspect: () => {},
         sound: () => chirp("win"),
@@ -859,9 +1244,6 @@ function showOnboardingDraw() {
       $("draw-again").hidden = true;
       $("draw-done").textContent = "함께 출정";
       $("draw-skip").focus();
-    };
-    $("modal-content").querySelector('[data-draw-count="1"]').focus();
-  }, { layout: "collection" });
 }
 function showOnboardingRetry() {
   recruitCleanup?.();
@@ -870,6 +1252,17 @@ function showOnboardingRetry() {
 }
 function showIdleGuide() {
   onboardingMessage("방치", "1-1을 돌파했어요! 이제 동료가 자동으로 소환되어 90초 동안 성을 지킵니다.<br>전투가 끝나면 생산 기록이 생겨요. 그 기록으로 게임을 꺼도 도토리와 다이아가 쌓입니다.", "방치 시작", () => {
+    if (hostedMode) {
+      void sendCommand("onboarding.finish", {}).then((envelope) => {
+        if (!envelope) return;
+        closeModal(true);
+        mode = "idle";
+        stageId = 1;
+        createHand();
+        startBattle();
+      });
+      return;
+    }
     if (!finishOnboarding(account)) return;
     persist();
     closeModal(true);
@@ -903,10 +1296,11 @@ function resumeOnboarding() {
   }
   updateUi();
 }
-function finishOnboardingBattle(result) {
-  const phase = account.onboarding.phase;
-  advanceOnboardingBattle(account, result.won);
-  persist();
+function finishOnboardingBattle(result, { phase = account.onboarding.phase, serverApplied = false } = {}) {
+  if (!serverApplied) {
+    advanceOnboardingBattle(account, result.won);
+    persist();
+  }
   if (phase === "intro" && result.won) {
     onboardingMessage("첫 승리", "적 성을 무너뜨렸어요. 이번에는 적이 지키고 있는 숲길로 가 볼까요?", "1-1 출정", enterOnboardingBattle);
   } else if (phase === "first-battle" && !result.won) {
@@ -917,6 +1311,24 @@ function finishOnboardingBattle(result) {
     onboardingMessage("다시 한 번", phase === "intro" ? "아래 양 방패 카드를 눌러 소환하세요. 시간이 지나면 전투 골드가 모입니다." : "양 방패와 씨앗 다람쥐를 함께 소환해 보세요. 다람쥐를 위한 골드도 모아 주세요.", "다시 출정", enterOnboardingBattle);
   }
   updateUi();
+}
+function claimSpeedrunReward(onClaimed = () => {}) {
+  if (hostedMode) {
+    void sendCommand("speedrun.claim", {}).then((envelope) => {
+      if (!envelope) return;
+      const reward = envelope.result;
+      if (reward) toast(`보석 조각 +${reward}`);
+      onClaimed(reward);
+      updateUi();
+    });
+    return;
+  }
+  const reward = claimSpeedrun(account);
+  if (reward) {
+    persist();
+    toast(`보석 조각 +${reward}`);
+  }
+  onClaimed(reward);
 }
 function showResult(r, rewards) {
   const growthHelp = mode === "challenge" && !r.won && growthUnlocked(account);
@@ -944,6 +1356,16 @@ function showResult(r, rewards) {
     $("result-recruit").onclick = () => openModal("모집", "recruit", renderRecruit);
     if (mission?.completed) $("result-mission").onclick = () => {
       if (currentMission(account)?.id !== mission.id) return;
+      if (hostedMode) {
+        void sendCommand("mission.claim", {}).then((envelope) => {
+          if (!envelope) return;
+          const reward = envelope.result;
+          updateUi();
+          toast(`도토리 +${fmt(reward.gold)} · 다이아 +${reward.diamonds}`);
+          showResult(r, rewards);
+        });
+        return;
+      }
       const reward = claimMission(account);
       if (!reward) return;
       persist();
@@ -956,6 +1378,10 @@ function showResult(r, rewards) {
     $("next-battle").onclick = () => startChallenge(stageId + 1);
   if ($("claim-speedrun"))
     $("claim-speedrun").onclick = () => {
+      if (hostedMode) {
+        claimSpeedrunReward(() => { showResult(r, rewards); updateUi(); });
+        return;
+      }
       const reward = claimSpeedrun(account);
       if (reward) {
         persist();
@@ -1184,9 +1610,7 @@ function renderStages() {
           stageId = Number(b.dataset.stage);
           if (mode === "idle") {
             settleProduction();
-            account.idleStage = stageId;
-            persist();
-            startBattle();
+            selectIdleStage(stageId, () => startBattle());
           } else readyBattle();
           closeModal();
         }),
@@ -1226,6 +1650,13 @@ function renderGrowth() {
   }).join("")}</div><div class="modal-footer"><span class="resource-inline">${icon("acorn")}${fmt(account.gold)}</span></div>`;
   $("modal-content").querySelectorAll("[data-grow]").forEach((button) => {
     button.onclick = () => {
+      if (hostedMode) {
+        void sendCommand("unit.grow", { id: button.dataset.grow }).then((envelope) => {
+          if (!envelope) return;
+          renderGrowth(); updateUi(); chirp();
+        });
+        return;
+      }
       settleProduction();
       if (!growUnit(account, button.dataset.grow)) return;
       persist(); renderGrowth(); updateUi(); chirp();
@@ -1250,12 +1681,26 @@ function renderUnitDetail(id) {
   $("companions-back").onclick = () => returnModal("동료", "growth", renderGrowth);
   $("companion-refund").onclick = () => showUnitRefund(id);
   $("companion-level").onclick = () => {
+    if (hostedMode) {
+      void sendCommand("unit.grow", { id }).then((envelope) => {
+        if (!envelope) return;
+        renderUnitDetail(id); updateUi(); chirp();
+      });
+      return;
+    }
     settleProduction();
     if (!growUnit(account, id)) return;
     persist(); renderUnitDetail(id); updateUi(); chirp();
   };
   $("modal-content").querySelectorAll("[data-ability]").forEach((button) => {
     button.onclick = () => {
+      if (hostedMode) {
+        void sendCommand("unit.ability", { id, abilityId: button.dataset.ability }).then((envelope) => {
+          if (!envelope) return;
+          renderUnitDetail(id); updateUi(); chirp();
+        });
+        return;
+      }
       settleProduction();
       if (!upgradeUnitAbility(account, id, button.dataset.ability)) return;
       persist(); renderUnitDetail(id); updateUi(); chirp();
@@ -1274,6 +1719,18 @@ function showUnitRefund(id) {
     });
     $("cancel-refund").onclick = () => returnModal(names[id], "companion", () => renderUnitDetail(id));
     $("confirm-refund").onclick = () => {
+      if (hostedMode) {
+        void sendCommand("unit.refund", { id }).then((envelope) => {
+          if (!envelope) return;
+          const gold = envelope.result;
+          if (mode === "idle") startBattle();
+          else readyBattle();
+          toast(`${names[id]} · 도토리 +${fmt(gold)}`);
+          returnModal(names[id], "companion", () => renderUnitDetail(id));
+          updateUi();
+        });
+        return;
+      }
       const gold = refundUnitLevels(account, id);
       if (!gold) return;
       persist();
@@ -1373,13 +1830,28 @@ function renderSequence() {
       toast("토끼 칸의 교체를 눌러 비운 뒤 적용하세요.");
       return;
     }
+    const continuingCombat = mode !== "idle" && !!battle && !battle.finished;
+    const applied = () => {
+      closeModal();
+      if (sequenceDraftMode === mode && !continuingCombat) startBattle();
+      else updateUi();
+      toast(continuingCombat ? "순서는 다음 전투부터 적용됩니다." : `${{ idle: "방치", challenge: "도전", speedrun: "속공" }[sequenceDraftMode]} ${sequenceDraftIndex+1}번 순서를 적용했습니다.`);
+    };
+    if (hostedMode) {
+      void (async () => {
+        const envelope = await sendCommand("lineup.set", {
+          sequence: sequenceDraft,
+          mode: sequenceDraftMode,
+          index: sequenceDraftIndex,
+          gemPreset: sequenceDraftGem,
+        });
+        if (envelope) applied();
+      })();
+      return;
+    }
     if (!setSequence(account, sequenceDraft, sequenceDraftMode, sequenceDraftIndex, sequenceDraftGem)) return;
     persist();
-    const continuingCombat = mode !== "idle" && !!battle && !battle.finished;
-    if (sequenceDraftMode === mode && !continuingCombat) startBattle();
-    else updateUi();
-    closeModal();
-    toast(continuingCombat ? "순서는 다음 전투부터 적용됩니다." : `${{ idle: "방치", challenge: "도전", speedrun: "속공" }[sequenceDraftMode]} ${sequenceDraftIndex+1}번 순서를 적용했습니다.`);
+    applied();
   };
 }
 function openCodex(id = null, enemy = false, replace = false) {
@@ -1480,6 +1952,15 @@ function renderRecruit(tab = "units") {
 
 function drawCompanions(count, free = false) {
   if (recruitReceipt) return;
+  if (hostedMode) {
+    void sendCommand("recruit.units", { count, free, banner: recruitBanner }).then((envelope) => {
+      if (!envelope) return;
+      recruitReceipt = { results: envelope.result, count, banner: recruitBanner };
+      updateUi();
+      showRecruitResult();
+    });
+    return;
+  }
   const results = recruitUnits(account, count, { free, banner: recruitBanner });
   if (!results) {
     toast(account.highestCleared < (bannerById(recruitBanner)?.unlock ?? Infinity) ? "2-1에서 열리는 모집입니다." : "다이아가 부족합니다.");
@@ -1540,14 +2021,15 @@ function renderIncome() {
         (b.onclick = () => {
           settleProduction();
           closeIdleResult();
-          account.idleStage = Number(b.dataset.idleStage);
-          persist();
-          renderIncome();
-          updateUi();
-          if (mode === "idle") {
-            stageId = account.idleStage;
-            startBattle();
-          }
+          const selectedStage = Number(b.dataset.idleStage);
+          selectIdleStage(selectedStage, () => {
+            renderIncome();
+            updateUi();
+            if (mode === "idle") {
+              stageId = account.idleStage;
+              startBattle();
+            }
+          });
         }),
     );
 }
@@ -1564,6 +2046,10 @@ function renderDaily() {
     startBattle();
   };
   $("daily-claim").onclick = () => {
+    if (hostedMode) {
+      claimSpeedrunReward(() => renderDaily());
+      return;
+    }
     const r = claimSpeedrun(account);
     if (r) {
       persist();
@@ -1573,15 +2059,83 @@ function renderDaily() {
     updateUi();
   };
 }
+async function switchToExistingAccount() {
+  try {
+    await accountClient.startNewSession("account");
+    location.reload();
+  } catch (error) {
+    showCloudGate({ status: error instanceof SessionReplacedError ? "replaced" : "offline", operation: "start" });
+  }
+}
+async function switchToGuestAccount() {
+  try {
+    await accountClient.startNewSession("guest");
+    location.reload();
+  } catch (error) {
+    showCloudGate({ status: error instanceof SessionReplacedError ? "replaced" : "offline", operation: "start", error });
+  }
+}
+async function linkGuestAccount() {
+  try {
+    const envelope = await accountClient.linkAccount();
+    cloudIdentity = envelope.identity ?? accountClient.identity;
+    toast("계정을 연결했습니다.");
+    updateUi();
+    renderSettings();
+  } catch (error) {
+    const code = error?.payload?.error ?? error?.message;
+    if (code === "login_required") {
+      location.assign("/signin-with-chatgpt?return_to=/");
+    } else if (code === "account_exists") {
+      const kind = isOnboarding(account) ? "onboarding" : "account-choice";
+      openModal("기존 계정", kind, () => {
+        $("modal-content").innerHTML = messagePanel({
+          text: "이 로그인에는 이미 게임 계정이 있습니다. 게스트 진행도는 남겨 두고 기존 계정을 여기서 엽니다.",
+          actions: '<button class="secondary-button" id="cancel-account-choice">취소</button><button class="primary-button" id="use-existing-account">기존 계정으로</button>',
+        });
+        $("cancel-account-choice").onclick = () => returnModal("설정", "settings", renderSettings);
+        $("use-existing-account").onclick = () => switchToExistingAccount();
+      });
+    } else if (!(error instanceof SessionReplacedError)) {
+      toast("계정을 연결하지 못했습니다. 다시 시도해 주세요.");
+    }
+  }
+}
 function renderSettings() {
+  const hostedAccountRows = hostedMode
+    ? `<div class="settings-row"><span>계정</span><strong>${cloudIdentity?.kind === "account" ? "계정" : "게스트"}</strong>${cloudIdentity?.kind === "guest" ? (cloudIdentity?.canLink ? '<button class="secondary-button" id="link-account">계정 연결</button>' : "") : '<button class="secondary-button" id="switch-to-guest">게스트로</button>'}</div>`
+    : "";
   $("modal-content").innerHTML =
-    `<div class="settings-row"><span>소리</span><button class="secondary-button" id="setting-sound">${account.settings.sound ? "켜짐" : "꺼짐"}</button></div><div class="settings-row"><span>화면</span><button class="secondary-button" id="fullscreen">${icon("fullscreen")}전체 화면</button></div><div class="settings-row"><span>저장 파일</span><div><button class="secondary-button" id="export-save">내려받기</button> <button class="secondary-button" id="import-save">불러오기</button><input type="file" id="save-file" accept="application/json,.json" hidden></div></div><div class="settings-row"><span>방치 결과</span><button class="secondary-button" id="restore-idle-results" ${account.settings.hiddenIdleResults.length ? "" : "disabled"}>다시 표시</button></div><div class="settings-row"><span>계정</span><button class="secondary-button" id="reset-account">계정 초기화</button></div><p class="settings-note">진행도는 이 브라우저에 저장됩니다.<br>다른 기기로 옮기려면 저장 파일을 사용하세요.</p><p class="settings-note">키보드: 1–9·0 소환 · Space 일시 정지 · Esc 뒤로 / 닫기</p>`;
+    `<div class="settings-row"><span>소리</span><button class="secondary-button" id="setting-sound">${account.settings.sound ? "켜짐" : "꺼짐"}</button></div><div class="settings-row"><span>화면</span><button class="secondary-button" id="fullscreen">${icon("fullscreen")}전체 화면</button></div><div class="settings-row"><span>저장 파일</span><div><button class="secondary-button" id="export-save">내려받기</button>${hostedMode ? "" : ' <button class="secondary-button" id="import-save">불러오기</button><input type="file" id="save-file" accept="application/json,.json" hidden>'}</div></div><div class="settings-row"><span>방치 결과</span><button class="secondary-button" id="restore-idle-results" ${account.settings.hiddenIdleResults.length ? "" : "disabled"}>다시 표시</button></div>${hostedAccountRows}<div class="settings-row"><span>계정</span><button class="secondary-button" id="reset-account">계정 초기화</button></div>${hostedMode && cloudBootstrapEnvelope.created ? '<p class="settings-note">새 온라인 계정을 만들었습니다. 기존 브라우저 저장 기록은 그대로 보존됩니다.</p>' : hostedMode ? '<p class="settings-note">진행도는 온라인 계정에 저장됩니다.</p>' : '<p class="settings-note">진행도는 이 브라우저에 저장됩니다.<br>다른 기기로 옮기려면 저장 파일을 사용하세요.</p>'}<p class="settings-note">키보드: 1–9·0 소환 · Space 일시 정지 · Esc 뒤로 / 닫기</p>`;
+  if ($("link-account")) $("link-account").onclick = () => linkGuestAccount();
+  if ($("switch-to-guest")) $("switch-to-guest").onclick = () => {
+    openModal("게스트로 시작", "guest-choice", () => {
+      $("modal-content").innerHTML = messagePanel({
+        text: "현재 계정은 보존됩니다. 게스트 진행도는 별도로 저장됩니다.",
+        actions: '<button class="secondary-button" id="cancel-guest-choice">취소</button><button class="primary-button" id="confirm-guest-choice">게스트로</button>',
+      });
+      $("cancel-guest-choice").onclick = () => returnModal("설정", "settings", renderSettings);
+      $("confirm-guest-choice").onclick = () => switchToGuestAccount();
+    });
+  };
   $("restore-idle-results").onclick = () => {
+    if (hostedMode) {
+      void updatePreference({ hiddenIdleResults: [] }).then((ok) => { if (ok) renderSettings(); });
+      return;
+    }
     account.settings.hiddenIdleResults = [];
     persist();
     renderSettings();
   };
   $("setting-sound").onclick = () => {
+    if (hostedMode) {
+      const sound = !account.settings.sound;
+      void updatePreference({ sound }).then((ok) => {
+        if (!ok) return;
+        updateUi();renderSettings();chirp();
+      });
+      return;
+    }
     account.settings.sound = !account.settings.sound;
     persist();
     updateUi();
@@ -1597,24 +2151,42 @@ function renderSettings() {
     }
   };
   $("export-save").onclick = () => {
-    settleProduction();
-    const blob = new Blob([JSON.stringify(account, null, 2)], {
+    const download = () => {
+      const blob = new Blob([JSON.stringify(account, null, 2)], {
         type: "application/json",
       }),
       url = URL.createObjectURL(blob),
       a = document.createElement("a");
-    a.href = url;
-    a.download = "tiny-legion-save.json";
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-    persist();
+      a.href = url;
+      a.download = "tiny-legion-save.json";
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    };
+    if (hostedMode) void settleServer(true).then(download);
+    else { settleProduction(); download(); persist(); }
   };
-  $("import-save").onclick = () => $("save-file").click();
+  if (!hostedMode) $("import-save").onclick = () => $("save-file").click();
   $("reset-account").onclick = () => {
     openModal("계정 초기화", "reset-account", () => {
       $("modal-content").innerHTML = messagePanel({ text: "동료·재화·성장·전투 기록을 모두 지우고 0스테이지부터 다시 시작합니다.<br>복구하려면 초기화 전에 저장 파일을 내려받아 두세요.", actions: '<button class="secondary-button" id="cancel-reset-account">취소</button><button class="primary-button" id="confirm-reset-account">초기화하고 시작</button>' });
       $("cancel-reset-account").onclick = () => returnModal("설정", "settings", renderSettings);
       $("confirm-reset-account").onclick = () => {
+        if (hostedMode) {
+          void sendCommand("account.reset", {}).then((envelope) => {
+            if (!envelope) return;
+            battleStartSerial++;
+            battle = null;
+            battleSnapshot = null;
+            closeModal(true);closeIdleResult();
+            recruitReceipt = null;pendingReturnIncome = null;
+            sequenceDraft = null;sequenceDrafts = null;
+            codexRarity = "all";codexOwned = "all";
+            lastAccrual = Date.now();lastFrame = performance.now();
+            resumeOnboarding();
+            toast("계정을 초기화했습니다.");
+          });
+          return;
+        }
         const fresh = resetAccount();
         if (!fresh) {
           toast("저장할 수 없어 초기화하지 않았습니다.");
@@ -1638,7 +2210,7 @@ function renderSettings() {
     });
     $("cancel-reset-account").focus();
   };
-  $("save-file").onchange = async (e) => {
+  if (!hostedMode) $("save-file").onchange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
     if (file.size > 1000000) {
@@ -1811,15 +2383,13 @@ $("hide-idle-result").onchange = () => {
   const hidden = new Set(account.settings.hiddenIdleResults);
   if ($("hide-idle-result").checked) hidden.add(idleResultStage);
   else hidden.delete(idleResultStage);
-  account.settings.hiddenIdleResults = [...hidden];
-  persist();
+  void updatePreference({ hiddenIdleResults: [...hidden] });
 };
 $("income").onclick = () => openModal("방치", "income", renderIncome);
 $("speed").onclick = () => {
   if (mode === "idle" || !battle || battle.finished) return;
-  account.settings.speed = account.settings.speed === 1 ? 2 : 1;
-  persist();
-  updateUi();
+  const speed = account.settings.speed === 1 ? 2 : 1;
+  void updatePreference({ speed }).then((ok) => { if (ok) updateUi(); });
 };
 $("skill").onclick = () => {
   if (
@@ -1831,7 +2401,9 @@ $("skill").onclick = () => {
   )
     return;
   const eventCount = battle.events.length;
-  fireCannon(battle);
+  const actionStep = Math.round(battle.time * 30);
+  if (!fireCannon(battle)) return;
+  if (hostedMode) logBattleAction({ type: "cannon" }, actionStep);
   renderer.consumeEvents(battle.events.slice(eventCount), battle);
   skillRemaining = 25;
   renderer.burst(700, battle.time);
@@ -1839,29 +2411,46 @@ $("skill").onclick = () => {
   updateUi();
 };
 document.addEventListener("visibilitychange", () => {
-  if(document.hidden) settleProduction();
+  if (hostedMode) {
+    if (document.hidden) void settleServer(true);
+    else {
+      void accountClient.resumeSession().then((envelope) => {
+        if (!envelope) return;
+        if (mode === "idle" && envelope.returnIncome) {
+          idleIncome.gold += envelope.returnIncome.gold ?? 0;
+          idleIncome.diamonds += envelope.returnIncome.diamonds ?? 0;
+          pendingReturnIncome = envelope.returnIncome;
+        }
+        lastServerSettle = accountClient.now();
+        updateUi();
+      }).catch(() => {});
+    }
+  } else if(document.hidden) settleProduction();
   else {
     const summary = collectReturnIncome(account);
     if(summary) pendingReturnIncome = pendingReturnIncome
       ? {...summary,from:pendingReturnIncome.from,gold:pendingReturnIncome.gold+summary.gold,diamonds:pendingReturnIncome.diamonds+summary.diamonds,seconds:pendingReturnIncome.seconds+summary.seconds,awaySeconds:pendingReturnIncome.awaySeconds+summary.awaySeconds,capped:pendingReturnIncome.capped||summary.capped}
       : summary;
   }
-  persist();
+  if (!hostedMode) persist();
   accumulator = 0;
   lastFrame = performance.now();
   updateUi();
 });
 window.addEventListener("pagehide", () => {
   settleProduction();
-  persist();
+  if (!hostedMode) persist();
 });
 const renderer = new Renderer($("battle-canvas"));
 hydrateIcons();
 $("brand-icon").innerHTML = portrait("sheep");
 createHand();
+cloudAppReady = hostedMode;
 if (isOnboarding(account)) resumeOnboarding();
 else { startBattle(); resumeEarlyGuide(); }
 persist();
+if (hostedMode && cloudBootstrapEnvelope.created)
+  setTimeout(() => toast("새 온라인 계정을 만들었습니다. 기존 브라우저 저장 기록은 그대로 보존됩니다."), 250);
 if (loadError)
   setTimeout(
     () =>
@@ -1878,6 +2467,7 @@ function frame(now) {
   ).matches;
   const modalPauses = !$("modal-backdrop").hidden && mode !== "idle";
   const shouldAdvance =
+    !hostedHalted &&
     !document.hidden &&
     !portraitMode &&
     !paused &&
@@ -1887,7 +2477,7 @@ function frame(now) {
   if (shouldAdvance) {
     accumulator += dt * (mode === "idle" ? 1 : account.settings.speed);
     let steps = 0;
-    while (accumulator >= 1 / 30 && steps < 8 && !battle.finished) {
+    while (accumulator >= 1 / 30 && steps < 8 && battle && !battle.finished) {
       stepBattle(battle, 1 / 30);
       renderer.consumeEvents(battle.events, battle);
       skillRemaining = Math.max(0, skillRemaining - 1 / 30);
@@ -1900,6 +2490,7 @@ function frame(now) {
     mode === "idle" &&
     restartAt &&
     now >= restartAt &&
+    !hostedHalted &&
     !paused &&
     !document.hidden &&
     !portraitMode
@@ -1907,7 +2498,7 @@ function frame(now) {
     startBattle();
   if (!document.hidden && Date.now() - lastAccrual >= 1000) {
     settleProduction();
-    persist();
+    if (!hostedMode) persist();
     lastAccrual = Date.now();
   }
   if (now - lastUi > 80) {
@@ -1918,3 +2509,4 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
+}

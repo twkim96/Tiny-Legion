@@ -14,11 +14,18 @@ import {gemPage,gemDetail,gemCard} from '../dist/src/gem-ui.js';
 
 const source = fs.readFileSync(new URL('../dist/src/main.js', import.meta.url), 'utf8');
 function functionSource(name) {
-  const start = source.indexOf(`function ${name}(`);
+  const starts = [`async function ${name}(`, `function ${name}(`]
+    .map((declaration) => source.indexOf(declaration))
+    .filter((index) => index >= 0);
+  const start = starts.length ? Math.min(...starts) : -1;
   assert.notEqual(start, -1);
-  const next = source.indexOf('\nfunction ', start + 1);
+  const nextDeclarations = ['\nasync function ', '\nfunction ']
+    .map((declaration) => source.indexOf(declaration, start + 1))
+    .filter((index) => index >= 0);
   // frame is the last function, followed by the initial scheduling call.
-  const end = next === -1 ? source.indexOf('\nrequestAnimationFrame(frame);', start) : next;
+  const end = nextDeclarations.length
+    ? Math.min(...nextDeclarations)
+    : source.indexOf('\nrequestAnimationFrame(frame);', start);
   return source.slice(start, end);
 }
 function harness(names) {
@@ -40,14 +47,14 @@ function harness(names) {
   account.highestCleared = 1;
   const calls = [];
   const context = {
-    $, account, calls, STAGES, stageLabel, currentMission, recordMissionBattle, claimMission, accrue, recordIdle, isOnboarding, recruitOnboardingCompanion, growthUnlocked, sequenceUnlocked, sequenceForMode, setSequence, playableSequence, growUnit, refundUnitLevels, unitLevelRefund, levelCost, recruitEarlyRabbit, applyGuideSequence, canUseUnit, ownsUnit, UNITS,
+    $, account, calls, hostedMode:false, accountClient:null, sendCommand:async()=>null, updatePreference:async()=>true, STAGES, stageLabel, currentMission, recordMissionBattle, claimMission, accrue, recordIdle, isOnboarding, recruitOnboardingCompanion, growthUnlocked, sequenceUnlocked, sequenceForMode, setSequence, playableSequence, growUnit, refundUnitLevels, unitLevelRefund, levelCost, recruitEarlyRabbit, applyGuideSequence, canUseUnit, ownsUnit, UNITS,
     bindSequenceDrag(){}, moveSequenceItem, modalHistory:[], modalLayout, messagePanel, modalKind:null, modalRender:null, lastFocused:null, hideTooltip(){},
     readyBattle(){calls.push("ready");}, openCodex(){},
     gemViewPreset:0, drawGem,gemByUid,gemDefinition,gemDescription,gemOptionText,gemUpgradeCost,gemTransferCost,gemUpgradeMaterials,upgradeGem,transferGem,equipGem,GEM_BANNERS,GEM_OPTIONS,gemPage,gemDetail,gemCard,
     companionStats, upgradeUnitAbility, gemPresetForMode, advancedContentUnlocked, collectReturnIncome, effectiveUnitLevel, baseLevelRoster, sharedLevel, companionPanel, unitAbilityLines:()=>[],
     renderGems(){calls.push('gems-screen');}, renderGrowth(){calls.push('growth-screen');}, renderRecruit(){calls.push('recruit-screen');},
     sequenceDraftIndex:0, sequenceDraftGem:0, sequenceDraftChoices:null, pendingReturnIncome:null, sequenceDraft:null, sequenceDraftMode:"idle", sequenceDrafts:null, names:Object.fromEntries(UNITS.map(u=>[u.id,u.name])), portrait:id=>`[${id}]`, rarityBadge:()=>"",
-    mode: 'idle', stageId: 1, idleResultStage: null, resultHandled: false, restartAt: 0,
+    mode: 'idle', stageId: 1, idleResultStage: null, resultHandled: false, restartAt: 0, hostedHalted:false,
     battle: {result: {won:true, survival:120, hpRatio:1, reward:80}, finished:true, time:120, events:[]},
     battleSnapshot: {stageId:1, gem:null}, idleIncome:{gold:12,diamonds:.1},
     paused:false, lastFrame:0, accumulator:0, lastAccrual:Date.now(), lastUi:0, skillRemaining:0,
@@ -65,7 +72,7 @@ function harness(names) {
     revealRecruit(root, results, actions){context.revealed = results; context.revealActions=actions; return ()=>{};},
   };
   vm.createContext(context);
-  vm.runInContext([...new Set(['firstIdleMissionPending', 'levelBasisMarkup', 'rememberModalPosition', 'displayModalFrame', 'backModal', 'returnModal', ...names])].map(functionSource).join('\n'), context);
+  vm.runInContext([...new Set(['firstIdleMissionPending', 'levelBasisMarkup', 'rememberModalPosition', 'displayModalFrame', 'backModal', 'returnModal', 'selectIdleStage', 'finishOnboardingRecruit', 'revealEarlyRabbit', ...names])].map(functionSource).join('\n'), context);
   return context;
 }
 test('idle result dialog leaves simulation and automatic restart running', () => {
@@ -83,6 +90,42 @@ test('idle result dialog leaves simulation and automatic restart running', () =>
   c.frame(3300);
   assert.ok(c.calls.includes('step'));
   assert.ok(c.battle.time > 0);
+});
+test('hosted battle finish uses server result for a completed onboarding account', async () => {
+  const c = harness(['finishHostedBattle']);
+  c.hostedMode = true;
+  c.mode = 'challenge';
+  c.battleSnapshot = { battleId: 'server-battle', dailyKey: c.account.daily.key };
+  c.battle.result = { won: true, time: 42 };
+  c.manualBattleActions = [
+    { step: 90, type: 'summon', id: 'squirrel' },
+    { step: 95, type: 'cannon' },
+  ];
+  const commands = [];
+  const serverResult = { won: true, time: 42 };
+  let shown;
+  c.sendCommand = async (type, args) => {
+    commands.push({ type, args: JSON.parse(JSON.stringify(args)) });
+    return { result: { battleResult: serverResult, rewards: { gold: 50, diamonds: 2 }, recordChanged: true } };
+  };
+  c.showResult = (result, rewards) => { shown = { result, rewards }; };
+  c.recordMissionBattle = () => { throw new Error('Server already records mission progress'); };
+
+  await c.finishHostedBattle();
+
+  assert.deepEqual(commands, [{
+    type: 'battle.finish',
+    args: {
+      battleId: 'server-battle',
+      actions: [
+        { step: 90, type: 'summon', id: 'squirrel' },
+        { step: 95, type: 'cannon' },
+      ],
+    },
+  }]);
+  assert.equal(shown.result, serverResult);
+  assert.deepEqual(shown.rewards, { gold: 50, diamonds: 2 });
+  assert.equal(c.account.highestCleared, 1);
 });
 test('idle failure is informational and suppression is specific to its stage', () => {
   const c=harness(['showIdleResult','closeIdleResult']);
@@ -552,7 +595,7 @@ test('leave battle confirmation cancels safely and exits without recording a vic
   c.leaveBattle(); c.$('confirm-leave').onclick();
   assert.equal(c.account.onboarding.phase,'intro'); assert.ok(c.calls.includes('ready'));
 });
-test('editing sequence during manual combat preserves the active battle and uses it for keyboard slots', () => {
+test('editing sequence during manual combat preserves the current snapshot until next battle', () => {
   const c = harness(['openSequence','renderSequence','handUnits']);
   c.account.earlyGuide.phase='complete'; c.account.missions.claimed=['idle-intro'];
   c.account.owned.squirrel=true; c.account.sequencePresets.challenge=['sheep','squirrel',...Array(8).fill(null)];
@@ -560,6 +603,8 @@ test('editing sequence during manual combat preserves the active battle and uses
   c.mode='challenge'; c.battle={time:25,finished:false};
   c.battleSnapshot.sequence=['sheep','squirrel',...Array(8).fill(null)];
   const battle=c.battle;
+  const startBattle=c.startBattle;
+  c.startBattle=()=>{startBattle();c.battleSnapshot.sequence=sequenceForMode(c.account,'challenge');};
   c.openSequence(); c.$('modal-content:data-replace:1').onclick(); c.$('clear-sequence-slot').onclick();
   c.$('apply-sequence').onclick();
   assert.equal(sequenceForMode(c.account,'challenge')[1],null);

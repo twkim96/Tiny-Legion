@@ -2,13 +2,15 @@
 
 ## 실행 환경
 
-Node.js 22 이상과 Python 3을 사용합니다. 런타임 의존성 설치와 빌드 단계는 없습니다. 저장소 루트에서 실행합니다.
+Node.js 22 이상과 Python 3을 사용합니다. 서버 배포 준비에는 `npm ci`, `npm run db:generate`(스키마 변경 시), `npm run build`를 사용합니다. 정적 로컬 개발은 설치 없이 가능합니다. 저장소 루트에서 실행합니다.
 
 ```sh
 npm run dev
 ```
 
 `http://127.0.0.1:4173`에서 확인합니다. `package.json`의 개발 명령은 Python 정적 서버로 `dist/`를 제공합니다. 종료는 실행 터미널에서 Ctrl+C입니다.
+
+서버 게스트 흐름은 `npm ci` 후 `npm run dev:server`로 `http://localhost:4174`에서 확인합니다. SQLite 개발 DB는 무시 경로 `.sites-local/game.sqlite`에 보관합니다. 서버 빌드를 갱신하려면 재실행합니다. 로컬 개발 서버는 외부에서 전달한 Sites 인증 헤더를 제거하므로 실제 계정 연결은 Sites 배포에서 확인합니다. 이 대역을 공개 서버로 사용하지 않습니다.
 
 ## 소스 구조
 
@@ -34,11 +36,11 @@ npm run dev
 
 캐릭터를 추가·변경할 때는 [캐릭터 관리 계약](../SPEC/characters.md)을 따릅니다. 도감이나 엔진에 별도 속성/스탯 정의를 넣지 않습니다.
 
-`dist/`는 생성 폴더가 아닌 실제 소스입니다. 다른 소스에서 재생성하는 빌드 작업은 없습니다.
+`dist/`는 실제 게임 소스입니다. 서버 빌드는 게임 소스를 읽어 `dist/server/`·`dist/.openai/`만 생성하며 이 두 경로는 Git에서 제외합니다. `server/`는 API·명령·전투 재생, `db/schema.ts`·`drizzle/`는 서버 스키마, `dist/src/account-client.js`는 서버 요청을 담당합니다. 정적 개발의 로컬 저장을 서버로 업로드하지 않습니다.
 
 ## 로컬 Git 관리
 
-- 기존 Git 이력을 이어서 사용하며 기본 브랜치는 `main`입니다. 현재 원격 저장소는 연결하지 않고 로컬 변경·커밋으로 관리합니다. Git 커밋과 Sites 배포는 별도 작업입니다.
+- 기존 Git 이력을 이어서 사용하며 기본 브랜치는 `main`입니다. Sites source helper가 사이트 원격과 동기화합니다. Git 원격·브랜치 상태는 작업 시 확인합니다. Git 커밋과 Sites 배포는 별도 작업입니다.
 - `dist/`, 테스트, 프로젝트 문서, `.openai/hosting.json`은 추적합니다. 의존성·로컬 Sites 상태·배포 아카이브·로그·환경 변수 파일·내보낸 진행도 파일은 `.gitignore`에서 제외합니다.
 - 작업 전 `git status --short`와 `git log -5 --oneline`으로 진행 중 변경과 기준 커밋을 확인합니다. 마친 뒤 관련 파일만 지정해 스테이징하고 `git diff --cached`를 확인한 다음 기능 단위로 커밋합니다.
 
@@ -67,7 +69,7 @@ npm test
 npm run check
 ```
 
-`test`는 전투와 계정 동작을 검증합니다. `check`는 `main.js`, `renderer.js`, `account.js`의 문법 검사입니다. 전체 UI·실기기·서버 수용 검증은 포함하지 않습니다. 저장소에는 CI 워크플로가 없으므로 CI 통과 상태를 주장하지 않습니다.
+`test`는 전투와 계정 동작을 검증합니다. `check`는 `main.js`, `renderer.js`, `account.js`의 문법 검사입니다. 서버 API 회귀는 실제 SQLite 트랜잭션 대역과 결정적 전투 재생을 포함합니다. Cloudflare D1·Sites 로그인·실제 UI/기기 수용 검증은 포함하지 않습니다. 저장소에는 CI 워크플로가 없으므로 CI 통과 상태를 주장하지 않습니다.
 
 문서 변경만으로 전체 제품 테스트나 새 문서 검사 도구를 추가하지 않습니다. 관련 링크·완료된 diff를 확인하고, 동작 변경에는 해당 기존 테스트부터 실행합니다.
 
