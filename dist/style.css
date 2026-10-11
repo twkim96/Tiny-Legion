@@ -71,6 +71,8 @@ body {
 .game {
   width: min(1600px, calc((100dvh - 32px) * 16 / 9), calc(100vw - 32px));
   aspect-ratio: 16/9;
+  --summon-card-size: 78px;
+  --summon-gap: 6px;
   position: relative;
   background: #ebeedf;
   border: 2px solid #738368;
@@ -1811,8 +1813,9 @@ html:fullscreen body {
   padding: 0;
 }
 html:fullscreen .game {
-  width: 100vw;
-  height: 100dvh;
+  width: min(100vw, calc(100dvh * 16 / 9));
+  height: auto;
+  aspect-ratio: 16/9;
   border-radius: 0;
   border: 0;
   max-width: none;
@@ -2189,9 +2192,11 @@ html:fullscreen .game {
 @media (max-height: 560px) and (orientation: landscape),
   (max-width: 1000px) and (orientation: landscape) {
   .game {
-    width: 100vw;
-    height: 100dvh;
-    aspect-ratio: auto;
+    width: min(100vw, calc(100dvh * 16 / 9));
+    height: auto;
+    aspect-ratio: 16/9;
+    --summon-card-size: clamp(44px, 14dvh, 66px);
+    --summon-gap: 4px;
     border: 0;
     border-radius: 0;
     box-shadow: none;
@@ -3190,15 +3195,19 @@ html:fullscreen .game {
 
 /* Keep all ten slots in place, including the initial single companion. */
 .summon-bar {
-  height: 162px;
+  width: min(calc(var(--summon-card-size) * 5 + var(--summon-gap) * 4), calc(100% - 284px));
+  height: auto;
 }
 .unit-hand {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  grid-template-rows: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(2, auto);
   width: 100%;
-  height: 162px;
-  gap: 6px;
+  height: auto;
+  gap: var(--summon-gap);
+}
+.unit-card {
+  aspect-ratio: 1;
 }
 .unit-card.empty-slot {
   opacity: 1;
@@ -3219,24 +3228,11 @@ html:fullscreen .game {
 }
 @media (max-height: 560px) and (orientation: landscape),
   (max-width: 1000px) and (orientation: landscape) {
-  .summon-bar,
-  .unit-hand {
-    height: 94px;
-  }
-  .unit-hand {
-    gap: 4px;
-  }
   .unit-card .portrait {
     height: calc(100% - 16px);
   }
   .unit-cost {
     font-size: 11px;
-  }
-}
-@media (max-height: 340px) and (orientation: landscape) {
-  .summon-bar,
-  .unit-hand {
-    height: 88px;
   }
 }
 .sequence-slot {
@@ -3445,7 +3441,7 @@ html:fullscreen .game {
 @media (max-height: 560px) and (orientation: landscape),
   (max-width: 1000px) and (orientation: landscape) {
   .summon-bar {
-    width: min(460px, calc(100% - 184px - max(env(safe-area-inset-left), env(safe-area-inset-right)) - max(env(safe-area-inset-left), env(safe-area-inset-right))));
+    width: min(calc(var(--summon-card-size) * 5 + var(--summon-gap) * 4), calc(100% - 184px - max(env(safe-area-inset-left), env(safe-area-inset-right)) - max(env(safe-area-inset-left), env(safe-area-inset-right))));
   }
   .summon-bar .battle-wallet {
     right: calc(100% + 8px);
