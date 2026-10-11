@@ -3169,6 +3169,9 @@ html:fullscreen .game {
 }
 @media (max-height: 560px) and (orientation: landscape),
   (max-width: 1000px) and (orientation: landscape) {
+  .summon-bar {
+    width: min(460px, calc(100% - 184px - max(env(safe-area-inset-left), env(safe-area-inset-right)) - max(env(safe-area-inset-left), env(safe-area-inset-right))));
+  }
   .summon-bar .battle-wallet {
     right: calc(100% + 8px);
     width: 76px;
