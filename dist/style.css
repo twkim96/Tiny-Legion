@@ -149,10 +149,7 @@ body {
   box-shadow: none;
   backdrop-filter: none;
   color: #fff;
-  text-shadow:
-    0 1px 2px #08110e,
-    0 0 4px #08110e,
-    0 2px 8px #08110ecc;
+  text-shadow: none;
 }
 .resource .icon {
   width: 18px;
@@ -192,10 +189,7 @@ body {
   border-radius: 10px;
   background: none;
   border: 0;
-  text-shadow:
-    0 1px 2px #08110e,
-    0 0 4px #08110e,
-    0 2px 8px #08110ecc;
+  text-shadow: none;
   box-shadow: none;
   backdrop-filter: none;
   color: #fff;
@@ -235,10 +229,7 @@ body {
   border-radius: 8px;
   box-shadow: none;
   backdrop-filter: none;
-  text-shadow:
-    0 1px 2px #08110e,
-    0 0 4px #08110e,
-    0 2px 8px #08110ecc;
+  text-shadow: none;
 }
 .mode-indicator .icon {
   width: 14px;
@@ -258,10 +249,7 @@ body {
   box-shadow: none;
   backdrop-filter: none;
   color: #fff;
-  text-shadow:
-    0 1px 2px #08110e,
-    0 0 4px #08110e,
-    0 2px 8px #08110ecc;
+  text-shadow: none;
 }
 .battle-clock .icon {
   width: 14px;
@@ -325,10 +313,7 @@ body {
   font-size: 11px;
   font-weight: 700;
   color: #fff;
-  text-shadow:
-    0 1px 2px #08110e,
-    0 0 4px #08110e,
-    0 2px 8px #08110ecc;
+  text-shadow: none;
 }
 .menu-battle .menu-medallion {
   background: linear-gradient(145deg, #f9e5c4, #d5b890);
@@ -396,10 +381,7 @@ body {
   z-index: 1;
   box-shadow: none;
   backdrop-filter: none;
-  text-shadow:
-    0 1px 2px #08110e,
-    0 0 4px #08110e,
-    0 2px 8px #08110ecc;
+  text-shadow: none;
 }
 .castle-health .icon {
   width: 15px;
@@ -451,10 +433,7 @@ body {
   border: 0;
   box-shadow: none;
   backdrop-filter: none;
-  text-shadow:
-    0 1px 2px #08110e,
-    0 0 4px #08110e,
-    0 2px 8px #08110ecc;
+  text-shadow: none;
 }
 .income-button .icon {
   width: 14px;
@@ -489,10 +468,7 @@ body {
   align-items: center;
   gap: 6px;
   color: #fff;
-  text-shadow:
-    0 1px 2px #08110e,
-    0 0 4px #08110e,
-    0 2px 8px #08110ecc;
+  text-shadow: none;
   font-size: 11px;
   font-weight: 500;
   padding: 5px 11px;
@@ -527,10 +503,7 @@ body {
   z-index: 3;
   backdrop-filter: none;
   color: #fff;
-  text-shadow:
-    0 1px 2px #08110e,
-    0 0 4px #08110e,
-    0 2px 8px #08110ecc;
+  text-shadow: none;
 }
 .battle-wallet {
   width: auto;
@@ -545,10 +518,7 @@ body {
   grid-template-columns: 24px auto;
   color: #fff;
   z-index: 3;
-  text-shadow:
-    0 1px 2px #08110e,
-    0 0 4px #08110e,
-    0 2px 8px #08110ecc;
+  text-shadow: none;
 }
 .battle-wallet .icon {
   width: 25px;
@@ -694,8 +664,8 @@ body {
   bottom: auto;
   left: 0;
   font-size: 12px;
-  color: white;
-  text-shadow: 0 1px 2px #333;
+  color: var(--ink);
+  text-shadow: none;
   font-weight: 700;
   z-index: 3;
   pointer-events: none;
@@ -721,10 +691,7 @@ body {
   gap: 6px;
   font-size: 10px;
   color: #fff;
-  text-shadow:
-    0 1px 2px #08110e,
-    0 0 4px #08110e,
-    0 2px 8px #08110ecc;
+  text-shadow: none;
   position: absolute;
   right: -49px;
   top: 50%;
@@ -758,10 +725,7 @@ body {
   border-radius: 10px;
   box-shadow: none;
   backdrop-filter: none;
-  text-shadow:
-    0 1px 2px #08110e,
-    0 0 4px #08110e,
-    0 2px 8px #08110ecc;
+  text-shadow: none;
 }
 .speed-button .icon {
   width: 17px;
@@ -775,10 +739,7 @@ body {
   height: 35px;
   box-shadow: none;
   backdrop-filter: none;
-  text-shadow:
-    0 1px 2px #08110e,
-    0 0 4px #08110e,
-    0 2px 8px #08110ecc;
+  text-shadow: none;
 }
 .sound-button:hover {
   background: none;
@@ -802,10 +763,7 @@ body {
   overflow: hidden;
   z-index: 3;
   backdrop-filter: none;
-  text-shadow:
-    0 1px 2px #08110e,
-    0 0 4px #08110e,
-    0 2px 8px #08110ecc;
+  text-shadow: none;
 }
 .skill-button .icon {
   width: 35px;
@@ -829,10 +787,7 @@ body {
   color: white;
   font-weight: 700;
   pointer-events: none;
-  text-shadow:
-    0 1px 2px #08110e,
-    0 0 4px #08110e,
-    0 2px 8px #08110ecc;
+  text-shadow: none;
 }
 .skill-cooldown:empty {
   display: none;
