@@ -32,15 +32,15 @@ test("opening waves enter from the enemy castle and walk left in every mode", ()
     for (const stage of STAGES) {
       const state = createBattle({ mode, stageId: stage.id, sequence: [] });
       const wave = stage.waves[0];
-      const group = wave.enemies[0];
+      const openingDuration = Math.max(...wave.enemies.map((group) => ((group.count ?? 1) - 1) * (group.interval ?? 0)));
       assert.equal(state.time, 0);
       assert.equal(state.units.length, 0);
       stepBattle(state, wave.time - FIXED_STEP);
       assert.equal(state.units.length, 0);
 
-      stepBattle(state, FIXED_STEP + (group.count - 1) * group.interval + 0.1);
+      stepBattle(state, FIXED_STEP + openingDuration + 0.1);
       const spawns = state.events.filter((event) => event.type === "spawn");
-      assert.equal(spawns.length, group.count, `${mode} stage ${stage.id}`);
+      assert.equal(spawns.length, wave.enemies.reduce((sum, group) => sum + (group.count ?? 1), 0), `${mode} stage ${stage.id}`);
       assert.ok(spawns.every((event) => event.x >= 1000 && event.x < 1120));
       assert.ok(state.units.every((enemy) => enemy.team === "enemy"));
       for (let index = 0; index < spawns.length; index++) {

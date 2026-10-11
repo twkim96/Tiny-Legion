@@ -1,5 +1,5 @@
 // Initial tuning, subject to play acceptance. Bonuses of the same kind add.
-export const BALANCE_VERSION = "early-growth-3";
+export const BALANCE_VERSION = "regional-talents-4";
 export const ATTRIBUTES = [
   { id: "wild", name: "야생", symbol: "♧", color: "#72b54b", ink: "#3f852e", colorName: "초록색" },
   { id: "machine", name: "기계", symbol: "⚙", color: "#a8b5c5", ink: "#667487", colorName: "은색" },
@@ -419,11 +419,12 @@ export const ENEMIES = [
     id: "porcupine",
     attribute: "wild",
     name: "가시 호저",
-    description: "그을린 털과 긴 가시를 가진 호저예요. 풀잎 주머니의 씨앗을 멀리 날려요. 방패 뒤에 원거리 동료를 모아 보세요.",
+    description: "그을린 털과 긴 가시를 가진 호저예요. 독씨앗을 멀리 날려 3초 동안 중독시켜요. 중독에 강한 앞줄과 원거리 동료를 준비해 보세요.",
     role: "ranged",
     hp: 330, attack: 42, range: 285, speed: 24,
     attackInterval: 1.8, attackWindup: 0.34, attackRecovery: 0.26,
     projectile: { kind: "seed", speed: 610 },
+    poison: { ratio: .04, duration: 3, interval: 1 },
     color: "#986849",
   },
   {
@@ -464,6 +465,19 @@ export const ENEMIES = [
     color: "#a3714d",
   },
 ];
+
+// Bosses use familiar silhouettes, with their own ordinary combat stats.
+for (const [id, artId, name, attribute, hp, attack, sizeScale] of [
+  ["grove-bear", "bear", "언덕의 큰 곰", "wild", 850, 75, 1.5],
+  ["grove-boar", "boar", "정원의 큰 멧돼지", "wild", 2200, 95, 1.8],
+  ["workshop-bear", "bear", "톱니 큰 곰", "machine", 2400, 120, 1.7],
+  ["workshop-boar", "boar", "공방의 큰 멧돼지", "machine", 4000, 80, 2],
+]) {
+  const base = ENEMIES.find((enemy) => enemy.id === artId);
+  ENEMIES.push({ ...base, id, artId, name, attribute, hp, attack,
+    boss: true, sizeScale, range: 65, speed: artId === "bear" ? 28 : 38,
+    description: "거대한 몸으로 길을 막아요. 앞줄을 지키며 동료를 키워 돌파해 보세요." });
+}
 
 // Each wave starts at `time` seconds. Its enemy groups may set count, interval,
 // and x (the enemy spawn position) to shape the pace of the lane.
@@ -898,6 +912,22 @@ STAGES.find((stage) => stage.id === 6).waves[1].enemies[0].id = "badger";
 STAGES.find((stage) => stage.id === 6).description = "바람 오소리가 빠르게 파고들어요. 앞줄을 지켜 주세요.";
 STAGES.find((stage) => stage.id === 8).description = "가시 호저가 멀리서 씨앗을 날려요. 앞줄과 뒷줄을 함께 준비해 보세요.";
 
+// Milestone bosses arrive before the first castle push, so they must be fought.
+for (const [stageId, bossId] of [[5, "grove-bear"], [10, "grove-boar"]]) {
+  const stage = STAGES.find((entry) => entry.id === stageId);
+  stage.waves[0].enemies.push({ id: bossId, count: 1, x: 1080 });
+  // The early boss replaces the old bear reinforcement, preserving mission growth.
+  if (stageId === 5) {
+    stage.waves[0].enemies[0].count = 1;
+    stage.waves[2].enemies = [];
+  } else {
+    for (const wave of stage.waves) for (const group of wave.enemies) {
+      if (group.id !== bossId) group.count = Math.ceil(group.count * 0.55);
+    }
+  }
+  stage.description = "거대한 우두머리가 길을 막아요. 동료를 키워 함께 돌파해 보세요.";
+}
+
 // Region one teaches a single weakness; region two gradually mixes counters.
 const firstRegion = [...STAGES];
 for (const stage of firstRegion) {
@@ -916,11 +946,16 @@ for (const source of firstRegion) {
   stage.regionName = "오래된 공방";
   stage.name = ["공방 입구", "녹슨 길", "작은 작업장", "빛의 샘", "톱니 언덕", "그늘 통로", "은빛 마당", "뒤섞인 숲", "깊은 공방", "공방의 문"][source.id - 1];
   stage.description = source.id < 4 ? "야생과 은색 기계 무리가 함께 나타나요." : "여러 색의 적을 보고 알맞은 동료를 골라 보세요.";
-  stage.enemyHp = Math.round(source.enemyHp * 1.55);
-  stage.enemyAttack = source.enemyAttack * 1.15;
-  stage.baseReward = source.baseReward + 120;
+  stage.enemyHp = source.id === 1 ? 3600 : 9000 + (source.id - 2) * 500;
+  stage.enemyAttack = source.id === 1 ? 1.1 : 5 + (source.id - 2) * 0.04;
+  stage.baseReward = 480 + (source.id - 1) * 45;
   delete stage.missionReward;
   for (const [index, wave] of stage.waves.entries()) for (const group of wave.enemies) {
+    // Long-range late-region enemies need fewer bodies than the opening metal swarm.
+    if (source.id >= 2) group.count = Math.ceil((group.count ?? 1) * (source.id === 10 ? 1.25 : source.id >= 7 ? .6 : 2.5));
+    if (group.id === "grove-bear") { group.id = "workshop-bear"; group.count = 1; }
+    if (group.id === "grove-boar") { group.id = "workshop-boar"; group.count = 1; }
+    if (source.id === 10 && !ENEMIES.find((enemy) => enemy.id === group.id).boss) group.count = Math.ceil(group.count * 0.5);
     delete group.attribute;
     delete group.shield;
     delete group.regeneration;
@@ -929,6 +964,15 @@ for (const source of firstRegion) {
       if (source.id < 4) { group.attribute = "wild"; group.regeneration = false; }
       else if (source.id >= 6 && index % 2 === 0) group.id = "shadow-mushroom";
     }
+  }
+  if (source.id === 1) {
+    stage.description = "공방 입구에서 쉬어 가요. 적은 무리를 막으며 도토리를 모아 보세요.";
+    stage.waves = [
+      { time: 1, enemies: [{ id: "beetle", count: 2, interval: 2, x: 1080 }] },
+      { time: 28, enemies: [{ id: "clock-beetle", count: 2, interval: 3, x: 1080 }] },
+      { time: 56, enemies: [{ id: "boar", count: 1, x: 1080 }] },
+      { time: 85, enemies: [{ id: "clock-beetle", count: 2, interval: 3, x: 1080 }] },
+    ];
   }
   STAGES.push(stage);
 }

@@ -1,6 +1,8 @@
 import { UNITS, RARITIES, RECRUIT_BANNERS, bannerById, bannerPool, bannerRarities, ATTRIBUTES } from "./data.js";
 import { portrait, icon } from "./art.js";
 import { RECRUIT_COSTS } from "./account.js";
+import { DUPLICATE_MARKS, markTypeFor, markName } from "./abilities.js";
+export const duplicateRewardText = (result) => `${markName(result.markAttribute ?? markTypeFor(result.unit))} +${result.marks ?? DUPLICATE_MARKS[result.unit.rarity]}`;
 export const rarityOf = (unit) =>
   RARITIES.find((rarity) => rarity.id === unit.rarity) ?? RARITIES[0];
 export const rarityBadge = (unit) =>
@@ -17,14 +19,14 @@ export function probabilityPanel(account, bannerId = "forest") {
   return `<h3>${banner.name}</h3><div class="rate-table">${rates.map((r) => {
     const pool = bannerPool(banner.id).filter((u) => u.rarity === r.id);
     return `<section><h3 style="color:${r.color}">${r.name}<span>${Math.round(r.rate * 100)}%</span></h3>${pool.map((u) => `<div><span>${u.name}</span><strong>${((r.rate * 100) / pool.length).toFixed(2)}%</strong></div>`).join("")}</section>`;
-  }).join("")}</div><p class="settings-note">선택한 모집의 기본 확률입니다. 같은 등급 안에서 동료별 확률은 같습니다.${banner.id === "forest" ? "<br>숲속 모집에는 전설이 없으며 영웅 확률은 12%입니다." : ""}<br>희귀 이상 10회 이내, 영웅 이상 50회 이내 보장. 보장 회차에서 일반 결과는 희귀로, 영웅 보장 회차의 일반·희귀 결과는 영웅으로 올라갑니다. 해당 등급 이상을 얻으면 횟수가 초기화됩니다. 모집을 바꿔도 보장 횟수는 이어집니다.<br>첫 획득은 동료를 해금하고 중복은 조각 1개를 줍니다. 같은 동료 조각 3개로 특별강화합니다. 무료 10회는 계정당 한 번이며 선택한 모집에서 지급됩니다.</p><div class="modal-footer"><span>희귀 ${account.recruitment.sinceRare}/10 · 영웅 ${account.recruitment.sinceEpic}/50</span><button class="secondary-button" id="rates-back">돌아가기</button></div>`;
+  }).join("")}</div><p class="settings-note">선택한 모집의 기본 확률입니다. 같은 등급 안에서 동료별 확률은 같습니다.${banner.id === "forest" ? "<br>숲속 모집에는 전설이 없으며 영웅 확률은 12%입니다." : ""}<br>희귀 이상 10회 이내, 영웅 이상 50회 이내 보장. 보장 회차에서 일반 결과는 희귀로, 영웅 보장 회차의 일반·희귀 결과는 영웅으로 올라갑니다. 해당 등급 이상을 얻으면 횟수가 초기화됩니다. 모집을 바꿔도 보장 횟수는 이어집니다.<br>첫 획득은 동료를 해금하고 중복은 해당 동료 계열의 징표를 줍니다. 일반 2개·희귀 5개·영웅 12개·전설 30개입니다. 동료를 누르면 징표와 도토리로 특수능력을 강화할 수 있습니다. 무료 10회는 계정당 한 번이며 선택한 모집에서 지급됩니다.</p><div class="modal-footer"><span>희귀 ${account.recruitment.sinceRare}/10 · 영웅 ${account.recruitment.sinceEpic}/50</span><button class="secondary-button" id="rates-back">돌아가기</button></div>`;
 }
 // Rewards are already stored before this runs. Cancelling the scene never cancels ownership.
 export function revealRecruit(root, results, { done, again, inspect, sound }) {
   let timers = [],
     alive = true;
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  root.innerHTML = `<div class="draw-scene"><div class="draw-heading"><strong>동료 모집</strong><button class="secondary-button" id="draw-skip">모두 보기</button></div><div class="draw-grid ${results.length === 1 ? "single-draw" : ""}">${results.map((r, index) => `<button class="draw-card sealed" data-reveal="${index}" style="--rarity:${rarityOf(r.unit).color}" aria-label="${index + 1}번째 동료 공개"><span class="card-seal">${icon("envelope")}<small>열기</small></span><span class="card-revealed">${rarityBadge(r.unit)}${portrait(r.unit.id)}<strong>${r.unit.name}</strong><small>${r.isNew ? "NEW" : "조각 +1"}${r.guaranteed ? " · 보장" : ""}</small></span></button>`).join("")}</div><div class="draw-actions"><button class="secondary-button" id="draw-again" disabled>한 번 더</button><button class="primary-button" id="draw-done" disabled>확인</button></div><span class="draw-status" role="status" aria-live="polite">동료를 만나고 있습니다.</span></div>`;
+  root.innerHTML = `<div class="draw-scene"><div class="draw-heading"><strong>동료 모집</strong><button class="secondary-button" id="draw-skip">모두 보기</button></div><div class="draw-grid ${results.length === 1 ? "single-draw" : ""}">${results.map((r, index) => `<button class="draw-card sealed" data-reveal="${index}" style="--rarity:${rarityOf(r.unit).color}" aria-label="${index + 1}번째 동료 공개"><span class="card-seal">${icon("envelope")}<small>열기</small></span><span class="card-revealed">${rarityBadge(r.unit)}${portrait(r.unit.id)}<strong>${r.unit.name}</strong><small>${r.isNew ? "NEW" : duplicateRewardText(r)}${r.guaranteed ? " · 보장" : ""}</small></span></button>`).join("")}</div><div class="draw-actions"><button class="secondary-button" id="draw-again" disabled>한 번 더</button><button class="primary-button" id="draw-done" disabled>확인</button></div><span class="draw-status" role="status" aria-live="polite">동료를 만나고 있습니다.</span></div>`;
   const cards = [...root.querySelectorAll("[data-reveal]")];
   const reveal = (index) => {
     if (!alive || !cards[index].classList.contains("sealed")) return;
@@ -33,7 +35,7 @@ export function revealRecruit(root, results, { done, again, inspect, sound }) {
     cards[index].classList.add("revealed");
     cards[index].setAttribute(
       "aria-label",
-      `${rarityOf(r.unit).name} ${r.unit.name}, ${r.isNew ? "새 동료" : "조각 1개"}. 자세히`,
+      `${rarityOf(r.unit).name} ${r.unit.name}, ${r.isNew ? "새 동료" : duplicateRewardText(r)}. 자세히`,
     );
     if (["epic", "legendary"].includes(r.unit.rarity))
       cards[index].classList.add("special-reveal");

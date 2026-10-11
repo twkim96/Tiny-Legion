@@ -289,7 +289,8 @@ test("first region teaches wild counters and second region introduces metal befo
     }
   }
   const entry = createBattle({ mode: "challenge", stageId: 11, sequence: [] });
-  stepBattle(entry, 1.5);
+  // The gentler region entrance introduces metal in its second wave.
+  stepBattle(entry, 28.5);
   assert.ok(entry.units.some((unit) => unit.attribute === "machine"));
   const opening = createBattle({ mode: "challenge", stageId: 1, sequence: [] });
   stepBattle(opening, 16);

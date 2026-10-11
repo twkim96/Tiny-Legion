@@ -1,6 +1,8 @@
 import { ENEMIES, STAGES, UNITS } from "./data.js";
 import { resolveDamage, specializationBonus } from "./combat-rules.js";
 import { earlyGuideEncounter, onboardingEncounter } from "./onboarding.js";
+import { applyUnitAbilities, normalizeAbilities, UNIT_LEVEL_GROWTH } from "./abilities.js";
+export { UNIT_LEVEL_GROWTH } from "./abilities.js";
 
 const WORLD_MIN = 0;
 const WORLD_MAX = 1200;
@@ -10,7 +12,6 @@ const PLAYER_SPAWN_X = 122;
 const MAX_ACTIVE_UNITS = 80;
 const FIXED_STEP = 1 / 30;
 const GOLD_PER_SECOND = 35;
-export const UNIT_LEVEL_GROWTH = 0.12;
 const HIT_STUN = 0.18;
 const STUN_COOLDOWN = 0.65;
 const DEFAULT_SEQUENCE = ["sheep", "rabbit", "squirrel", "teapot", "cloud"];
@@ -91,24 +92,32 @@ function getLevel(levels, id) {
 }
 
 function makeUnit(state, definition, team, x, level = 1) {
+  if (team === "player") definition = applyUnitAbilities(definition, state._abilities[definition.id]);
   const multiplier = 1 + (level - 1) * UNIT_LEVEL_GROWTH;
   const enemyMultiplier = team === "enemy" ? state._enemyAttackMultiplier : 1;
+  const maxHp = Math.round(definition.hp * multiplier * (team === "player" ? state._modifiers.hp : 1));
   return {
     uid: `${team === "player" ? "p" : "e"}${state._nextUid++}`,
     id: definition.id,
     team,
     artId: definition.artId ?? definition.id,
+    definition,
+    boss: definition.boss === true,
+    sizeScale: definition.sizeScale ?? 1,
+    poisonImmune: definition.poisonImmune === true,
+    poison: null,
     role: definition.role,
     attribute: definition.attribute,
     specialties: [...(definition.specialties ?? [])],
+    specialtyUpgradeBonus: definition.specialtyUpgradeBonus,
     attributeBonuses: definition.attributeBonuses
       ? structuredClone(definition.attributeBonuses)
       : undefined,
     shield: Math.round(
-      definition.hp * multiplier * (definition.shield?.hpRatio ?? 0),
+      maxHp * (definition.shield?.hpRatio ?? 0),
     ),
     maxShield: Math.round(
-      definition.hp * multiplier * (definition.shield?.hpRatio ?? 0),
+      maxHp * (definition.shield?.hpRatio ?? 0),
     ),
     regeneration: definition.regeneration
       ? { ...definition.regeneration }
@@ -119,16 +128,8 @@ function makeUnit(state, definition, team, x, level = 1) {
     regenSuppressionRemaining: 0,
     regenSuppressionFactor: 1,
     x: clamp(x, WORLD_MIN, WORLD_MAX),
-    hp: Math.round(
-      definition.hp *
-        multiplier *
-        (team === "player" ? state._modifiers.hp : 1),
-    ),
-    maxHp: Math.round(
-      definition.hp *
-        multiplier *
-        (team === "player" ? state._modifiers.hp : 1),
-    ),
+    hp: maxHp,
+    maxHp,
     attack: Math.max(
       1,
       Math.round(
@@ -192,6 +193,7 @@ export function createBattle(options = {}) {
     mode = "idle",
     stageId = 1,
     levels = {},
+    abilities = {},
     sequence = DEFAULT_SEQUENCE,
     duration = 120,
     modifiers = {},
@@ -242,6 +244,7 @@ export function createBattle(options = {}) {
     _nextProjectileUid: 1,
     _ownedUnits: Array.isArray(ownedUnits) ? new Set(ownedUnits) : null,
     _levels: levels && typeof levels === "object" ? { ...levels } : {},
+    _abilities: Object.fromEntries(UNITS.map((u) => [u.id, normalizeAbilities(u.id, abilities?.[u.id])])),
     _modifiers: {
       hp: Math.max(1, finiteNumber(modifiers.hp, 1)),
       attack: Math.max(1, finiteNumber(modifiers.attack, 1)),
@@ -516,6 +519,18 @@ function resolveAttacks(state, dt) {
   const units = activeUnits(state);
   const batch = damageBatch();
   for (const unit of units) {
+    const poison = unit.poison;
+    if (!poison || unit.poisonImmune) { unit.poison = null; continue; }
+    const activeTime = Math.min(dt, poison.remaining);
+    poison.remaining -= activeTime;
+    poison.tickRemaining -= activeTime;
+    while (poison.tickRemaining <= 1e-9) {
+      addDamage(batch, unit, poison.damage, poison.direction, "poison", poison.source);
+      poison.tickRemaining += poison.interval;
+    }
+    if (poison.remaining <= 1e-9) unit.poison = null;
+  }
+  for (const unit of units) {
     if (!unit.regeneration) continue;
     unit.regenTimer = (unit.regenTimer ?? unit.regeneration.interval) - dt;
     if (unit.regenTimer <= 1e-9) {
@@ -532,10 +547,10 @@ function resolveAttacks(state, dt) {
 
   for (const unit of units) {
     if (unit.hitStun > 0) continue;
-    const definition =
+    const definition = unit.definition ?? (
       unit.team === "player"
         ? UNIT_BY_ID.get(unit.id)
-        : ENEMY_BY_ID.get(unit.id);
+        : ENEMY_BY_ID.get(unit.id));
     if (!definition) continue;
     if (unit.action?.phase === "recovery") continue;
     if (!unit.action) {
@@ -586,6 +601,8 @@ function resolveAttacks(state, dt) {
         attribute: unit.attribute,
         specialties: [...(unit.specialties ?? [])],
         attributeBonuses: unit.attributeBonuses,
+        specialtyUpgradeBonus: unit.specialtyUpgradeBonus,
+        poison: definition.poison,
         slow: definition.slow,
         suppressRegen: definition.suppressRegen,
         shieldDamageBonus:
@@ -595,7 +612,7 @@ function resolveAttacks(state, dt) {
             ...units
               .filter((ally) => ally.team === unit.team && !ally.dead)
               .map((ally) => {
-                const aura = UNIT_BY_ID.get(ally.id)?.shieldAura;
+                const aura = (ally.definition ?? UNIT_BY_ID.get(ally.id))?.shieldAura;
                 return aura && Math.abs(ally.x - unit.x) <= aura.range
                   ? aura.bonus
                   : 0;
@@ -660,6 +677,21 @@ function applyDamage(state, units, batch) {
       unit.shield = Math.max(0, (unit.shield ?? 0) - resolved.shieldDamage);
       shieldDamage += resolved.shieldDamage;
       damage += resolved.hpDamage;
+      if (resolved.hpDamage > 0 && entry.source.poison && !unit.poisonImmune) {
+        const spec = entry.source.poison;
+        const tickDamage = entry.amount * Math.max(0, spec.ratio ?? 0);
+        const previous = unit.poison;
+        const interval = Math.max(FIXED_STEP, spec.interval ?? 1);
+        const strongest = !previous || tickDamage >= previous.damage;
+        unit.poison = {
+          remaining: Math.max(previous?.remaining ?? 0, Math.max(0, spec.duration ?? 0)),
+          tickRemaining: previous?.tickRemaining ?? interval,
+          interval: strongest ? interval : previous.interval,
+          damage: Math.max(previous?.damage ?? 0, tickDamage),
+          direction: strongest ? hit.direction : previous.direction,
+          source: strongest ? { ...entry.source, poison: undefined } : previous.source,
+        };
+      }
       const durationMultiplier =
         1 + specializationBonus(entry.source, unit, "duration");
       if (entry.source.slow) {

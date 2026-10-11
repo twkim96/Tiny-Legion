@@ -630,6 +630,7 @@ export class Renderer {
     if (unit.slowRemaining > 0) marks.push({ kind: "slow", color: "#78a9b7" });
     if (unit.regenSuppressionRemaining > 0)
       marks.push({ kind: "suppressed", color: "#bb8b81" });
+    if (unit.poison?.remaining > 0) marks.push({ kind: "poison", color: "#7b9a45" });
     if (!marks.length) return;
     const radius = Math.max(3, size * 0.095);
     const startX = x + size * 0.34;
@@ -637,7 +638,9 @@ export class Renderer {
     marks.forEach((mark, index) => {
       const markX = startX + index * radius * 2.2;
       oval(c, markX, markY, radius, radius, "#f8f6e8", mark.color, 1.2);
-      if (mark.kind === "regen") {
+      if (mark.kind === "poison") {
+        oval(c, markX, markY, radius * .45, radius * .55, mark.color);
+      } else if (mark.kind === "regen") {
         line(
           c,
           markX - radius * 0.45,
@@ -1023,7 +1026,7 @@ export class Renderer {
       const uid =
         Number.parseInt(String(u.uid ?? "").replace(/^\D+/, ""), 10) || 0;
       const size =
-        baseSize *
+        baseSize * (u.sizeScale ?? 1) *
         (artId === "bear"
           ? 1.35
           : artId === "boar"

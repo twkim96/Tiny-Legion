@@ -15,6 +15,7 @@ const layouts = {
   sequence: "panel",
   stages: "panel",
   growth: "collection",
+  companion: "collection",
   recruit: "collection",
   codex: "collection",
   "sequence-pick": "collection",

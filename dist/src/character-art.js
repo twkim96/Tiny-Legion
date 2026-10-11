@@ -496,3 +496,16 @@ export const CHARACTER_ART = {
     true,
   ),
 };
+
+// Bosses keep their species' movement silhouette and wear distinct large armor.
+for (const [id, baseId, equipment] of [
+  ['grove-bear', 'bear', (a) => p('M37 25 33 10l13 9 8-16 10 13 13-13 7 16 13-9-3 16Z', a.accent) + p('M14 65 28 59l14 11-8 20-18-4Z', '#bda078')],
+  ['grove-boar', 'boar', (a) => p('M24 55 28 30l14 10 10-21 14 15 17-12-3 23-17 10-17-9Z', a.accent) + p('m101 86 14-15 3 19-15 9Z', '#f1e2bd')],
+  ['workshop-bear', 'bear', (a) => p('M35 26 40 10h47l8 16-12 8H48Z', '#aabac0') + r(45, 17, 39, 10, 3, '#697d87') + p('M13 62h26l-3 31H17Zm78 0h24l-4 31H95Z', a.accent) + rivets([[21,70],[30,83],[100,70],[106,83]])],
+  ['workshop-boar', 'boar', (a) => p('M69 48 73 23l27 3 14 17-5 16-16-8Z', '#aabac0') + p('M25 50 34 32l29 3 16 19-9 26-33-6Z', a.accent) + rivets([[39,44],[57,47],[40,65],[89,34],[102,43]])],
+]) {
+  const base = CHARACTER_ART[baseId];
+  const paint = (accent = PALETTES.wild.accent, outline = PALETTES.wild.ink) =>
+    (base.bodyForAttribute?.(accent, outline) ?? base.body) + `<g stroke="${outline}">${equipment({ ...PALETTES.wild, accent })}</g>`;
+  CHARACTER_ART[id] = { family: base.family, body: paint(), bodyForAttribute: paint };
+}

@@ -10,6 +10,7 @@ import {
   ownsUnit,
   growUnit,
   enhanceUnit,
+  upgradeUnitAbility,
   combatPower,
   recruitGem,
   refundUnitLevels,
@@ -61,7 +62,7 @@ test("legacy saves preserve progress and starter ownership without granting new 
   assert.ok(account.sequence.every((id) => id === null || ownsUnit(account, id)));
 });
 
-test("first draw unlocks, subsequent duplicate yields one fragment and supports enhancement", () => {
+test("first draw unlocks, subsequent duplicate yields rarity marks and funds an ability upgrade", () => {
   const account = completedAccount();
   account.diamonds = 300;
   const power = combatPower(account);
@@ -75,12 +76,14 @@ test("first draw unlocks, subsequent duplicate yields one fragment and supports 
     const repeat = recruitUnits(account, 1, { random: rolls(0.7, 0) })[0];
     assert.equal(repeat.unit.id, first.unit.id);
     assert.equal(repeat.isNew, false);
-    assert.equal(repeat.fragments, 1);
+    assert.equal(repeat.marks, 5);
   }
   assert.equal(account.diamonds, 180);
-  assert.ok(enhanceUnit(account, first.unit.id));
-  assert.equal(account.fragments[first.unit.id], 0);
-  assert.equal(account.special[first.unit.id], 1);
+  assert.equal(account.marks.wild, 15);
+  assert.ok(upgradeUnitAbility(account, first.unit.id, 'hp'));
+  assert.equal(account.marks.wild, 14);
+  assert.equal(account.abilities[first.unit.id].hp, 1);
+  assert.equal(account.special[first.unit.id], 0);
 });
 
 test("ten draws charge once and apply guarantees across batches and single draws", () => {
@@ -181,7 +184,7 @@ test("welcome draw and ownership survive storage round trip without a second fre
   });
   assert.equal(result.filter((r) => r.isNew).length, 1);
   assert.equal(account.diamonds, 60);
-  assert.equal(account.fragments[result[0].unit.id], 9);
+  assert.equal(account.marks.wild, 45);
   let saved;
   const storage = {
     setItem: (_, value) => (saved = value),

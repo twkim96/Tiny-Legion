@@ -6,6 +6,8 @@ import { newAccount, currentMission, recordMissionBattle, claimMission, accrue, 
 import { STAGES, UNITS, stageLabel } from '../dist/src/data.js';
 import { recruitPanel } from '../dist/src/recruitment-ui.js';
 import { modalLayout, messagePanel } from '../dist/src/modal-ui.js';
+import { companionStats, upgradeUnitAbility } from '../dist/src/account.js';
+import { companionPanel } from '../dist/src/companion-ui.js';
 
 const source = fs.readFileSync(new URL('../dist/src/main.js', import.meta.url), 'utf8');
 function functionSource(name) {
@@ -38,6 +40,7 @@ function harness(names) {
     $, account, calls, STAGES, stageLabel, currentMission, recordMissionBattle, claimMission, accrue, recordIdle, isOnboarding, recruitOnboardingCompanion, growthUnlocked, sequenceUnlocked, sequenceForMode, setSequence, playableSequence, growUnit, refundUnitLevels, unitLevelRefund, levelCost, recruitEarlyRabbit, applyGuideSequence, canUseUnit, ownsUnit, UNITS,
     modalLayout, messagePanel, modalKind:null, modalRender:null, lastFocused:null, hideTooltip(){},
     readyBattle(){calls.push("ready");}, openCodex(){},
+    companionStats, upgradeUnitAbility, companionPanel, unitAbilityLines:()=>[],
     renderGrowth(){calls.push('growth-screen');}, renderRecruit(){calls.push('recruit-screen');},
     sequenceDraft:null, sequenceDraftMode:"idle", sequenceDrafts:null, names:Object.fromEntries(UNITS.map(u=>[u.id,u.name])), portrait:id=>`[${id}]`, rarityBadge:()=>"",
     mode: 'idle', stageId: 1, idleResultStage: null, resultHandled: false, restartAt: 0,
@@ -89,6 +92,34 @@ test('idle failure is informational and suppression is specific to its stage', (
   c.showIdleResult({won:true,survival:120,reward:90});
   assert.equal(c.$('idle-result-popup').hidden, false);
   assert.equal(c.idleResultStage, 2);
+});
+test('regional victory returns to the newly opened idle stage and preserves prior production records', () => {
+  const c=harness(['settleProduction','closeIdleResult','enterRegionIdle','showResult','setMode']);
+  c.mode='challenge'; c.stageId=10; c.account.highestCleared=10;
+  c.account.earlyGuide.phase='complete';
+  recordIdle(c.account,{survival:120,hpRatio:1,reward:80},{stageId:1});
+  const oldRecord=structuredClone(c.account.records[1]);
+  c.account.lastSettled=Date.now()-120000;
+  const gold=c.account.gold;
+  c.showResult({won:true,time:70},{gold:430,diamonds:10});
+  assert.equal(c.account.idleStage,1);
+  c.$('return-idle').onclick();
+  assert.equal(c.mode,'idle');
+  assert.equal(c.stageId,11);
+  assert.equal(c.account.idleStage,11);
+  assert.deepEqual(c.account.records[1],oldRecord);
+  assert.ok(c.account.gold>=gold+80);
+  assert.equal(c.calls.filter(x=>x==='start').length,1);
+  assert.ok(c.calls.includes('save'));
+  c.mode='challenge'; c.stageId=10;
+  c.account.idleStage=1;
+  c.showResult({won:false,time:120},{gold:0,diamonds:0});
+  c.$('return-idle').onclick();
+  assert.equal(c.account.idleStage,1);
+  c.mode='challenge'; c.stageId=20; c.account.highestCleared=20;
+  c.showResult({won:true,time:70},{gold:1,diamonds:1});
+  c.$('return-idle').onclick();
+  assert.equal(c.stageId,1);
 });
 test('mission click collects once then opens the exact challenge directly', () => {
   const c=harness(['settleProduction','closeIdleResult','startChallenge','actOnMission']);
@@ -292,31 +323,35 @@ test('speedrun success keeps reward and practice actions, final challenge has on
 });
 
 
-test('each companion has a refund action; cancel preserves growth and confirm resets only that companion',()=>{
-  const c=harness(['openModal','renderGrowth','showUnitRefund']);
+test('companion cards open upgrade details; detail refund preserves other companions and supports cancel',()=>{
+  const c=harness(['openModal','renderGrowth','openUnitDetail','renderUnitDetail','showUnitRefund']);
   c.account.earlyGuide.phase='complete';
   c.account.owned.squirrel=true;
   c.account.levels.sheep=3;
   c.account.levels.squirrel=4;
   c.renderGrowth();
-  assert.doesNotMatch(c.$('modal-content').innerHTML,/id="refund-levels"/);
+  assert.doesNotMatch(c.$('modal-content').innerHTML,/data-refund|data-inspect/);
+  c.$('modal-content:data-companion:sheep').onclick();
+  assert.equal(c.$('modal-backdrop').dataset.kind,'companion');
+  assert.match(c.$('modal-content').innerHTML,/적용 효과|특수능력/);
   const initial=JSON.stringify(c.account);
-  c.$('modal-content:data-refund:sheep').onclick();
+  c.$('companion-refund').onclick();
   assert.match(c.$('modal-title').textContent,/양 방패/);
   assert.equal(c.$('modal-backdrop').dataset.layout,'message');
   assert.match(c.$('modal-content').innerHTML,/도토리 220개/);
   c.$('cancel-refund').onclick();
   assert.equal(JSON.stringify(c.account),initial);
-  c.$('modal-content:data-refund:sheep').onclick();
+  c.$('companion-refund').onclick();
   c.$('confirm-refund').onclick();
   assert.equal(c.account.levels.sheep,1);
   assert.equal(c.account.levels.squirrel,4);
-  assert.equal(c.$('modal-backdrop').dataset.kind,'growth');
+  assert.equal(c.$('modal-backdrop').dataset.kind,'companion');
   assert.ok(c.calls.includes('start'));
   const after=JSON.stringify(c.account);
   c.$('confirm-refund').onclick();
   assert.equal(JSON.stringify(c.account),after);
-  c.$('modal-content:data-refund:squirrel').onclick();
+  c.openUnitDetail('squirrel');
+  c.$('companion-refund').onclick();
   c.$('confirm-refund').onclick();
   assert.equal(c.account.levels.squirrel,1);
 });
@@ -388,4 +423,19 @@ test('failed challenges expose earned mission rewards once and open growth or re
   assert.ok(c.calls.includes('growth-screen'));
   assert.ok(c.calls.includes('recruit-screen'));
   assert.match(c.$('battle-result').innerHTML,/retry-battle/);
+});
+
+test('companion detail upgrades deduct marks and acorns, update effects, and keep the selected companion',()=>{
+  const c=harness(['openModal','openUnitDetail','renderUnitDetail','settleProduction']);
+  c.account.earlyGuide.phase='complete';c.account.highestCleared=10;
+  c.account.marks.wild=10;c.account.gold=1000;
+  c.openUnitDetail('sheep');
+  assert.equal(c.$('modal-backdrop').dataset.kind,'companion');
+  assert.match(c.$('modal-content').innerHTML,/초당 공격력|이동속도|소환 대기/);
+  c.$('modal-content:data-ability:hp').onclick();
+  assert.equal(c.account.abilities.sheep.hp,1);
+  assert.equal(c.account.marks.wild,9);assert.equal(c.account.gold,880);
+  assert.match(c.$('modal-content').innerHTML,/체력 \+1%/);
+  assert.equal(c.$('modal-title').textContent,'양 방패');
+  assert.equal(c.account.abilities.squirrel.hp,0);
 });

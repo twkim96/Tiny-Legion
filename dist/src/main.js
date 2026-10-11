@@ -13,6 +13,8 @@ import {
 import { createBattle, fireCannon, stepBattle, summonUnit } from "./engine.js";
 import { icon, portrait } from "./art.js";
 import { modalLayout, messagePanel } from "./modal-ui.js";
+import { companionPanel } from "./companion-ui.js";
+import { specializationBonus } from "./combat-rules.js";
 import { Renderer } from "./renderer.js";
 import {
   recruitPanel,
@@ -36,7 +38,8 @@ import {
   accrue,
   levelCost,
   growUnit,
-  enhanceUnit,
+  upgradeUnitAbility,
+  companionStats,
   refundUnitLevels,
   unitLevelRefund,
   battleLevels,
@@ -101,18 +104,24 @@ function unitSpecialtyText(unit, rich = false) {
   const bonuses = ROLE_SPECIALIZATION?.[unit.role] ?? {};
   const effects = [];
   if (Number.isFinite(bonuses.attack))
-    effects.push(`공격력 +${percent(bonuses.attack)}`);
+    effects.push(`공격력 +${percent(specializationBonus(unit, { attribute: specialties[0] }, "attack"))}`);
   if (Number.isFinite(bonuses.effectiveHp))
     effects.push(
-      `유효 체력 +${percent(bonuses.effectiveHp)} (표시 체력은 그대로)`,
+      `유효 체력 +${percent(specializationBonus(unit, { attribute: specialties[0] }, "effectiveHp"))} (표시 체력은 그대로)`,
     );
   if (Number.isFinite(bonuses.duration))
-    effects.push(`방해 지속시간 +${percent(bonuses.duration)}`);
+    effects.push(`방해 지속시간 +${percent(specializationBonus(unit, { attribute: specialties[0] }, "duration"))}`);
   const attributes = specialties.map((id) => rich ? attributeName(id, "특화") : `${attributeById[id]?.name ?? "무속성"}특화`).join(" · ");
   return `${attributes}${effects.length ? ` · ${effects.join(" · ")}` : ""} · 다른 속성 페널티 없음`;
 }
 function unitAbilityLines(unit) {
   const lines = [];
+  if (unit.poisonImmune) lines.push("중독 면역");
+  if (unit.poison) lines.push(`중독 · ${unit.poison.duration}초간 초당 공격력 ${percent(unit.poison.ratio)} 피해`);
+  if (unit.heal) lines.push(`회복량 ${Number(unit.heal.toFixed(1))} · 범위 ${unit.healRange}`);
+  if (unit.regeneration) lines.push(`${unit.regeneration.interval}초마다 체력 ${percent(unit.regeneration.hpRatio)} 회복`);
+  if (unit.shield) lines.push(`방어막 · 최대 체력의 ${percent(unit.shield.hpRatio)}`);
+  if (unit.splashRadius) lines.push(`광역 공격 범위 ${unit.splashRadius}`);
   if (unit.castleDamageBonus > 0) lines.push(`적 성 추가 피해 +${percent(unit.castleDamageBonus)}`);
   if (Number.isFinite(unit.shieldDamageBonus) && unit.shieldDamageBonus > 0)
     lines.push(
@@ -138,6 +147,8 @@ function enemyGimmicks(enemy, group = {}) {
       ? null
       : (group.regeneration ?? enemy?.regeneration);
   const lines = [];
+  if (enemy?.boss) lines.push("거대 적");
+  if (enemy?.poison) lines.push(`중독 · ${enemy.poison.duration}초간 초당 공격력 ${percent(enemy.poison.ratio)} 피해`);
   if (shield && Number.isFinite(shield.hpRatio))
     lines.push(`방어막 · 최대 체력의 ${percent(shield.hpRatio)}`);
   if (
@@ -366,6 +377,7 @@ function startBattle() {
     mode,
     stageId,
     levels,
+    abilities: account.abilities,
     sequence: playableSequence(account, mode),
     modifiers: gemModifiers(account),
     ownedUnits: UNITS.filter((u) => canUseUnit(account, u.id)).map((u) => u.id),
@@ -377,6 +389,7 @@ function startBattle() {
     stageId,
     balanceVersion: BALANCE_VERSION,
     levels: { ...levels },
+    abilities: structuredClone(account.abilities),
     sequence: playableSequence(account, mode),
     gem: account.equippedGem,
     dailyKey: account.daily.key,
@@ -634,6 +647,20 @@ function enterSecondIdle() {
   persist();
   startBattle();
 }
+function enterRegionIdle(completedStageId) {
+  if (completedStageId % 10 !== 0 || completedStageId >= STAGES.length || account.highestCleared < completedStageId) {
+    setMode("idle");
+    return;
+  }
+  closeModal(true);
+  closeIdleResult();
+  settleProduction();
+  account.idleStage = completedStageId + 1;
+  mode = "idle";
+  stageId = account.idleStage;
+  persist();
+  startBattle();
+}
 function showEarlyDraw() {
   openModal("모집", "onboarding", () => {
     $("modal-content").innerHTML = recruitPanel(account, "forest", { tutorial: true, tutorialText: "성을 공략할 동료를 무료로 만나 보세요." });
@@ -783,7 +810,12 @@ function showResult(r, rewards) {
   $("battle-result").innerHTML =
     `<div class="result-card">${icon(r.won ? "trophy" : "shield")}<h2>${r.won ? "완료" : "다시 한 번"}</h2><div class="result-time">${precise(r.time)}</div>${rewardMarkup ? `<div class="result-rewards">${rewardMarkup}</div>` : ""}<div class="result-actions"><button class="secondary-button" id="return-idle">방치로</button>${!r.won || daily ? `<button class="secondary-button" id="retry-battle">${daily && account.daily.claimed ? "연습하기" : "다시 도전"}</button>` : ""}${daily && r.won && !account.daily.claimed ? '<button class="primary-button" id="claim-speedrun">보상받기</button>' : !daily && r.won && stageId < STAGES.length ? `<button class="primary-button" id="next-battle">${stageLabel(stageId + 1)} 도전</button>` : ""}</div>${daily && account.daily.claimed ? '<div class="new-record">오늘 보상 수령 완료</div>' : ""}${support}</div>`;
   $("battle-result").hidden = false;
-  $("return-idle").onclick = mode === "challenge" && stageId === 2 && account.earlyGuide?.phase === "idle-defense" ? enterSecondIdle : () => setMode("idle");
+  const completedStageId = stageId;
+  $("return-idle").onclick = mode === "challenge" && stageId === 2 && account.earlyGuide?.phase === "idle-defense"
+    ? enterSecondIdle
+    : mode === "challenge" && r.won && stageId % 10 === 0
+      ? () => enterRegionIdle(completedStageId)
+      : () => setMode("idle");
   if (!r.won || daily) $("retry-battle").onclick = startBattle;
   if (growthHelp) {
     $("result-growth").onclick = () => openModal("동료", "growth", renderGrowth);
@@ -1014,51 +1046,45 @@ function renderGrowth() {
     $("modal-content").innerHTML = '<p class="settings-note">1-2 방치 미션을 완료하면 레벨업이 열립니다.</p>';
     return;
   }
-  $("modal-content").innerHTML = `<div class="unit-grid">${UNITS.filter((u) =>
-    ownsUnit(account, u.id),
-  )
-    .map((u) => {
-      const level = account.levels[u.id],
-        scale = 1 + (level + account.special[u.id] - 1) * 0.12;
-      return `<article class="growth-card">${rarityBadge(u)}${portrait(u.id)}<span class="level-label">Lv. ${level}${account.special[u.id] ? ` · +${account.special[u.id]}` : ""}</span><h3>${u.name}</h3><div class="stats"><span>${icon("heart")}${Math.round(u.hp * scale)}</span><span>${icon("swords")}${Math.round(u.attack * scale)}</span></div><button class="primary-button" data-grow="${u.id}" ${account.gold < levelCost(level) || level >= 100 ? "disabled" : ""}>${icon(level >= 100 ? "check" : "acorn")}${level >= 100 ? "완료" : fmt(levelCost(level)) + " ↑"}</button><button class="inspect-button" data-inspect="${u.id}">자세히</button><button class="inspect-button" data-refund="${u.id}" aria-label="${u.name} 레벨 초기화" ${level <= 1 ? "disabled" : ""}>초기화</button>${account.fragments[u.id] > 0 ? `<button class="secondary-button fragment-button" data-enhance="${u.id}" ${account.fragments[u.id] < 3 || account.special[u.id] >= 20 ? "disabled" : ""} style="font-size:10px;margin-top:9px;padding:5px 7px">조각 ${account.fragments[u.id]} / 3</button>` : ""}</article>`;
-    })
-    .join(
-      "",
-    )}</div><div class="modal-footer"><span class="resource-inline">${icon("acorn")}${fmt(account.gold)}</span></div>`;
-  $("modal-content")
-    .querySelectorAll("[data-grow]")
-    .forEach(
-      (b) =>
-        (b.onclick = () => {
-          settleProduction();
-          if (growUnit(account, b.dataset.grow)) {
-            persist();
-            renderGrowth();
-            updateUi();
-            chirp();
-          }
-        }),
-    );
-  $("modal-content")
-    .querySelectorAll("[data-enhance]")
-    .forEach(
-      (b) =>
-        (b.onclick = () => {
-          if (enhanceUnit(account, b.dataset.enhance)) {
-            persist();
-            renderGrowth();
-            updateUi();
-            chirp();
-          }
-        }),
-    );
-  $("modal-content")
-    .querySelectorAll("[data-inspect]")
-    .forEach((b) => (b.onclick = () => openCodex(b.dataset.inspect)));
-  $("modal-content").querySelectorAll("[data-refund]").forEach((button) => {
-    button.onclick = () => showUnitRefund(button.dataset.refund);
+  $("modal-content").innerHTML = `<div class="unit-grid">${UNITS.filter((u) => ownsUnit(account, u.id)).map((u) => {
+    const level = account.levels[u.id], stats = companionStats(account, u.id);
+    return `<article class="growth-card"><button class="companion-open" data-companion="${u.id}" aria-label="${u.name} 상세와 강화">${rarityBadge(u)}${portrait(u.id)}<span class="level-label">Lv. ${level}</span><h3>${u.name}</h3><div class="stats"><span>${icon("heart")}${stats.hp}</span><span>${icon("swords")}${stats.attack}</span></div></button><button class="primary-button" data-grow="${u.id}" ${account.gold < levelCost(level) || level >= 100 ? "disabled" : ""}>${icon(level >= 100 ? "check" : "acorn")}${level >= 100 ? "완료" : fmt(levelCost(level)) + " ↑"}</button></article>`;
+  }).join("")}</div><div class="modal-footer"><span class="resource-inline">${icon("acorn")}${fmt(account.gold)}</span></div>`;
+  $("modal-content").querySelectorAll("[data-grow]").forEach((button) => {
+    button.onclick = () => {
+      settleProduction();
+      if (!growUnit(account, button.dataset.grow)) return;
+      persist(); renderGrowth(); updateUi(); chirp();
+    };
+  });
+  $("modal-content").querySelectorAll("[data-companion]").forEach((button) => {
+    button.onclick = () => openUnitDetail(button.dataset.companion);
   });
 }
+function openUnitDetail(id) {
+  if (!ownsUnit(account, id)) return;
+  openModal(names[id], "companion", () => renderUnitDetail(id));
+}
+function renderUnitDetail(id) {
+  const stats = companionStats(account, id);
+  if (!stats || !ownsUnit(account, id)) return;
+  $("modal-content").innerHTML = companionPanel(account, id, unitAbilityLines(stats));
+  $("companions-back").onclick = () => openModal("동료", "growth", renderGrowth);
+  $("companion-refund").onclick = () => showUnitRefund(id);
+  $("companion-level").onclick = () => {
+    settleProduction();
+    if (!growUnit(account, id)) return;
+    persist(); renderUnitDetail(id); updateUi(); chirp();
+  };
+  $("modal-content").querySelectorAll("[data-ability]").forEach((button) => {
+    button.onclick = () => {
+      settleProduction();
+      if (!upgradeUnitAbility(account, id, button.dataset.ability)) return;
+      persist(); renderUnitDetail(id); updateUi(); chirp();
+    };
+  });
+}
+
 function showUnitRefund(id) {
   const refunded = unitLevelRefund(account, id);
   if (!growthUnlocked(account) || !refunded) return;
@@ -1068,7 +1094,7 @@ function showUnitRefund(id) {
       text: `${names[id]}의 일반 레벨을 1로 되돌리고<br>도토리 ${fmt(refunded)}개를 돌려받습니다.<br>방치 기록은 다시 측정해야 합니다.`,
       actions: '<button class="secondary-button" id="cancel-refund">취소</button><button class="primary-button" id="confirm-refund">초기화</button>',
     });
-    $("cancel-refund").onclick = () => openModal("동료", "growth", renderGrowth);
+    $("cancel-refund").onclick = () => openUnitDetail(id);
     $("confirm-refund").onclick = () => {
       const gold = refundUnitLevels(account, id);
       if (!gold) return;
@@ -1076,7 +1102,7 @@ function showUnitRefund(id) {
       if (mode === "idle") startBattle();
       else readyBattle();
       toast(`${names[id]} · 도토리 +${fmt(gold)}`);
-      openModal("동료", "growth", renderGrowth);
+      openUnitDetail(id);
       updateUi();
     };
   });
@@ -1272,9 +1298,8 @@ function enemyCounterText(enemy) {
   return counters;
 }
 function renderCodexDetail(id, enemy) {
-  const u = (enemy ? ENEMIES : UNITS).find((u) => u.id === id),
-    level = enemy ? 1 : account.levels[id] + account.special[id],
-    scale = 1 + (level - 1) * 0.12,
+  const u = enemy ? ENEMIES.find((u) => u.id === id) : companionStats(account, id),
+    scale = 1,
     gimmicks = enemyGimmicks(u),
     detailLines = enemy
       ? [

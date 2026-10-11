@@ -12,7 +12,7 @@ export function specializationBonus(source, target, kind) {
   if (!source?.specialties?.includes(target?.attribute)) return 0;
   const base = ROLE_SPECIALIZATION[source.role]?.[kind] ?? 0;
   const extra = source.attributeBonuses?.[target.attribute]?.[kind] ?? 0;
-  return boundedBonus(base + extra, ATTRIBUTE_BONUS_CAP);
+  return boundedBonus(base + extra, ATTRIBUTE_BONUS_CAP) + boundedBonus(source.specialtyUpgradeBonus?.[kind], .1);
 }
 
 export function resolveDamage(target, rawDamage, source = {}) {

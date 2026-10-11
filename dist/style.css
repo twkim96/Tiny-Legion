@@ -3468,3 +3468,34 @@ html:fullscreen .game {
   .sequence-presets { margin-bottom: 10px; gap: 6px; }
   .sequence-presets > button { padding: 7px 12px; }
 }
+
+/* Companion collection and upgrade detail share the collection modal frame. */
+.companion-open { display: flex; flex-direction: column; align-items: center; width: 100%; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; cursor: pointer; }
+.companion-open:focus-visible { outline: 2px solid #6d8358; outline-offset: 5px; border-radius: 8px; }
+.companion-detail { display: grid; grid-template-columns: minmax(220px, .9fr) minmax(260px, 1.1fr); gap: 24px; }
+.companion-heading { display: flex; align-items: center; gap: 14px; }
+.companion-heading h3 { margin: 8px 0 5px; font-size: 20px; }
+.companion-heading p { font-size: 12px; line-height: 1.5; margin: 8px 0; color: #7a8567; }
+.companion-portrait { width: 100px; height: 100px; flex: 0 0 100px; }
+.companion-portrait svg { width: 100%; height: 100%; }
+.companion-summary .stat-list { margin: 14px 0; }
+.companion-summary h4, .companion-upgrades h4 { margin: 14px 0 9px; }
+.companion-specialties { font-size: 12px; line-height: 1.6; }
+.companion-specialties p { margin: 5px 0; }
+.companion-effects { padding-left: 18px; font-size: 12px; line-height: 1.7; margin: 8px 0 14px; }
+.companion-upgrade-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.companion-upgrade-header span { font-size: 12px; color: #6c8055; }
+.ability-list { display: grid; gap: 8px; }
+.ability-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 12px; border-radius: 10px; background: #eeeedf; }
+.ability-row strong { font-size: 13px; }
+.ability-row > div > span { font-size: 11px; color: #7a8567; margin-left: 8px; }
+.ability-row p { font-size: 11px; line-height: 1.5; margin: 5px 0 0; }
+.ability-row button { flex-shrink: 0; min-width: 100px; font-size: 11px; padding: 7px 10px; }
+.ability-row button > span { display: flex; gap: 3px; justify-content: center; align-items: center; }
+.ability-row button .icon { width: 13px; height: 13px; }
+.ability-complete { border: 0; background: transparent; color: #6b7f56; }
+@media (max-width: 560px) {
+  .companion-detail { grid-template-columns: 1fr; gap: 14px; }
+  .companion-heading h3 { font-size: 17px; }
+  .companion-portrait { width: 72px; height: 72px; flex-basis: 72px; }
+}

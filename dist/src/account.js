@@ -1,5 +1,5 @@
 import { UNITS, STAGES, RARITIES, STARTER_UNIT_IDS, bannerById, bannerPool, bannerRarities, stageLabel } from "./data.js";
-import { UNIT_LEVEL_GROWTH } from "./engine.js";
+import { MARK_TYPES, DUPLICATE_MARKS, markTypeFor, unitAbilities, normalizeAbilities, abilityCost, unitCombatStats } from "./abilities.js";
 export const SAVE_KEY = "tiny-legion.save.v1";
 const ONBOARDING_PHASES = new Set([
   "intro",
@@ -54,6 +54,8 @@ export function newAccount(now = Date.now()) {
     levels: Object.fromEntries(UNITS.map((u) => [u.id, 1])),
     fragments: Object.fromEntries(UNITS.map((u) => [u.id, 0])),
     special: Object.fromEntries(UNITS.map((u) => [u.id, 0])),
+    marks: Object.fromEntries(MARK_TYPES.map((mark) => [mark.id, 0])),
+    abilities: Object.fromEntries(UNITS.map((u) => [u.id, normalizeAbilities(u.id)])),
     owned: Object.fromEntries(UNITS.map((u) => [u.id, u.id === "sheep"])),
     recruitment: {
       total: 0,
@@ -97,6 +99,15 @@ export function normalizeAccount(raw, now = Date.now()) {
     a.levels[u.id] = Math.floor(cap(raw.levels?.[u.id] ?? 1, 1, 100));
     a.fragments[u.id] = Math.floor(cap(raw.fragments?.[u.id], 0, 1e6));
     a.special[u.id] = Math.floor(cap(raw.special?.[u.id], 0, 20));
+    a.abilities[u.id] = normalizeAbilities(u.id, raw.abilities?.[u.id]);
+  }
+  for (const mark of MARK_TYPES) a.marks[mark.id] = Math.floor(cap(raw.marks?.[mark.id], 0, 1e9));
+  if (!Object.hasOwn(raw, "marks")) {
+    // Convert only unused legacy fragments once; already purchased levels stay intact.
+    for (const unit of UNITS) {
+      a.marks[markTypeFor(unit)] += a.fragments[unit.id] * DUPLICATE_MARKS[unit.rarity];
+      a.fragments[unit.id] = 0;
+    }
   }
   const sequence = Array.isArray(raw.sequence)
     ? raw.sequence.slice(0, 10).map((id) => ownsUnit(a, id) ? id : null)
@@ -306,6 +317,24 @@ export function enhanceUnit(a, id) {
   a.special[id]++;
   return true;
 }
+export function upgradeUnitAbility(a, id, abilityId) {
+  const unit = UNITS.find((u) => u.id === id);
+  const ability = unitAbilities(unit).find((item) => item.id === abilityId);
+  if (!unit || !ability || !growthUnlocked(a) || !ownsUnit(a, id) || a.highestCleared < (ability.unlock ?? 0)) return false;
+  const ranks = normalizeAbilities(id, a.abilities?.[id]);
+  const cost = abilityCost(ability, ranks[abilityId]);
+  const mark = markTypeFor(unit);
+  if (!cost || a.gold < cost.gold || (a.marks?.[mark] ?? 0) < cost.marks) return false;
+  a.gold -= cost.gold;
+  a.marks[mark] -= cost.marks;
+  a.abilities ??= {};
+  a.abilities[id] = { ...ranks, [abilityId]: ranks[abilityId] + 1 };
+  return true;
+}
+export function companionStats(a, id) {
+  const unit = UNITS.find((u) => u.id === id);
+  return unit ? unitCombatStats(unit, (a.levels[id] ?? 1) + (a.special[id] ?? 0), gemModifiers(a), a.abilities?.[id]) : null;
+}
 export function unitLevelRefund(a, id) {
   if (!ownsUnit(a, id)) return 0;
   let refunded = 0;
@@ -340,13 +369,8 @@ export function combatPower(a) {
   return Math.round(
     UNITS.reduce((total, unit) => {
       if (!ownsUnit(a, unit.id)) return total;
-      const scale = 1 + (levels[unit.id] - 1) * UNIT_LEVEL_GROWTH;
-      const hp = Math.round(unit.hp * scale * modifiers.hp);
-      const attack = Math.max(
-        1,
-        Math.round(unit.attack * scale * modifiers.attack),
-      );
-      return total + hp + (10 * attack) / unit.attackInterval;
+      const stats = unitCombatStats(unit, levels[unit.id], modifiers, a.abilities?.[unit.id]);
+      return total + stats.hp + (10 * stats.attack) / stats.attackInterval;
     }, 0),
   );
 }
@@ -555,7 +579,7 @@ export function recruitUnits(
   if (a.diamonds < cost) return null;
   // Prepare the entire batch before charging or granting. The reveal is presentation only.
   const owned = { ...a.owned },
-    fragments = { ...a.fragments };
+    marks = { ...a.marks };
   const recruitment = { ...a.recruitment };
   const results = [];
   for (let index = 0; index < count; index++) {
@@ -582,19 +606,21 @@ export function recruitUnits(
     const unit = pool[Math.floor(randomValue(random) * pool.length)];
     const isNew = !owned[unit.id];
     owned[unit.id] = true;
-    if (!isNew) fragments[unit.id] = (fragments[unit.id] ?? 0) + 1;
+    const markAttribute = markTypeFor(unit);
+    const markAmount = isNew ? 0 : DUPLICATE_MARKS[unit.rarity];
+    if (markAmount) marks[markAttribute] = (marks[markAttribute] ?? 0) + markAmount;
     recruitment.total++;
     recruitment.sinceRare =
       tier.id === "common" ? recruitment.sinceRare + 1 : 0;
     recruitment.sinceEpic = ["epic", "legendary"].includes(tier.id)
       ? 0
       : recruitment.sinceEpic + 1;
-    results.push({ unit, isNew, fragments: isNew ? 0 : 1, guaranteed });
+    results.push({ unit, isNew, fragments: 0, marks: markAmount, markAttribute, guaranteed });
   }
   if (free) recruitment.welcomeClaimed = true;
   a.diamonds -= cost;
   a.owned = owned;
-  a.fragments = fragments;
+  a.marks = marks;
   a.recruitment = recruitment;
   return results;
 }
