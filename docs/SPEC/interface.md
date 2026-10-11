@@ -13,6 +13,10 @@
 - 메뉴창은 기존 아이보리·세이지 구성을 사용합니다. 캐릭터와 산·전선 배치는 유지하며, 산 뒤 하늘은 차분한 청록색에서 연한 녹색으로 이어지는 그라데이션을 사용합니다.
 - 화면 이름은 방치·도전·속공·동료·모집·도감. 홍보 부제, 설명 카드와 메타 용어를 상시 배치하지 않습니다.
 - 수치 설명은 PC hover / 키보드 접근 가능한 도감 / 모바일 500ms 길게 누르기에 배치합니다.
+- 동료 소환 카드의 hover·길게 누르기와 도감 상세에서 속성 특화, 역할별 보너스, 특수 효과를 설명합니다. 일반 동료는 속성 보너스와 불이익이 없고, 특화 동료도 지정 속성 밖에서는 페널티가 없습니다. 방어 보너스는 표시 체력 증가가 아닌 유효 체력으로 설명합니다.
+- 적 도감 상세에는 속성, 방어막·재생 효과, 해당 속성 특화와 방어막 피해 증가·회복 억제를 제공하는 동료를 표시합니다. 방어막 오라는 범위 안 동료의 방어막 대상 피해를 높이는 효과로 설명합니다.
+- 스테이지 선택 카드의 정보 버튼을 누르면 웨이브의 적 무리 수를 기준으로 속성 비율을 계산하고, 각 적 무리의 속성·방어막·재생 효과를 초반 0–40초, 중반 40–80초, 후반 80–120초로 나누어 표시합니다. 웨이브 그룹의 속성·방어막·재생 지정은 적 기본값을 대체하며, `shield: false`·`regeneration: false`는 해당 효과를 끕니다.
+- 전장에서는 방어막이 남은 적에게 얇은 방어막 윤곽과 방어막 체력 막대를 표시합니다. 재생·둔화·재생 억제는 작은 상태 표식으로 구분합니다. 적 변형은 `artId`의 기본 그림과 애니메이션을 사용합니다.
 - 모달은 키보드 포커스를 가두고, 닫으면 이전 버튼으로 돌아갑니다. 모든 아이콘 버튼에 접근성 이름을 둡니다.
 
 ## 캐릭터
@@ -43,9 +47,9 @@
 ## 코드와 확인
 
 - `dist/index.html`, `dist/style.css`: 화면 구조, 반응형 배치, 안전 영역.
-- `dist/src/main.js`: `openBattleMenu`, `renderBattleMenu`, `openModal`, `closeModal`, `showTooltip`, 키보드/포인터 입력.
+- `dist/src/main.js`: `openBattleMenu`, `renderBattleMenu`, `openModal`, `closeModal`, `showTooltip`, `unitSpecialtyText`, `getStageComposition`, 도감·스테이지 정보, 키보드/포인터 입력.
 - `dist/src/art.js`: `figures`, `portrait`, `icon`.
-- `dist/src/renderer.js`: `Renderer`, `consumeEvents`, Canvas 전장·투사체·효과.
+- `dist/src/renderer.js`: `Renderer`, `consumeEvents`, `drawStatusMarks`, `artId` 기반 변형 그림·애니메이션, Canvas 전장·투사체·효과.
 - `dist/src/combat-visuals.js`: `battlefieldLayout`, 성과 체력 표시의 공통 좌표; `sampleUnitPose`, 전투 상태에서 공격·피격·사망 자세 계산.
 - `tests/combat-visuals.test.js`: 준비·복귀·경직과 전투 시간 기반 자세 확인. Canvas 호출 검사와 실제 화면 가독성 검증은 구분합니다.
 - 위 화면 크기는 목표이며 실제 Android/iOS 수용 검증 완료를 뜻하지 않습니다. 확인할 항목은 [TODO](../TODO.md)에 있습니다.

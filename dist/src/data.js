@@ -1,8 +1,29 @@
+// Initial tuning, subject to play acceptance. Bonuses of the same kind add.
+export const BALANCE_VERSION = "attributes-1";
+export const ATTRIBUTES = [
+  { id: "wild", name: "야생", symbol: "♧" },
+  { id: "machine", name: "기계", symbol: "⚙" },
+  { id: "spirit", name: "정령", symbol: "◇" },
+  { id: "shadow", name: "그림자", symbol: "☾" },
+];
+export const ROLE_SPECIALIZATION = {
+  warrior: { attack: 0.2, effectiveHp: 0.2 },
+  tank: { effectiveHp: 0.4 },
+  fast: { attack: 0.4 },
+  melee: { attack: 0.4 },
+  ranged: { attack: 0.4 },
+  splash: { attack: 0.4 },
+  support: { duration: 0.3 },
+};
+export const ATTRIBUTE_BONUS_CAP = 0.4;
+export const SHIELD_BONUS_CAP = 1;
+
 export const UNITS = [
   {
     id: "sheep",
     name: "양 방패",
     role: "tank",
+    specialties: ["wild"],
     hp: 360,
     attack: 24,
     range: 42,
@@ -19,6 +40,7 @@ export const UNITS = [
     id: "rabbit",
     name: "목검 토끼",
     role: "fast",
+    specialties: ["wild"],
     hp: 155,
     attack: 38,
     range: 48,
@@ -35,6 +57,7 @@ export const UNITS = [
     id: "squirrel",
     name: "씨앗 다람쥐",
     role: "ranged",
+    specialties: [],
     hp: 145,
     attack: 34,
     range: 250,
@@ -52,6 +75,7 @@ export const UNITS = [
     id: "teapot",
     name: "주전자",
     role: "splash",
+    specialties: ["machine"],
     hp: 215,
     attack: 46,
     range: 165,
@@ -70,6 +94,10 @@ export const UNITS = [
     id: "cloud",
     name: "구름",
     role: "support",
+    specialties: ["spirit", "shadow"],
+    slow: { factor: 0.75, duration: 2 },
+    suppressRegen: { factor: 0.5, duration: 3 },
+    shieldAura: { bonus: 1, range: 230 },
     hp: 235,
     attack: 23,
     range: 300,
@@ -82,7 +110,8 @@ export const UNITS = [
     projectile: { kind: "bolt", speed: 1000 },
     heal: 28,
     healRange: 230,
-    description: "멀리서 공격하며 가까운 동료를 보살펴요.",
+    description:
+      "가까운 동료를 회복하고 방어막 공격을 도와요. 번개는 적을 늦추고 재생을 억제해요.",
     color: "#c4cf9e",
   },
 ];
@@ -90,6 +119,7 @@ export const UNITS = [
 export const ENEMIES = [
   {
     id: "beetle",
+    attribute: "wild",
     name: "딱정벌레",
     role: "melee",
     hp: 190,
@@ -103,6 +133,8 @@ export const ENEMIES = [
   },
   {
     id: "mushroom",
+    attribute: "spirit",
+    regeneration: { hpRatio: 0.025, interval: 2 },
     name: "버섯 몽이",
     role: "ranged",
     hp: 155,
@@ -117,6 +149,7 @@ export const ENEMIES = [
   },
   {
     id: "boar",
+    attribute: "wild",
     name: "멧돼지",
     role: "heavy",
     hp: 420,
@@ -127,6 +160,43 @@ export const ENEMIES = [
     attackWindup: 0.38,
     attackRecovery: 0.3,
     color: "#906f62",
+  },
+  {
+    id: "clock-beetle",
+    artId: "beetle",
+    name: "태엽 딱정벌레",
+    description:
+      "얇은 방어막을 두른 기계예요. 모든 공격으로 방어막을 깎을 수 있어요.",
+    attribute: "machine",
+    role: "melee",
+    shield: { hpRatio: 0.4 },
+    hp: 230,
+    attack: 26,
+    range: 42,
+    speed: 30,
+    attackInterval: 1.5,
+    attackWindup: 0.28,
+    attackRecovery: 0.24,
+    color: "#a5aaa0",
+  },
+  {
+    id: "shadow-mushroom",
+    artId: "mushroom",
+    name: "그늘 버섯",
+    description:
+      "빠른 포자를 날리며 조금씩 재생해요. 화력을 모으거나 회복을 억제해요.",
+    attribute: "shadow",
+    role: "ranged",
+    regeneration: { hpRatio: 0.02, interval: 2 },
+    hp: 125,
+    attack: 17,
+    range: 215,
+    speed: 32,
+    attackInterval: 1.2,
+    attackWindup: 0.24,
+    attackRecovery: 0.2,
+    projectile: { kind: "spore", speed: 480 },
+    color: "#9d91a0",
   },
 ];
 
@@ -538,3 +608,24 @@ export const STAGES = [
     ],
   },
 ];
+
+// Fixed substitutions preserve each group's timing/count/position. Stage previews
+// derive their composition from these actual waves, including late reinforcements.
+for (const stage of STAGES) {
+  for (const [index, wave] of stage.waves.entries()) {
+    for (const group of wave.enemies) {
+      if (
+        group.id === "beetle" &&
+        stage.id >= 3 &&
+        (stage.id % 3 === 0 || index === stage.waves.length - 1)
+      )
+        group.id = "clock-beetle";
+      if (
+        group.id === "mushroom" &&
+        stage.id >= 4 &&
+        (stage.id % 3 === 1 || index % 2 === 0)
+      )
+        group.id = "shadow-mushroom";
+    }
+  }
+}

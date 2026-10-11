@@ -1,4 +1,5 @@
 import { ENEMIES, STAGES, UNITS } from "./data.js";
+import { resolveDamage, specializationBonus } from "./combat-rules.js";
 
 const WORLD_MIN = 0;
 const WORLD_MAX = 1200;
@@ -61,6 +62,11 @@ function makeSpawnSchedule(stage) {
         schedule.push({
           time: waveTime + interval * index,
           id: enemy.id,
+          overrides: Object.fromEntries(
+            ["attribute", "shield", "regeneration"]
+              .filter((key) => key in group)
+              .map((key) => [key, group[key]]),
+          ),
           x: clamp(
             baseX + Math.min(index * 12, 42),
             PLAYER_CASTLE_X,
@@ -90,6 +96,27 @@ function makeUnit(state, definition, team, x, level = 1) {
     uid: `${team === "player" ? "p" : "e"}${state._nextUid++}`,
     id: definition.id,
     team,
+    artId: definition.artId ?? definition.id,
+    role: definition.role,
+    attribute: definition.attribute,
+    specialties: [...(definition.specialties ?? [])],
+    attributeBonuses: definition.attributeBonuses
+      ? structuredClone(definition.attributeBonuses)
+      : undefined,
+    shield: Math.round(
+      definition.hp * multiplier * (definition.shield?.hpRatio ?? 0),
+    ),
+    maxShield: Math.round(
+      definition.hp * multiplier * (definition.shield?.hpRatio ?? 0),
+    ),
+    regeneration: definition.regeneration
+      ? { ...definition.regeneration }
+      : null,
+    regenTimer: definition.regeneration?.interval ?? 0,
+    slowRemaining: 0,
+    slowFactor: 1,
+    regenSuppressionRemaining: 0,
+    regenSuppressionFactor: 1,
     x: clamp(x, WORLD_MIN, WORLD_MAX),
     hp: Math.round(
       definition.hp *
@@ -301,7 +328,12 @@ function spawnDueEnemies(state) {
     if (activeUnitCount(state) >= MAX_ACTIVE_UNITS) continue;
     const definition = ENEMY_BY_ID.get(scheduled.id);
     if (!definition) continue;
-    const enemy = makeUnit(state, definition, "enemy", scheduled.x);
+    const enemy = makeUnit(
+      state,
+      { ...definition, ...scheduled.overrides },
+      "enemy",
+      scheduled.x,
+    );
     state.units.push(enemy);
     emit(state, {
       type: "spawn",
@@ -347,7 +379,10 @@ function moveUnits(state, dt) {
     if (delta) unit.facing = Math.sign(delta);
     const remaining = Math.abs(delta) - unit.range;
     if (remaining <= 0) continue;
-    const movement = Math.min(remaining, unit.speed * dt);
+    const movement = Math.min(
+      remaining,
+      unit.speed * (unit.slowRemaining > 0 ? unit.slowFactor : 1) * dt,
+    );
     unit.x = clamp(unit.x + Math.sign(delta) * movement, WORLD_MIN, WORLD_MAX);
     unit.moving = movement > 0;
   }
@@ -362,12 +397,13 @@ function damageBatch() {
   };
 }
 
-function addDamage(batch, target, amount, direction, kind) {
+function addDamage(batch, target, amount, direction, kind, source = {}) {
   const previous = batch.damage.get(target.uid);
   batch.damage.set(target.uid, {
     amount: (previous?.amount ?? 0) + amount,
     direction,
     kind,
+    hits: [...(previous?.hits ?? []), { amount, source }],
   });
 }
 
@@ -404,6 +440,7 @@ function impact(state, shot, units, batch) {
       damage,
       Math.sign(candidate.x - shot.startX) || (team === "player" ? 1 : -1),
       kind,
+      shot.source,
     );
     hit = true;
   }
@@ -462,6 +499,18 @@ function chooseSupportTarget(unit, units, definition) {
 function resolveAttacks(state, dt) {
   const units = activeUnits(state);
   const batch = damageBatch();
+  for (const unit of units) {
+    if (!unit.regeneration) continue;
+    unit.regenTimer = (unit.regenTimer ?? unit.regeneration.interval) - dt;
+    if (unit.regenTimer <= 1e-9) {
+      unit.regenTimer += Math.max(FIXED_STEP, unit.regeneration.interval);
+      const amount =
+        unit.maxHp *
+        unit.regeneration.hpRatio *
+        (unit.regenSuppressionRemaining > 0 ? unit.regenSuppressionFactor : 1);
+      batch.healing.set(unit.uid, amount);
+    }
+  }
   // Existing shots land in this step; newly released shots start at time zero.
   advanceProjectiles(state, dt, units, batch);
 
@@ -513,6 +562,29 @@ function resolveAttacks(state, dt) {
       targetX: target.x,
       target,
       damage: unit.attack,
+      // Capture combat effects at release: projectiles survive their source.
+      source: {
+        team: unit.team,
+        role: unit.role,
+        attribute: unit.attribute,
+        specialties: [...(unit.specialties ?? [])],
+        attributeBonuses: unit.attributeBonuses,
+        slow: definition.slow,
+        suppressRegen: definition.suppressRegen,
+        shieldDamageBonus:
+          (definition.shieldDamageBonus ?? 0) +
+          Math.max(
+            0,
+            ...units
+              .filter((ally) => ally.team === unit.team && !ally.dead)
+              .map((ally) => {
+                const aura = UNIT_BY_ID.get(ally.id)?.shieldAura;
+                return aura && Math.abs(ally.x - unit.x) <= aura.range
+                  ? aura.bonus
+                  : 0;
+              }),
+          ),
+      },
       splashRadius: definition.splashRadius ?? 0,
       kind,
     };
@@ -564,14 +636,43 @@ function applyDamage(state, units, batch) {
   // Aggregate the whole tick so both sides' committed hits resolve together.
   for (const unit of units) {
     const hit = batch.damage.get(unit.uid);
-    const damage = hit?.amount ?? 0;
+    let damage = 0;
+    let shieldDamage = 0;
+    for (const entry of hit?.hits ?? []) {
+      const resolved = resolveDamage(unit, entry.amount, entry.source);
+      unit.shield = Math.max(0, (unit.shield ?? 0) - resolved.shieldDamage);
+      shieldDamage += resolved.shieldDamage;
+      damage += resolved.hpDamage;
+      const durationMultiplier =
+        1 + specializationBonus(entry.source, unit, "duration");
+      if (entry.source.slow) {
+        unit.slowFactor = Math.min(
+          unit.slowRemaining > 0 ? unit.slowFactor : 1,
+          entry.source.slow.factor,
+        );
+        unit.slowRemaining = Math.max(
+          unit.slowRemaining ?? 0,
+          entry.source.slow.duration * durationMultiplier,
+        );
+      }
+      if (entry.source.suppressRegen) {
+        unit.regenSuppressionFactor = Math.min(
+          unit.regenSuppressionRemaining > 0 ? unit.regenSuppressionFactor : 1,
+          entry.source.suppressRegen.factor,
+        );
+        unit.regenSuppressionRemaining = Math.max(
+          unit.regenSuppressionRemaining ?? 0,
+          entry.source.suppressRegen.duration * durationMultiplier,
+        );
+      }
+    }
     const healing = batch.healing.get(unit.uid) ?? 0;
-    if (!damage && !healing) continue;
+    if (!damage && !shieldDamage && !healing) continue;
     unit.hp = clamp(unit.hp - damage + healing, 0, unit.maxHp);
-    if (damage > 0) {
+    if (damage > 0 || shieldDamage > 0) {
       unit.hitFlash = 0.18;
       unit.hitDirection = hit.direction;
-      if (unit.hp > 0 && (unit.stunCooldown ?? 0) <= 1e-9) {
+      if (damage > 0 && unit.hp > 0 && (unit.stunCooldown ?? 0) <= 1e-9) {
         unit.hitStunDuration = damage >= unit.maxHp * 0.2 ? 0.24 : HIT_STUN;
         unit.hitStun = unit.hitStunDuration;
         unit.stunCooldown = STUN_COOLDOWN;
@@ -584,7 +685,7 @@ function applyDamage(state, units, batch) {
         team: unit.team,
         id: unit.id,
         kind: hit.kind,
-        amount: damage,
+        amount: damage + shieldDamage,
       });
     }
     if (unit.hp <= 0) {
@@ -632,7 +733,8 @@ export function fireCannon(state) {
   if (!state || state.finished || state.mode === "idle") return false;
   const enemies = activeUnits(state).filter((unit) => unit.team === "enemy");
   const batch = damageBatch();
-  for (const enemy of enemies) addDamage(batch, enemy, 110, 1, "cannon");
+  for (const enemy of enemies)
+    addDamage(batch, enemy, 110, 1, "cannon", { team: "player" });
   applyDamage(state, enemies, batch);
   for (const enemy of enemies) enemy.x = Math.min(1110, enemy.x + 75);
   return true;
@@ -647,6 +749,11 @@ function advanceTimers(state, dt) {
       unit.deathTimer = Math.max(0, (unit.deathTimer ?? 0) - dt);
       continue;
     }
+    unit.slowRemaining = Math.max(0, (unit.slowRemaining ?? 0) - dt);
+    unit.regenSuppressionRemaining = Math.max(
+      0,
+      (unit.regenSuppressionRemaining ?? 0) - dt,
+    );
     unit.attackTimer = Math.max(0, unit.attackTimer - dt);
     unit.hitFlash = Math.max(0, (unit.hitFlash ?? 0) - dt);
     unit.attackFlash = Math.max(0, (unit.attackFlash ?? 0) - dt);

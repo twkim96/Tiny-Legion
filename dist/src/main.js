@@ -1,4 +1,11 @@
-import { UNITS, ENEMIES, STAGES } from "./data.js";
+import {
+  UNITS,
+  ENEMIES,
+  STAGES,
+  ATTRIBUTES,
+  ROLE_SPECIALIZATION,
+  BALANCE_VERSION,
+} from "./data.js";
 import { createBattle, fireCannon, stepBattle, summonUnit } from "./engine.js";
 import { icon, portrait } from "./art.js";
 import { Renderer } from "./renderer.js";
@@ -49,6 +56,155 @@ const roles = {
   melee: "근접",
   heavy: "돌파",
 };
+const attributeById = Object.fromEntries(
+  (ATTRIBUTES ?? []).map((attribute) => [attribute.id, attribute]),
+);
+const percent = (value) => `${Math.round(value * 100)}%`;
+function attributeName(id) {
+  const attribute = attributeById[id];
+  return attribute ? `${attribute.symbol} ${attribute.name}` : "미분류";
+}
+function unitSpecialtyText(unit) {
+  const specialties = Array.isArray(unit.specialties) ? unit.specialties : [];
+  if (!specialties.length) return "범용 · 모든 속성에 동일한 기본 성능";
+  const bonuses = ROLE_SPECIALIZATION?.[unit.role] ?? {};
+  const effects = [];
+  if (Number.isFinite(bonuses.attack))
+    effects.push(`공격력 +${percent(bonuses.attack)}`);
+  if (Number.isFinite(bonuses.effectiveHp))
+    effects.push(
+      `유효 체력 +${percent(bonuses.effectiveHp)} (표시 체력은 그대로)`,
+    );
+  if (Number.isFinite(bonuses.duration))
+    effects.push(`방해 지속시간 +${percent(bonuses.duration)}`);
+  const attributes = specialties.map(attributeName).join(" · ");
+  return `${attributes} 특화${effects.length ? ` · ${effects.join(" · ")}` : ""} · 다른 속성 페널티 없음`;
+}
+function unitAbilityLines(unit) {
+  const lines = [];
+  if (Number.isFinite(unit.shieldDamageBonus) && unit.shieldDamageBonus > 0)
+    lines.push(
+      `방어막 추가 피해 +${percent(unit.shieldDamageBonus)} (방어막에만 적용)`,
+    );
+  if (unit.slow && typeof unit.slow === "object")
+    lines.push(`둔화 · ${unit.slow.factor}배 · ${unit.slow.duration}초`);
+  if (unit.suppressRegen && typeof unit.suppressRegen === "object")
+    lines.push(
+      `회복 억제 · ${unit.suppressRegen.factor}배 · ${unit.suppressRegen.duration}초`,
+    );
+  if (unit.shieldAura && typeof unit.shieldAura === "object")
+    lines.push(
+      `방어막 오라 · 방어막 피해 +${percent(unit.shieldAura.bonus)} (방어막에만 적용) · 범위 ${unit.shieldAura.range}`,
+    );
+  return lines;
+}
+function enemyGimmicks(enemy, group = {}) {
+  const shield =
+    group.shield === false ? null : (group.shield ?? enemy?.shield);
+  const regeneration =
+    group.regeneration === false
+      ? null
+      : (group.regeneration ?? enemy?.regeneration);
+  const lines = [];
+  if (shield && Number.isFinite(shield.hpRatio))
+    lines.push(`방어막 · 최대 체력의 ${percent(shield.hpRatio)}`);
+  if (
+    regeneration &&
+    Number.isFinite(regeneration.hpRatio) &&
+    Number.isFinite(regeneration.interval)
+  )
+    lines.push(
+      `재생 ${percent(regeneration.hpRatio)} / ${regeneration.interval}초`,
+    );
+  return { shield, regeneration, lines };
+}
+function getStageComposition(stage) {
+  const totals = new Map(
+    (ATTRIBUTES ?? []).map((attribute) => [attribute.id, 0]),
+  );
+  let unclassified = 0;
+  let totalCount = 0;
+  for (const wave of stage.waves ?? []) {
+    for (const group of wave.enemies ?? []) {
+      const enemy = ENEMIES.find((item) => item.id === group.id);
+      const count = Number.isFinite(group.count) ? Math.max(0, group.count) : 1;
+      if (!count) continue;
+      const attributeId = group.attribute ?? enemy?.attribute;
+      if (attributeById[attributeId])
+        totals.set(attributeId, (totals.get(attributeId) ?? 0) + count);
+      else unclassified += count;
+      totalCount += count;
+    }
+  }
+  return {
+    totalCount,
+    attributes: (ATTRIBUTES ?? []).map((attribute) => ({
+      ...attribute,
+      count: totals.get(attribute.id) ?? 0,
+    })),
+    unclassified,
+  };
+}
+function stageIntelMarkup(stage) {
+  const composition = getStageComposition(stage);
+  const attributeSummary = composition.attributes
+    .map(({ id, name, symbol, count }) => {
+      const share = composition.totalCount
+        ? ` ${((count / composition.totalCount) * 100).toLocaleString("ko-KR", { maximumFractionDigits: 1 })}%`
+        : "";
+      return `${symbol} ${name}${share}`;
+    })
+    .concat(
+      composition.unclassified
+        ? [
+            `미분류 ${((composition.unclassified / composition.totalCount) * 100).toLocaleString("ko-KR", { maximumFractionDigits: 1 })}%`,
+          ]
+        : [],
+    )
+    .join("　·　");
+  const phases = [
+    { label: "초반 · 0–40초" },
+    { label: "중반 · 40–80초" },
+    { label: "후반 · 80–120초" },
+  ];
+  const phaseGroups = phases.map(() => []);
+  for (const wave of stage.waves ?? []) {
+    const time = Number.isFinite(wave.time) ? wave.time : 0;
+    const phaseIndex = time < 40 ? 0 : time < 80 ? 1 : 2;
+    phaseGroups[phaseIndex].push(...(wave.enemies ?? []));
+  }
+  const phaseMarkup = phaseGroups
+    .map((phase, phaseIndex) => {
+      const summary = new Map();
+      for (const group of phase) {
+        const enemy = ENEMIES.find((item) => item.id === group.id);
+        if (!enemy) continue;
+        const count = Number.isFinite(group.count)
+          ? Math.max(0, group.count)
+          : 1;
+        const attribute = group.attribute ?? enemy.attribute;
+        const gimmicks = enemyGimmicks(enemy, group).lines;
+        const key = `${enemy.id}|${attribute}|${gimmicks.join("|")}`;
+        const current = summary.get(key) ?? {
+          name: enemy.name,
+          attribute,
+          count: 0,
+          gimmicks,
+        };
+        current.count += count;
+        summary.set(key, current);
+      }
+      const details = [...summary.values()]
+        .map(
+          ({ name, attribute, count, gimmicks }) =>
+            `${name} · ${attributeName(attribute)} ×${count}${gimmicks.length ? ` (${gimmicks.join(" · ")})` : ""}`,
+        )
+        .join("　·　");
+      return `<p class="settings-note"><strong>${phases[phaseIndex].label}</strong><br>${details || "적 없음"}</p>`;
+    })
+    .join("");
+  return `<h3 class="collection-heading">${stage.name} · 적 구성</h3><p class="settings-note"><strong>속성 비율</strong><br>${attributeSummary || "확인할 적 데이터가 없습니다."}<br><small>적 무리의 수를 기준으로 계산</small></p>${phaseMarkup}`;
+}
 let { account, error: loadError } = loadAccount();
 let sequenceDraft = null;
 const earned = accrue(account);
@@ -120,10 +276,17 @@ function chirp(type = "tap") {
 }
 function createHand() {
   const hand = account.sequence
-    .map(
-      (id, index) =>
-        `<button class="unit-card" data-unit="${id}" data-index="${index}" aria-label="${unitById[id].name} 소환" data-tip="${unitById[id].name} · ${unitById[id].description}"><span class="unit-card-number">${index + 1}</span>${portrait(id)}<span class="unit-card-text"><span class="unit-card-name">${names[id]}</span><span class="unit-cost">${icon("coin")}${unitById[id].cost}</span></span><span class="unit-cooldown" hidden></span><span class="unit-cooldown-text"></span></button>`,
-    )
+    .map((id, index) => {
+      const unit = unitById[id];
+      const tip = [
+        unit.description,
+        unitSpecialtyText(unit),
+        ...unitAbilityLines(unit),
+      ]
+        .filter(Boolean)
+        .join(" · ");
+      return `<button class="unit-card" data-unit="${id}" data-index="${index}" aria-label="${unit.name} 소환" data-tip="${unit.name} · ${tip}"><span class="unit-card-number">${index + 1}</span>${portrait(id)}<span class="unit-card-text"><span class="unit-card-name">${names[id]}</span><span class="unit-cost">${icon("coin")}${unit.cost}</span></span><span class="unit-cooldown" hidden></span><span class="unit-cooldown-text"></span></button>`;
+    })
     .join("");
   $("unit-hand").innerHTML = hand;
   $("unit-hand")
@@ -141,6 +304,7 @@ function startBattle() {
   });
   battleSnapshot = {
     stageId,
+    balanceVersion: BALANCE_VERSION,
     levels: { ...levels },
     sequence: [...account.sequence],
     gem: account.equippedGem,
@@ -439,7 +603,7 @@ function closeModal() {
 function renderStages() {
   const unlocked = Math.min(10, account.highestCleared + 1);
   $("modal-content").innerHTML =
-    `<div class="stage-grid">${STAGES.map((s) => `<button class="stage-tile ${s.id === stageId ? "selected" : ""}" data-stage="${s.id}" ${s.id > unlocked ? "disabled" : ""}><strong>1-${s.id}</strong><span class="stage-tile-name">${s.name}</span>${icon(s.id > unlocked ? "lock" : s.id <= account.highestCleared ? "check" : "flag")}${account.records[s.id] ? `<span class="stage-rate">${icon("coin")}${fmt(account.records[s.id].gold * 30)} / 시간</span>` : ""}</button>`).join("")}</div>`;
+    `<div class="stage-grid">${STAGES.map((s) => `<div style="position:relative"><button class="stage-tile ${s.id === stageId ? "selected" : ""}" data-stage="${s.id}" ${s.id > unlocked ? "disabled" : ""} style="width:100%"><strong>1-${s.id}</strong><span class="stage-tile-name">${s.name}</span>${icon(s.id > unlocked ? "lock" : s.id <= account.highestCleared ? "check" : "flag")}${account.records[s.id] ? `<span class="stage-rate">${icon("coin")}${fmt(account.records[s.id].gold * 30)} / 시간</span>` : ""}</button><button class="stage-info-button" data-stage-info="${s.id}" aria-label="${s.name} 전장 정보" title="${s.name} 전장 정보" style="position:absolute;left:5px;bottom:5px;padding:2px 4px;border:0;background:transparent;color:#7b9463;line-height:0">${icon("book")}</button></div>`).join("")}</div>`;
   $("modal-content")
     .querySelectorAll("[data-stage]")
     .forEach(
@@ -453,6 +617,20 @@ function renderStages() {
             startBattle();
           } else readyBattle();
           closeModal();
+        }),
+    );
+  $("modal-content")
+    .querySelectorAll("[data-stage-info]")
+    .forEach(
+      (button) =>
+        (button.onclick = () => {
+          const stage = STAGES.find(
+            (item) => item.id === Number(button.dataset.stageInfo),
+          );
+          if (!stage) return;
+          $("modal-content").innerHTML =
+            `${stageIntelMarkup(stage)}<div class="modal-footer"><button class="secondary-button" id="stage-intel-back">스테이지 목록</button></div>`;
+          $("stage-intel-back").onclick = renderStages;
         }),
     );
 }
@@ -566,7 +744,7 @@ function openCodex(id = null, enemy = false) {
   }
   openModal("도감", "codex", () => {
     $("modal-content").innerHTML =
-      `<h3 class="collection-heading">동료</h3><div class="collection-grid">${UNITS.map((u) => `<button class="collection-card" data-codex="${u.id}">${portrait(u.id)}<strong>${u.name}</strong><span>${roles[u.role]}</span></button>`).join("")}</div><h3 class="collection-heading">적</h3><div class="collection-grid">${ENEMIES.map((u) => `<button class="collection-card" data-codex="${u.id}" data-enemy="true">${portrait(u.id)}<strong>${u.name}</strong><span>${roles[u.role]}</span></button>`).join("")}</div>`;
+      `<h3 class="collection-heading">동료</h3><div class="collection-grid">${UNITS.map((u) => `<button class="collection-card" data-codex="${u.id}">${portrait(u.artId ?? u.id)}<strong>${u.name}</strong><span>${roles[u.role]}</span></button>`).join("")}</div><h3 class="collection-heading">적</h3><div class="collection-grid">${ENEMIES.map((u) => `<button class="collection-card" data-codex="${u.id}" data-enemy="true">${portrait(u.artId ?? u.id)}<strong>${u.name}</strong><span>${roles[u.role]}</span></button>`).join("")}</div>`;
     $("modal-content")
       .querySelectorAll("[data-codex]")
       .forEach(
@@ -576,12 +754,87 @@ function openCodex(id = null, enemy = false) {
       );
   });
 }
+function enemyCounterText(enemy) {
+  const counters = [];
+  if (enemy.attribute) {
+    const specialists = UNITS.filter(
+      (unit) =>
+        Array.isArray(unit.specialties) &&
+        unit.specialties.includes(enemy.attribute),
+    );
+    const attackers = specialists
+      .filter((unit) =>
+        Number.isFinite(ROLE_SPECIALIZATION?.[unit.role]?.attack),
+      )
+      .map(
+        (unit) =>
+          `${unit.name} +${percent(ROLE_SPECIALIZATION[unit.role].attack)} 공격`,
+      );
+    const defenders = specialists
+      .filter((unit) =>
+        Number.isFinite(ROLE_SPECIALIZATION?.[unit.role]?.effectiveHp),
+      )
+      .map(
+        (unit) =>
+          `${unit.name} +${percent(ROLE_SPECIALIZATION[unit.role].effectiveHp)} 유효 체력`,
+      );
+    const supporters = specialists
+      .filter((unit) =>
+        Number.isFinite(ROLE_SPECIALIZATION?.[unit.role]?.duration),
+      )
+      .map(
+        (unit) =>
+          `${unit.name} +${percent(ROLE_SPECIALIZATION[unit.role].duration)} 지속시간`,
+      );
+    counters.push(
+      `속성 대응 · ${[...attackers, ...defenders, ...supporters].join(" · ") || "속성 특화 동료 없음"}`,
+    );
+  }
+  if (enemy.shield && enemy.shield !== false) {
+    const shieldUnits = UNITS.flatMap((unit) => {
+      const options = [];
+      if (Number.isFinite(unit.shieldDamageBonus) && unit.shieldDamageBonus > 0)
+        options.push(
+          `${unit.name} +${percent(unit.shieldDamageBonus)} 방어막 피해`,
+        );
+      if (
+        unit.shieldAura &&
+        Number.isFinite(unit.shieldAura.bonus) &&
+        unit.shieldAura.bonus > 0
+      )
+        options.push(
+          `${unit.name} 방어막 피해 오라 +${percent(unit.shieldAura.bonus)} (범위 ${unit.shieldAura.range})`,
+        );
+      return options;
+    });
+    counters.push(
+      `방어막 대응 · ${shieldUnits.length ? shieldUnits.join(" · ") : "방어막 피해 증가 동료 없음"}`,
+    );
+  }
+  if (enemy.regeneration && enemy.regeneration !== false) {
+    const suppressionUnits = UNITS.filter(
+      (unit) => unit.suppressRegen && typeof unit.suppressRegen === "object",
+    );
+    counters.push(
+      `회복 대응 · ${suppressionUnits.length ? suppressionUnits.map((unit) => unit.name).join(" · ") : "회복 억제 동료 없음"}`,
+    );
+  }
+  return counters;
+}
 function renderCodexDetail(id, enemy) {
   const u = (enemy ? ENEMIES : UNITS).find((u) => u.id === id),
     level = enemy ? 1 : account.levels[id] + account.special[id],
-    scale = 1 + (level - 1) * 0.12;
+    scale = 1 + (level - 1) * 0.12,
+    gimmicks = enemyGimmicks(u),
+    detailLines = enemy
+      ? [
+          u.attribute ? `속성 · ${attributeName(u.attribute)}` : "",
+          ...gimmicks.lines,
+          ...enemyCounterText(u),
+        ].filter(Boolean)
+      : [unitSpecialtyText(u), ...unitAbilityLines(u)];
   $("modal-content").innerHTML =
-    `<div class="codex-layout"><div class="codex-art">${portrait(id)}</div><div class="codex-info"><h3>${u.name}</h3><span class="role-label">${roles[u.role]}</span><p>${u.description || { beetle: "단단한 껍질을 앞세워 천천히 다가옵니다.", mushroom: "뒤에서 포자를 날립니다. 가까이 붙으면 상대하기 쉽습니다.", boar: "높은 체력과 강한 공격으로 전선을 밀어냅니다." }[id]}</p><div class="stat-list">${[
+    `<div class="codex-layout"><div class="codex-art">${portrait(u.artId ?? id)}</div><div class="codex-info"><h3>${u.name}</h3><span class="role-label">${roles[u.role]}</span><p>${u.description || { beetle: "단단한 껍질을 앞세워 천천히 다가옵니다.", mushroom: "뒤에서 포자를 날립니다. 가까이 붙으면 상대하기 쉽습니다.", boar: "높은 체력과 강한 공격으로 전선을 밀어냅니다." }[id] || "전투 특성을 살펴보세요."}</p>${detailLines.length ? `<p class="settings-note"><strong>${enemy ? "속성과 대응" : "속성 특성"}</strong><br>${detailLines.join("<br>")}</p>` : ""}<div class="stat-list">${[
       ["체력", Math.round(u.hp * scale)],
       ["공격력", Math.round(u.attack * scale)],
       ["사거리", u.range],
@@ -600,7 +853,7 @@ function renderCodexDetail(id, enemy) {
       )
       .join(
         "",
-      )}</div></div></div><div class="codex-picker">${(enemy ? ENEMIES : UNITS).map((u) => `<button class="${u.id === id ? "selected" : ""}" data-detail="${u.id}" aria-label="${u.name}">${portrait(u.id)}</button>`).join("")}<button id="codex-back" aria-label="도감 목록">${icon("book")}</button></div>`;
+      )}</div></div></div><div class="codex-picker">${(enemy ? ENEMIES : UNITS).map((u) => `<button class="${u.id === id ? "selected" : ""}" data-detail="${u.id}" aria-label="${u.name}">${portrait(u.artId ?? u.id)}</button>`).join("")}<button id="codex-back" aria-label="도감 목록">${icon("book")}</button></div>`;
   $("modal-content")
     .querySelectorAll("[data-detail]")
     .forEach(

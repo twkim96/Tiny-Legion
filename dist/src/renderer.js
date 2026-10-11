@@ -613,6 +613,80 @@ export class Renderer {
     }
     c.restore();
   }
+  drawStatusMarks(c, unit, x, y, size) {
+    const marks = [];
+    if (!unit.dead && unit.regeneration)
+      marks.push({ kind: "regen", color: "#8da574" });
+    if (unit.slowRemaining > 0) marks.push({ kind: "slow", color: "#78a9b7" });
+    if (unit.regenSuppressionRemaining > 0)
+      marks.push({ kind: "suppressed", color: "#bb8b81" });
+    if (!marks.length) return;
+    const radius = Math.max(3, size * 0.095);
+    const startX = x + size * 0.34;
+    const markY = y - size * 0.78;
+    marks.forEach((mark, index) => {
+      const markX = startX + index * radius * 2.2;
+      oval(c, markX, markY, radius, radius, "#f8f6e8", mark.color, 1.2);
+      if (mark.kind === "regen") {
+        line(
+          c,
+          markX - radius * 0.45,
+          markY,
+          markX + radius * 0.45,
+          markY,
+          mark.color,
+          1.1,
+        );
+        line(
+          c,
+          markX,
+          markY - radius * 0.45,
+          markX,
+          markY + radius * 0.45,
+          mark.color,
+          1.1,
+        );
+      } else if (mark.kind === "slow") {
+        line(
+          c,
+          markX,
+          markY - radius * 0.5,
+          markX,
+          markY + radius * 0.35,
+          mark.color,
+          1.1,
+        );
+        line(
+          c,
+          markX - radius * 0.35,
+          markY + radius * 0.05,
+          markX,
+          markY + radius * 0.42,
+          mark.color,
+          1.1,
+        );
+        line(
+          c,
+          markX + radius * 0.35,
+          markY + radius * 0.05,
+          markX,
+          markY + radius * 0.42,
+          mark.color,
+          1.1,
+        );
+      } else {
+        line(
+          c,
+          markX - radius * 0.48,
+          markY + radius * 0.4,
+          markX + radius * 0.48,
+          markY - radius * 0.4,
+          mark.color,
+          1.3,
+        );
+      }
+    });
+  }
   drawProjectile(c, projectile, ground, baseSize, w, h) {
     const duration = Number.isFinite(projectile.duration)
       ? projectile.duration
@@ -928,20 +1002,22 @@ export class Renderer {
       .sort((a, b) => a.x - b.x);
     const baseSize = Math.min(82, h * 0.29, w * 0.078);
     for (const u of units) {
-      const sprite = SPRITES[u.id];
+      const artId = u.artId ?? u.id;
+      const sprite = SPRITES[artId] ?? SPRITES[u.id];
       if (!sprite?.complete || !sprite.naturalWidth) continue;
+      const visualUnit = artId === u.id ? u : { ...u, id: artId };
       const uid =
         Number.parseInt(String(u.uid ?? "").replace(/^\D+/, ""), 10) || 0;
       const size =
         baseSize *
-        (u.id === "boar"
+        (artId === "boar"
           ? 1.2
-          : u.id === "sheep"
+          : artId === "sheep"
             ? 1.08
-            : u.id === "beetle"
+            : artId === "beetle"
               ? 0.85
               : 1);
-      const pose = sampleUnitPose(u, simulationTime);
+      const pose = sampleUnitPose(visualUnit, simulationTime);
       const facing =
         u.facing === -1 || u.facing === 1
           ? u.facing
@@ -962,9 +1038,53 @@ export class Renderer {
       c.globalAlpha = pose.alpha * (u.hitFlash > 0 ? 0.58 : 1);
       c.drawImage(sprite, -size / 2, -size, size, size * 0.9375);
       if (u.action?.phase === "windup" && pose.phase === "windup")
-        this.drawWindupAccent(c, u, size);
+        this.drawWindupAccent(c, visualUnit, size);
       c.restore();
-      if (!u.dead && u.hp < u.maxHp) {
+      const hasShield = Number.isFinite(u.maxShield) && u.maxShield > 0;
+      if (!u.dead && hasShield && u.shield > 0) {
+        c.save();
+        c.globalAlpha = 0.78 * pose.alpha;
+        path(
+          c,
+          [
+            ["moveTo", x, y - size * 0.98],
+            [
+              "quadraticCurveTo",
+              x + size * 0.46,
+              y - size * 0.88,
+              x + size * 0.43,
+              y - size * 0.43,
+            ],
+            [
+              "quadraticCurveTo",
+              x + size * 0.34,
+              y - size * 0.08,
+              x,
+              y + size * 0.02,
+            ],
+            [
+              "quadraticCurveTo",
+              x - size * 0.34,
+              y - size * 0.08,
+              x - size * 0.43,
+              y - size * 0.43,
+            ],
+            [
+              "quadraticCurveTo",
+              x - size * 0.46,
+              y - size * 0.88,
+              x,
+              y - size * 0.98,
+            ],
+            ["closePath"],
+          ],
+          null,
+          "#7eafa4",
+          Math.max(1.1, size * 0.022),
+        );
+        c.restore();
+      }
+      if (!u.dead && (u.hp < u.maxHp || hasShield)) {
         round(
           c,
           x - size * 0.22,
@@ -983,7 +1103,23 @@ export class Renderer {
           2,
           u.team === "player" ? "#8da574" : "#bf9672",
         );
+        if (hasShield) {
+          const shieldY = y - size - 8;
+          round(c, x - size * 0.22, shieldY, size * 0.44, 2, 1, "#5b624524");
+          round(
+            c,
+            x - size * 0.22,
+            shieldY,
+            size *
+              0.44 *
+              Math.max(0, Math.min(1, (u.shield ?? 0) / u.maxShield)),
+            2,
+            1,
+            "#7eafa4",
+          );
+        }
       }
+      if (!u.dead) this.drawStatusMarks(c, u, x, y, size);
     }
     const projectiles = Array.isArray(battle.projectiles)
       ? battle.projectiles
