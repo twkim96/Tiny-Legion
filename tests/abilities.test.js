@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { UNITS } from '../dist/src/data.js';
-import { newAccount, normalizeAccount, upgradeUnitAbility, recruitUnits, refundUnitLevels, companionStats, recordIdle } from '../dist/src/account.js';
+import { newAccount, normalizeAccount, upgradeUnitAbility, recruitUnits, refundUnitLevels, companionStats, recordIdle, levelCost } from '../dist/src/account.js';
 import { applyUnitAbilities, unitAbilities, abilityCost, markTypeFor, DUPLICATE_MARKS } from '../dist/src/abilities.js';
 import { createBattle, summonUnit, stepBattle } from '../dist/src/engine.js';
 import { specializationBonus } from '../dist/src/combat-rules.js';
@@ -103,7 +103,7 @@ test('old fragments migrate exactly once, preserve purchased levels and records,
   assert.equal(clean.abilities.sheep.evil,undefined);
 });
 test('unit abilities stay in battle and production snapshots and survive an individual level refund',()=>{
-  const a=account();a.levels.squirrel=4;
+  const a=account();a.levels.squirrel=4;a.levelSpent.squirrel=levelCost(1)+levelCost(2)+levelCost(3);
   const state=createBattle({mode:'challenge',stageId:1,sequence:[],levels:{squirrel:4},abilities:a.abilities});
   state.gold=1000;assert.equal(summonUnit(state,'squirrel'),true);
   const oldAttack=state.units[0].attack;

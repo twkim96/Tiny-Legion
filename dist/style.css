@@ -3304,7 +3304,7 @@ html:fullscreen .game {
 .menu-pause .menu-medallion {
   color: #78816b;
 }
-.game[data-manual-combat="true"] .game-menus > :not(#menu):not(#speed):not(#pause),
+.game[data-manual-combat="true"] .game-menus > :not(#menu):not(#speed):not(#pause):not(#leave-battle):not(#edit-sequence),
 .game[data-manual-combat="true"] #profile-button,
 .game[data-manual-combat="true"] #income,
 .game[data-manual-combat="true"] .stage-button .chevron {
@@ -3545,3 +3545,19 @@ html:fullscreen .game {
 .gem-banner .gem-draw-actions { flex-wrap: wrap; gap: 8px; }
 .gem-equipment-slot .gem-art, .gem-banner-types .gem-art { padding: 0; background: transparent; border-radius: 0; }
 .gem-detail-heading .gem-art { box-sizing: border-box; padding: 12px; }
+
+.level-basis { margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid #d8dccb; }
+.level-basis-heading { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.level-basis-heading span { color: #668052; font-weight: 700; }
+.level-basis-roster { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: 8px; }
+.level-basis-roster button, .level-basis-empty { min-width: 0; padding: 8px 4px; background: #f2f3e8; border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; }
+.level-basis-roster svg { width: 48px; height: 48px; }
+.level-basis-roster strong { font-size: 11px; }
+.level-basis-roster span { font-size: 12px; color: #6f7e60; }
+.level-basis .settings-note { margin: 9px 0 0; }
+@media (max-height:560px) and (orientation:landscape) {
+  .level-basis-roster svg { width: 36px; height: 36px; }
+  .level-basis-roster { gap: 5px; }
+  .level-basis-roster strong { font-size: 10px; }
+  .level-basis { margin-bottom: 12px; padding-bottom: 10px; }
+}

@@ -178,12 +178,12 @@ function setFinished(state, won) {
 
 export function calculateIdleReward(stageId, survival, hpRatio) {
   const stage = STAGE_BY_ID.get(Number(stageId)) ?? STAGES[0];
-  const normalizedSurvival = clamp(finiteNumber(survival, 0), 0, 120);
+  const normalizedSurvival = clamp(finiteNumber(survival, 0), 0, 90);
   const normalizedHp = clamp(finiteNumber(hpRatio, 0), 0, 1);
-  const completionFactor = normalizedSurvival >= 120 ? 1 : 0.8;
+  const completionFactor = normalizedSurvival >= 90 ? 1 : 0.8;
   const reward =
     stage.baseReward *
-    (normalizedSurvival / 120) ** 2 *
+    (normalizedSurvival / 90) ** 2 *
     (0.6 + 0.4 * normalizedHp) *
     completionFactor;
   return Math.round(reward);
@@ -196,7 +196,7 @@ export function createBattle(options = {}) {
     levels = {},
     abilities = {},
     sequence = DEFAULT_SEQUENCE,
-    duration = 120,
+    duration,
     modifiers = {},
     ownedUnits = null,
     onboardingPhase = null,
@@ -211,7 +211,12 @@ export function createBattle(options = {}) {
       ? earlyGuideEncounter(earlyGuidePhase, battleMode)
       : null);
   const stage = encounter ?? STAGE_BY_ID.get(Number(stageId)) ?? STAGES[0];
-  const durationSeconds = Math.max(0, finiteNumber(encounter?.duration ?? duration, 120));
+  const modeDuration = battleMode === "speedrun" ? 120 : 90;
+  const durationSeconds = clamp(
+    finiteNumber(encounter?.duration ?? duration ?? modeDuration, modeDuration),
+    0,
+    battleMode === "speedrun" ? Infinity : 90,
+  );
   const stageEnemyHp = Math.max(1, finiteNumber(stage.enemyHp, 2000));
   const enemyMaxHp =
     battleMode === "speedrun" ? Math.round(stageEnemyHp * 0.65) : stageEnemyHp;
@@ -239,7 +244,11 @@ export function createBattle(options = {}) {
     events: [],
     _enemyAttackMultiplier: Math.max(0, finiteNumber(stage.enemyAttack, 1)),
     _baseReward: stage.baseReward,
-    _spawnSchedule: makeSpawnSchedule(stage),
+    _spawnSchedule: makeSpawnSchedule(
+      battleMode === "speedrun" && stage.speedrunWaves
+        ? { ...stage, waves: stage.speedrunWaves }
+        : stage,
+    ),
     _spawnIndex: 0,
     _nextUid: 1,
     _nextProjectileUid: 1,

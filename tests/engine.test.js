@@ -31,7 +31,7 @@ test("opening waves enter from the enemy castle and walk left in every mode", ()
   for (const mode of ["idle", "challenge", "speedrun"]) {
     for (const stage of STAGES) {
       const state = createBattle({ mode, stageId: stage.id, sequence: [] });
-      const wave = stage.waves[0];
+      const wave = (mode === "speedrun" ? stage.speedrunWaves : stage.waves)[0];
       const openingDuration = Math.max(...wave.enemies.map((group) => ((group.count ?? 1) - 1) * (group.interval ?? 0)));
       assert.equal(state.time, 0);
       assert.equal(state.units.length, 0);
@@ -75,7 +75,7 @@ test("first journey wins stage zero, loses with shields and wins with a ranged a
   const idle = createBattle({ mode: "idle", onboardingPhase: "intro", stageId: 1 });
   const normal = createBattle({ mode: "challenge", stageId: 1 });
   assert.equal(idle.stageId, 1);
-  assert.equal(idle.duration, 120);
+  assert.equal(idle.duration, 90);
   assert.equal(normal.enemyMaxHp, STAGES[0].enemyHp);
 });
 
@@ -218,7 +218,7 @@ test("idle survival completes with normalized raw HP and integer reward", () => 
   assert.equal(state.result.hpRatio, 0.5);
   assert.equal(state.result.reward, calculateIdleReward(1, 3, 0.5));
   assert.equal(Number.isInteger(state.result.reward), true);
-  assert.equal(calculateIdleReward(1, 120, 1), 100);
+  assert.equal(calculateIdleReward(1, 90, 1), 100);
 });
 
 test("challenge summons spend gold and apply a shared cooldown", () => {

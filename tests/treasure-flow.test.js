@@ -71,8 +71,8 @@ test('content gem snapshots alter gold flow, capacity, unit stats and preserve r
  idle.gold=1000;challenge.gold=1000;
  assert.ok(summonUnit(idle,'sheep'));assert.ok(summonUnit(challenge,'sheep'));
  assert.ok(idle.units[0].attack>challenge.units[0].attack);
- const snapshot={stageId:11,gemEffects:structuredClone(idleEffects)};
- recordIdle(a,{reward:STAGES[10].baseReward,survival:120,hpRatio:1},snapshot,now);
+ const snapshot={stageId:11,duration:90,gemEffects:structuredClone(idleEffects)};
+ recordIdle(a,{reward:STAGES[10].baseReward,survival:90,hpRatio:1},snapshot,now);
  const record=structuredClone(a.records[11]);a.gemItems[2].level=1;a.gemPresets[0]=[null,null,null];
  assert.deepEqual(a.records[11],record);
  assert.deepEqual(normalizeAccount(a,now).records[11],record);

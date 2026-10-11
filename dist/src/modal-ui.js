@@ -11,6 +11,7 @@ const layouts = {
   settings: "panel",
   income: "panel",
   "return-income": "message",
+  "leave-battle": "message",
   "gem-guide": "message",
   gems: "collection",
   "gem-detail": "collection",

@@ -50,7 +50,7 @@ test("region entry cuts total enemy pressure and pays more for the preceding bos
   const oldIdle = play(10, 35, "idle").state;
   const entry = play(11, 35, "idle").state;
   assert.equal(entry.result.won, true);
-  assert.equal(entry.result.survival, 120);
+  assert.equal(entry.result.survival, 90);
   assert.ok(entry.result.hpRatio >= 0.9);
   assert.ok(entry.result.reward >= stageById.get(11).baseReward * 0.9);
   assert.ok(entry.result.reward > oldIdle.result.reward);
@@ -78,7 +78,7 @@ test("2-2 sharply raises pressure, and ordinary growth or a machine counter can 
   assert.equal(play(12, 35, "challenge", ["sheep", "teapot", "rabbit"]).state.result.won, true);
 });
 
-test("every fifth and tenth stage fields a large boss that can be defeated normally within 120 seconds", () => {
+test("every fifth and tenth stage fields a large boss that can be defeated normally within 90 seconds", () => {
   for (const [stageId, level] of [[5, 4], [10, 35], [15, 100], [20, 100]]) {
     const stage = stageById.get(stageId);
     const groups = stage.waves.flatMap((wave) => wave.enemies);
@@ -93,7 +93,7 @@ test("every fifth and tenth stage fields a large boss that can be defeated norma
     const { state, bosses } = play(stageId, level);
     assert.equal(state.result.won, true, `stage ${stageId} at level ${level}`);
     assert.equal(state.enemyHp, 0);
-    assert.ok(state.time < 120);
+    assert.ok(state.time < 90);
     assert.ok(bosses.length > 0);
     assert.ok(bosses.every((boss) => boss.dead && boss.hp === 0), `boss bypassed at ${stageId}`);
   }

@@ -120,7 +120,7 @@ test("a new record settles the old rate and freezes its verified gold bonus", ()
   recordIdle(
     a,
     { reward: 120, survival: 120, hpRatio: 1 },
-    { stageId: 1, gem: "gold" },
+    { stageId: 1, gem: "gold", duration: 120 },
     now + 120000,
   );
   assert.equal(a.gold, 700);

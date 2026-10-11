@@ -241,7 +241,7 @@ test("attribute updates preserve version-1 saves and frozen production records",
   recordIdle(
     loaded,
     { reward: 90, survival: 120, hpRatio: 1 },
-    { stageId: 1, gem: null, balanceVersion: "attributes-1" },
+    { stageId: 1, gem: null, balanceVersion: "attributes-1", duration: 120 },
     now,
   );
   assert.deepEqual(loaded.records[1], old);
@@ -251,7 +251,7 @@ test("attribute updates preserve version-1 saves and frozen production records",
   recordIdle(
     loaded,
     { reward: 110, survival: 120, hpRatio: 1 },
-    { stageId: 1, gem: null, balanceVersion: "attributes-1" },
+    { stageId: 1, gem: null, balanceVersion: "attributes-1", duration: 120 },
     now + 120000,
   );
   assert.equal(loaded.records[1].snapshot.balanceVersion, "attributes-1");

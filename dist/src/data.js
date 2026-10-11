@@ -1,5 +1,5 @@
 // Initial tuning, subject to play acceptance. Bonuses of the same kind add.
-export const BALANCE_VERSION = "treasure-presets-5";
+export const BALANCE_VERSION = "ninety-seconds-6";
 export const ATTRIBUTES = [
   { id: "wild", name: "야생", symbol: "♧", color: "#72b54b", ink: "#3f852e", colorName: "초록색" },
   { id: "machine", name: "기계", symbol: "⚙", color: "#a8b5c5", ink: "#667487", colorName: "은색" },
@@ -966,7 +966,7 @@ for (const source of firstRegion) {
     }
   }
   if (source.id === 2) {
-    stage.enemyHp = 11500;
+    stage.enemyHp = 9800;
     stage.enemyAttack = 6.5;
     stage.description = "기계 무리가 더 거세게 몰려와요. 보석으로 골드 수급을 늘리고 동료를 키워 보세요.";
   }
@@ -980,6 +980,28 @@ for (const source of firstRegion) {
     ];
   }
   STAGES.push(stage);
+}
+
+// Preserve opening threats and castle-push windows. Bring late reinforcements
+// into the shorter defense window without dropping groups or milestone bosses.
+// Speedrun keeps its original waves and 120-second limit.
+for (const stage of STAGES) {
+  stage.speedrunWaves = structuredClone(stage.waves);
+  const lastSpawn = Math.max(...stage.waves.flatMap((wave) =>
+    wave.enemies.map((group) => wave.time + ((group.count ?? 1) - 1) * (group.interval ?? 0)),
+  ));
+  const lateScale = lastSpawn > 89 ? (89 - 85) / (lastSpawn - 85) : 1;
+  const compress = (time) => time <= 85 ? time : 85 + (time - 85) * lateScale;
+  for (const wave of stage.waves) {
+    const originalTime = wave.time;
+    wave.time = compress(originalTime);
+    for (const group of wave.enemies) {
+      if (group.interval !== undefined && (group.count ?? 1) > 1) {
+        const span = ((group.count ?? 1) - 1) * group.interval;
+        group.interval = (compress(originalTime + span) - wave.time) / (group.count - 1);
+      }
+    }
+  }
 }
 
 export const RECRUIT_BANNERS = [

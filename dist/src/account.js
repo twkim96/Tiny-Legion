@@ -54,6 +54,7 @@ export function newAccount(now = Date.now()) {
     diamonds: 60,
     tickets: 0,
     levels: Object.fromEntries(UNITS.map((u) => [u.id, 1])),
+    levelSpent: Object.fromEntries(UNITS.map((u) => [u.id, 0])),
     fragments: Object.fromEntries(UNITS.map((u) => [u.id, 0])),
     special: Object.fromEntries(UNITS.map((u) => [u.id, 0])),
     marks: Object.fromEntries(MARK_TYPES.map((mark) => [mark.id, 0])),
@@ -103,6 +104,9 @@ export function normalizeAccount(raw, now = Date.now()) {
       (!hasOnboarding && STARTER_UNIT_IDS.includes(u.id)) ||
       raw.owned?.[u.id] === true;
     a.levels[u.id] = Math.floor(cap(raw.levels?.[u.id] ?? 1, 1, 100));
+    a.levelSpent[u.id] = Number.isFinite(raw.levelSpent?.[u.id]) && raw.levelSpent[u.id] >= 0
+      ? Math.min(cap(raw.levelSpent[u.id], 0, 1e12), legacyLevelSpent(a.levels[u.id]))
+      : legacyLevelSpent(a.levels[u.id]);
     a.fragments[u.id] = Math.floor(cap(raw.fragments?.[u.id], 0, 1e6));
     a.special[u.id] = Math.floor(cap(raw.special?.[u.id], 0, 20));
     a.abilities[u.id] = normalizeAbilities(u.id, raw.abilities?.[u.id]);
@@ -209,7 +213,7 @@ export function normalizeAccount(raw, now = Date.now()) {
         const introRecord = a.records[1];
         if (
           Number.isFinite(introRecord?.survival) &&
-          introRecord.survival >= 120 &&
+          introRecord.survival >= (introRecord.productionSeconds ?? 120) &&
           Number.isFinite(introRecord?.hpRatio) &&
           introRecord.hpRatio > 0
         ) {
@@ -325,14 +329,43 @@ export function applyGuideSequence(a, sequence) {
 export function levelCost(level) {
   return Math.floor(60 + level * 25 + level * level * 5);
 }
+function legacyLevelSpent(level) {
+  let spent = 0;
+  for (let purchasedLevel = 1; purchasedLevel < level; purchasedLevel++) {
+    spent += levelCost(purchasedLevel);
+  }
+  return spent;
+}
+function levelSpentFor(a, id) {
+  const stored = a.levelSpent?.[id];
+  return Number.isFinite(stored) && stored >= 0
+    ? Math.min(stored, legacyLevelSpent(a.levels?.[id] ?? 1))
+    : legacyLevelSpent(a.levels?.[id] ?? 1);
+}
+function ensureLevelSpent(a) {
+  a.levelSpent ??= {};
+  for (const unit of UNITS) {
+    if (!Number.isFinite(a.levelSpent[unit.id]) || a.levelSpent[unit.id] < 0) {
+      a.levelSpent[unit.id] = legacyLevelSpent(a.levels?.[unit.id] ?? 1);
+    } else {
+      a.levelSpent[unit.id] = Math.min(
+        a.levelSpent[unit.id],
+        legacyLevelSpent(a.levels?.[unit.id] ?? 1),
+      );
+    }
+  }
+}
 export function accrue(a, now = Date.now()) {
   const seconds = cap((now - a.lastSettled) / 1000, 0, 8 * 3600),
     r = a.records[a.idleStage];
   let gold = 0,
     diamonds = 0;
   if (r) {
-    gold = (r.gold * seconds) / 120;
-    diamonds = (r.diamonds * seconds) / 120;
+    const productionSeconds = Number.isFinite(r.productionSeconds) && r.productionSeconds > 0
+      ? r.productionSeconds
+      : 120;
+    gold = (r.gold * seconds) / productionSeconds;
+    diamonds = (r.diamonds * seconds) / productionSeconds;
     a.gold += gold;
     a.diamonds += diamonds;
   }
@@ -348,11 +381,15 @@ export function accrue(a, now = Date.now()) {
 }
 export function growUnit(a, id) {
   if (!growthUnlocked(a)) return false;
-  if (!ownsUnit(a, id) || a.levels[id] >= 100) return false;
-  const cost = levelCost(a.levels[id]);
+  if (!ownsUnit(a, id)) return false;
+  const effectiveLevel = effectiveUnitLevel(a, id);
+  if (effectiveLevel >= 100) return false;
+  const cost = levelCost(effectiveLevel);
   if (a.gold < cost) return false;
+  ensureLevelSpent(a);
   a.gold -= cost;
-  a.levels[id]++;
+  a.levels[id] = Math.max(a.levels[id] ?? 1, effectiveLevel) + 1;
+  a.levelSpent[id] += cost;
   if (a.earlyGuide?.phase === "growth") a.earlyGuide.phase = "complete";
   return true;
 }
@@ -380,13 +417,11 @@ export function upgradeUnitAbility(a, id, abilityId) {
 }
 export function companionStats(a, id, mode = "idle") {
   const unit = UNITS.find((u) => u.id === id);
-  return unit ? unitCombatStats(unit, (a.levels[id] ?? 1) + (a.special[id] ?? 0), gemModifiers(a, mode), a.abilities?.[id]) : null;
+  return unit ? unitCombatStats(unit, effectiveUnitLevel(a, id) + (a.special?.[id] ?? 0), gemModifiers(a, mode), a.abilities?.[id]) : null;
 }
 export function unitLevelRefund(a, id) {
   if (!ownsUnit(a, id)) return 0;
-  let refunded = 0;
-  for (let l = 1; l < a.levels[id]; l++) refunded += levelCost(l);
-  return refunded;
+  return levelSpentFor(a, id);
 }
 export function refundUnitLevels(a, id, now = Date.now()) {
   if (!growthUnlocked(a)) return 0;
@@ -394,6 +429,8 @@ export function refundUnitLevels(a, id, now = Date.now()) {
   if (!refunded) return 0;
   accrue(a, now);
   a.levels[id] = 1;
+  ensureLevelSpent(a);
+  a.levelSpent[id] = 0;
   a.gold += refunded;
   // Production was measured with the old growth, so it must be measured again.
   a.records = {};
@@ -401,8 +438,25 @@ export function refundUnitLevels(a, id, now = Date.now()) {
 }
 export function battleLevels(a) {
   return Object.fromEntries(
-    UNITS.map((u) => [u.id, a.levels[u.id] + a.special[u.id]]),
+    UNITS.map((u) => [u.id, effectiveUnitLevel(a, u.id) + (a.special?.[u.id] ?? 0)]),
   );
+}
+export function baseLevelRoster(a) {
+  return UNITS
+    .filter((unit) => ownsUnit(a, unit.id))
+    .map((unit, order) => ({ id: unit.id, order, level: a.levels?.[unit.id] ?? 1 }))
+    .sort((left, right) => right.level - left.level || left.order - right.order)
+    .slice(0, 5)
+    .map((unit) => unit.id);
+}
+export function sharedLevel(a) {
+  const roster = baseLevelRoster(a);
+  if (roster.length < 5) return 1;
+  return a.levels?.[roster[4]] ?? 1;
+}
+export function effectiveUnitLevel(a, id) {
+  if (!ownsUnit(a, id)) return 1;
+  return Math.max(a.levels?.[id] ?? 1, sharedLevel(a));
 }
 export function gemModifiers(a, mode = "idle") {
   const effects = gemEffects(a, gemPresetForMode(a,mode));
@@ -428,11 +482,15 @@ export function combatPower(a) {
 export function recordIdle(a, result, snapshot, now = Date.now()) {
   accrue(a, now);
   const rateBonus = Number.isFinite(snapshot.gemEffects?.acorn) ? snapshot.gemEffects.acorn : snapshot.gem === "gold" ? 1.15 : 1;
+  const productionSeconds = Number.isFinite(snapshot.duration) && snapshot.duration > 0
+    ? snapshot.duration
+    : 90;
   const r = {
     gold: Math.floor(result.reward * rateBonus),
+    productionSeconds,
     diamonds:
       Math.round(
-        (0.1 + snapshot.stageId * 0.025) * (result.survival / 120) ** 2 * 1000,
+        (0.1 + snapshot.stageId * 0.025) * (result.survival / productionSeconds) ** 2 * 1000,
       ) / 1000,
     hpRatio: result.hpRatio,
     survival: result.survival,
@@ -441,7 +499,10 @@ export function recordIdle(a, result, snapshot, now = Date.now()) {
     recordedAt: now,
   };
   const old = a.records[snapshot.stageId];
-  if (!old || r.gold > old.gold) {
+  const oldPeriod = Number.isFinite(old?.productionSeconds) && old.productionSeconds > 0
+    ? old.productionSeconds
+    : 120;
+  if (!old || r.gold / productionSeconds > old.gold / oldPeriod) {
     a.records[snapshot.stageId] = r;
     return true;
   }

@@ -6,7 +6,7 @@ import { newAccount, currentMission, recordMissionBattle, claimMission, accrue, 
 import { STAGES, UNITS, stageLabel } from '../dist/src/data.js';
 import { recruitPanel } from '../dist/src/recruitment-ui.js';
 import { modalLayout, messagePanel } from '../dist/src/modal-ui.js';
-import { companionStats, upgradeUnitAbility, gemPresetForMode, advancedContentUnlocked, collectReturnIncome } from '../dist/src/account.js';
+import { companionStats, upgradeUnitAbility, gemPresetForMode, advancedContentUnlocked, collectReturnIncome, effectiveUnitLevel, baseLevelRoster, sharedLevel } from '../dist/src/account.js';
 import { companionPanel } from '../dist/src/companion-ui.js';
 import {drawGem,gemByUid,gemDefinition,gemDescription,gemOptionText,gemUpgradeCost,gemTransferCost,gemUpgradeMaterials,upgradeGem,transferGem,equipGem,GEM_BANNERS,GEM_OPTIONS} from '../dist/src/gems.js';
 import {gemPage,gemDetail,gemCard} from '../dist/src/gem-ui.js';
@@ -43,7 +43,7 @@ function harness(names) {
     modalLayout, messagePanel, modalKind:null, modalRender:null, lastFocused:null, hideTooltip(){},
     readyBattle(){calls.push("ready");}, openCodex(){},
     gemViewPreset:0, drawGem,gemByUid,gemDefinition,gemDescription,gemOptionText,gemUpgradeCost,gemTransferCost,gemUpgradeMaterials,upgradeGem,transferGem,equipGem,GEM_BANNERS,GEM_OPTIONS,gemPage,gemDetail,gemCard,
-    companionStats, upgradeUnitAbility, gemPresetForMode, advancedContentUnlocked, collectReturnIncome, companionPanel, unitAbilityLines:()=>[],
+    companionStats, upgradeUnitAbility, gemPresetForMode, advancedContentUnlocked, collectReturnIncome, effectiveUnitLevel, baseLevelRoster, sharedLevel, companionPanel, unitAbilityLines:()=>[],
     renderGrowth(){calls.push('growth-screen');}, renderRecruit(){calls.push('recruit-screen');},
     sequenceDraftIndex:0, sequenceDraftGem:0, sequenceDraftChoices:null, pendingReturnIncome:null, sequenceDraft:null, sequenceDraftMode:"idle", sequenceDrafts:null, names:Object.fromEntries(UNITS.map(u=>[u.id,u.name])), portrait:id=>`[${id}]`, rarityBadge:()=>"",
     mode: 'idle', stageId: 1, idleResultStage: null, resultHandled: false, restartAt: 0,
@@ -64,7 +64,7 @@ function harness(names) {
     revealRecruit(root, results, actions){context.revealed = results; context.revealActions=actions; return ()=>{};},
   };
   vm.createContext(context);
-  vm.runInContext(names.map(functionSource).join('\n'), context);
+  vm.runInContext([...new Set(['firstIdleMissionPending', 'levelBasisMarkup', ...names])].map(functionSource).join('\n'), context);
   return context;
 }
 test('idle result dialog leaves simulation and automatic restart running', () => {
@@ -159,6 +159,7 @@ test('first recruit uses the forest banner and grants squirrel on its one-draw a
 test('second free banner action guarantees rabbit and retries the exact wall stage', () => {
   const c=harness(['showEarlyDraw','settleProduction','closeIdleResult','startChallenge']);
   c.account.earlyGuide.phase='rabbit-recruit';
+  c.account.missions.claimed=['idle-intro'];
   c.account.owned.squirrel=true;
   c.account.sequence=['sheep','squirrel',...Array(8).fill(null)];
   c.onboardingMessage=(title,text,label,action)=>action();
@@ -244,6 +245,7 @@ test('second idle completion announces growth and its mission opens the growth s
 test('challenge success offers idle and next challenge, preserving result when the idle lesson blocks entry',()=>{
   const c=harness(['showResult','startChallenge','enterSecondIdle','settleProduction','closeIdleResult']);
   c.mode='challenge'; c.stageId=2;
+  c.account.missions.claimed=['idle-intro'];
   c.account.highestCleared=2; c.account.earlyGuide.phase='idle-defense';
   c.showResult({won:true,time:58},{gold:240,diamonds:10});
   const html=c.$('battle-result').innerHTML;
@@ -265,6 +267,7 @@ test('challenge success offers idle and next challenge, preserving result when t
 test('next challenge opens after the idle lesson, and failures retain retry',()=>{
   const c=harness(['showResult','startChallenge','settleProduction','closeIdleResult']);
   c.mode='challenge'; c.stageId=2;
+  c.account.missions.claimed=['idle-intro'];
   c.account.highestCleared=2; c.account.earlyGuide.phase='growth';
   c.showResult({won:true,time:58},{gold:0,diamonds:0});
   c.$('next-battle').onclick();
@@ -279,6 +282,7 @@ test('next challenge opens after the idle lesson, and failures retain retry',()=
 });
 test('sequence windows stay locked until the first stage two idle failure',()=>{
   const c=harness(['openModal']);
+  c.account.missions.claimed=['idle-intro'];
   c.account.highestCleared=2; c.account.earlyGuide.phase='idle-defense';
   let renders=0;
   for(const kind of ['sequence','sequence-pick']) c.openModal('순서',kind,()=>renders++);
@@ -332,6 +336,8 @@ test('companion cards open upgrade details; detail refund preserves other compan
   c.account.owned.squirrel=true;
   c.account.levels.sheep=3;
   c.account.levels.squirrel=4;
+  c.account.levelSpent.sheep=levelCost(1)+levelCost(2);
+  c.account.levelSpent.squirrel=levelCost(1)+levelCost(2)+levelCost(3);
   c.renderGrowth();
   assert.doesNotMatch(c.$('modal-content').innerHTML,/data-refund|data-inspect/);
   c.$('modal-content:data-companion:sheep').onclick();
@@ -505,4 +511,72 @@ test('numbered lineup drafts preserve their own gem selections and only apply th
  assert.equal(sequenceForMode(c.account,'idle')[1],'squirrel');assert.equal(gemPresetForMode(c.account,'idle'),4);
  assert.equal(c.account.activeLineup.challenge,0);
  assert.equal(sequenceForMode(c.account,'idle',0)[1],null);
+});
+
+test('first idle mission blocks challenge until its reward is claimed', () => {
+  const c = harness(['startChallenge','settleProduction','closeIdleResult','actOnMission']);
+  const before = JSON.stringify(c.account);
+  c.startChallenge(2);
+  assert.equal(c.mode,'idle'); assert.ok(!c.calls.includes('start'));
+  assert.equal(JSON.stringify(c.account),before);
+  c.account.missions.idleCompleted = true;
+  c.startChallenge(2);
+  assert.equal(c.mode,'idle'); assert.ok(!c.calls.includes('start'));
+  c.actOnMission(); c.startChallenge(2);
+  assert.equal(c.mode,'challenge'); assert.equal(c.stageId,2);
+  assert.equal(c.calls.filter(x=>x==='start').length,1);
+});
+test('manual battle menu contains only settings, idle retains its content menu', () => {
+  const c = harness(['renderMenu']);
+  c.mode='challenge'; c.renderMenu();
+  const html=c.$('modal-content').innerHTML;
+  assert.deepEqual([...html.matchAll(/data-content-menu="([^"]+)"/g)].map(m=>m[1]),['settings']);
+  c.mode='speedrun'; c.renderMenu();
+  assert.deepEqual([...c.$('modal-content').innerHTML.matchAll(/data-content-menu="([^"]+)"/g)].map(m=>m[1]),['settings']);
+  c.mode='idle'; c.renderMenu();
+  assert.match(c.$('modal-content').innerHTML,/data-content-menu="growth"/);
+});
+test('leave battle confirmation cancels safely and exits without recording a victory', () => {
+  const c = harness(['leaveBattle','setMode','settleProduction','closeIdleResult']);
+  c.account.missions.claimed=['idle-intro']; c.account.earlyGuide.phase='complete';
+  c.mode='challenge'; c.stageId=3; c.battle={time:25,finished:false,events:[]};
+  const progress=JSON.stringify({cleared:c.account.highestCleared,records:c.account.records,missions:c.account.missions});
+  const battle=c.battle;
+  c.leaveBattle(); c.$('cancel-leave').onclick();
+  assert.equal(c.battle,battle); assert.equal(c.mode,'challenge');
+  c.leaveBattle(); c.$('confirm-leave').onclick();
+  assert.equal(c.mode,'idle'); assert.equal(c.stageId,c.account.idleStage);
+  assert.equal(JSON.stringify({cleared:c.account.highestCleared,records:c.account.records,missions:c.account.missions}),progress);
+  c.account.onboarding.phase='intro'; c.mode='challenge'; c.battle={time:3,finished:false};
+  c.leaveBattle(); c.$('confirm-leave').onclick();
+  assert.equal(c.account.onboarding.phase,'intro'); assert.ok(c.calls.includes('ready'));
+});
+test('editing sequence during manual combat preserves the active battle and uses it for keyboard slots', () => {
+  const c = harness(['openSequence','renderSequence','handUnits']);
+  c.account.earlyGuide.phase='complete'; c.account.missions.claimed=['idle-intro'];
+  c.account.owned.squirrel=true; c.account.sequencePresets.challenge=['sheep','squirrel',...Array(8).fill(null)];
+  c.unitById=Object.fromEntries(UNITS.map(u=>[u.id,u]));
+  c.mode='challenge'; c.battle={time:25,finished:false};
+  c.battleSnapshot.sequence=['sheep','squirrel',...Array(8).fill(null)];
+  const battle=c.battle;
+  c.openSequence(); c.$('modal-content:data-replace:1').onclick(); c.$('clear-sequence-slot').onclick();
+  c.$('apply-sequence').onclick();
+  assert.equal(sequenceForMode(c.account,'challenge')[1],null);
+  assert.equal(c.battle,battle); assert.ok(!c.calls.includes('start'));
+  assert.equal(c.handUnits()[1],'squirrel');
+});
+test('growth list shows the five purchased-level leaders and shared level above all companions', () => {
+  const c = harness(['renderGrowth']);
+  c.account.earlyGuide.phase='complete';
+  const ids=UNITS.slice(0,6).map(u=>u.id);
+  for(const id of ids)c.account.owned[id]=true;
+  for(const [i,id] of ids.entries())c.account.levels[id]=i<5?6+i:1;
+  c.renderGrowth();
+  const html=c.$('modal-content').innerHTML;
+  assert.ok(html.indexOf('level-basis')<html.indexOf('unit-grid'));
+  assert.match(html,/공유 Lv\. 6/);
+  const basis=html.slice(0,html.indexOf('unit-grid'));
+  assert.equal([...basis.matchAll(/data-companion=/g)].length,5);
+  assert.ok(!basis.includes(`data-companion="${ids[5]}"`));
+  assert.equal(effectiveUnitLevel(c.account,ids[5]),6);
 });

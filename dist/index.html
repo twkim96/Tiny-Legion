@@ -51,7 +51,7 @@
       </div>
       <div
         class="combat-power"
-        data-tip="동료 5종의 레벨·특별강화·전투 보석을 반영합니다. 변경한 성장은 다음 전투에 적용됩니다."
+        data-tip="보유 동료의 공유 레벨·특별강화·전투 보석을 반영합니다. 변경한 성장은 다음 전투에 적용됩니다."
         aria-label="전투력"
       >
         <span data-icon="swords"></span><strong id="combat-power">0</strong>
@@ -84,7 +84,7 @@
             ><span id="current-mode">방치</span>
           </button>
           <div class="battle-clock">
-            <span data-icon="clock"></span><span id="battle-time">02:00</span
+            <span data-icon="clock"></span><span id="battle-time">01:30</span
             >
           </div>
         </div>
@@ -111,6 +111,9 @@
           <span class="menu-medallion"><span data-icon="envelope"></span></span
           ><span class="menu-label">모집</span>
         </button>
+        <button class="game-menu menu-sequence" id="edit-sequence" aria-label="소환 순서" data-tip="소환 순서">
+          <span class="menu-medallion"><span data-icon="sequence"></span></span><span class="menu-label">순서</span>
+        </button>
         <button
           class="game-menu menu-codex"
           id="nav-codex"
@@ -120,6 +123,9 @@
         >
           <span class="menu-medallion"><span data-icon="book"></span></span
           ><span class="menu-label">도감</span>
+        </button>
+        <button class="game-menu menu-leave" id="leave-battle" aria-label="전투 나가기" data-tip="전투 나가기" hidden>
+          <span class="menu-medallion"><span data-icon="close"></span></span><span class="menu-label">나가기</span>
         </button>
         <button class="game-menu menu-pause" id="pause" aria-label="일시 정지" aria-pressed="false" data-tip="일시 정지" hidden>
           <span class="menu-medallion" id="pause-icon"><span data-icon="pause"></span></span>
@@ -190,14 +196,6 @@
           <div class="wallet-track"><div id="wallet-fill"></div></div>
         </div>
         <div class="unit-hand" id="unit-hand"></div>
-        <button
-          class="sequence-button"
-          id="edit-sequence"
-          aria-label="소환 순서"
-          data-tip="소환 순서"
-        >
-          <span data-icon="sequence"></span><span>순서</span>
-        </button>
         <button
           class="skill-button"
           id="skill"

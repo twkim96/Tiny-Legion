@@ -37,7 +37,7 @@ const WALL_BATTLE = {
   enemyHp: 13000,
   enemyAttack: 0.7,
   baseReward: STAGE_TWO.baseReward,
-  duration: 120,
+  duration: 90,
   waves: [
     { time: 0.6, enemies: [{ id: "beetle", count: 2, interval: 1.3, x: 1080 }] },
   ],
@@ -45,7 +45,7 @@ const WALL_BATTLE = {
 
 const IDLE_PRESSURE = {
   ...STAGE_TWO,
-  duration: 120,
+  duration: 90,
 };
 
 const CHALLENGE_GUIDE_PHASES = new Set([
