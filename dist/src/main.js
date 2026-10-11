@@ -1,5 +1,5 @@
 import { UNITS, ENEMIES, STAGES } from "./data.js";
-import { createBattle, stepBattle, summonUnit } from "./engine.js";
+import { createBattle, fireCannon, stepBattle, summonUnit } from "./engine.js";
 import { icon, portrait } from "./art.js";
 import { Renderer } from "./renderer.js";
 import {
@@ -236,7 +236,9 @@ function manualSummon(id) {
   }
   if (waiting) startBattle();
   if (paused || !battle || battle.finished) return;
+  const eventCount = battle.events.length;
   if (summonUnit(battle, id)) {
+    renderer.consumeEvents(battle.events.slice(eventCount), battle);
     chirp("summon");
     updateUi();
   } else if (battle.gold < unitById[id].cost) {
@@ -878,18 +880,11 @@ $("skill").onclick = () => {
     skillRemaining > 0
   )
     return;
-  for (const u of battle.units)
-    if (u.team === "enemy" && !u.dead) {
-      u.hp = Math.max(0, u.hp - 110);
-      u.x = Math.min(1110, u.x + 75);
-      u.hitFlash = 0.2;
-      if (u.hp <= 0) {
-        u.dead = true;
-        u.deathTimer = 0.24;
-      }
-    }
+  const eventCount = battle.events.length;
+  fireCannon(battle);
+  renderer.consumeEvents(battle.events.slice(eventCount), battle);
   skillRemaining = 25;
-  renderer.burst(700);
+  renderer.burst(700, battle.time);
   chirp("summon");
   updateUi();
 };
@@ -943,6 +938,7 @@ function frame(now) {
     let steps = 0;
     while (accumulator >= 1 / 30 && steps < 8 && !battle.finished) {
       stepBattle(battle, 1 / 30);
+      renderer.consumeEvents(battle.events, battle);
       skillRemaining = Math.max(0, skillRemaining - 1 / 30);
       accumulator -= 1 / 30;
       steps++;

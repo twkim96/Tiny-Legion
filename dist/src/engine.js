@@ -9,6 +9,8 @@ const MAX_ACTIVE_UNITS = 80;
 const FIXED_STEP = 1 / 30;
 const GOLD_PER_SECOND = 35;
 const UNIT_LEVEL_GROWTH = 0.12;
+const HIT_STUN = 0.18;
+const STUN_COOLDOWN = 0.65;
 const DEFAULT_SEQUENCE = ["sheep", "rabbit", "squirrel", "teapot", "cloud"];
 const UNIT_BY_ID = new Map(UNITS.map((unit) => [unit.id, unit]));
 const ENEMY_BY_ID = new Map(ENEMIES.map((enemy) => [enemy.id, enemy]));
@@ -25,6 +27,10 @@ function clamp(value, min, max) {
 
 function activeUnits(state) {
   return state.units.filter((unit) => !unit.dead);
+}
+
+function emit(state, event) {
+  state.events.push({ ...event, time: state.time });
 }
 
 function activeUnitCount(state) {
@@ -110,6 +116,13 @@ function makeUnit(state, definition, team, x, level = 1) {
     attackInterval: definition.attackInterval,
     hitFlash: 0,
     attackFlash: 0,
+    action: null,
+    facing: team === "player" ? 1 : -1,
+    moving: false,
+    hitStun: 0,
+    hitStunDuration: HIT_STUN,
+    hitDirection: team === "player" ? -1 : 1,
+    stunCooldown: 0,
   };
 }
 
@@ -176,6 +189,7 @@ export function createBattle(options = {}) {
     enemyHp: enemyMaxHp,
     enemyMaxHp,
     units: [],
+    projectiles: [],
     cooldowns: Object.fromEntries(UNITS.map((unit) => [unit.id, 0])),
     sequence: Array.isArray(sequence)
       ? sequence.slice()
@@ -188,6 +202,7 @@ export function createBattle(options = {}) {
     _spawnSchedule: makeSpawnSchedule(stage),
     _spawnIndex: 0,
     _nextUid: 1,
+    _nextProjectileUid: 1,
     _levels: levels && typeof levels === "object" ? { ...levels } : {},
     _modifiers: {
       hp: Math.max(1, finiteNumber(modifiers.hp, 1)),
@@ -213,7 +228,7 @@ export function summonUnit(state, unitId) {
     makeUnit(state, definition, "player", PLAYER_SPAWN_X, level),
   );
   state.waitingReason = undefined;
-  state.events.push({
+  emit(state, {
     type: "summon",
     x: PLAYER_SPAWN_X,
     team: "player",
@@ -288,7 +303,7 @@ function spawnDueEnemies(state) {
     if (!definition) continue;
     const enemy = makeUnit(state, definition, "enemy", scheduled.x);
     state.units.push(enemy);
-    state.events.push({
+    emit(state, {
       type: "spawn",
       x: enemy.x,
       team: "enemy",
@@ -322,20 +337,106 @@ function moveUnits(state, dt) {
   const units = activeUnits(state);
   const positions = new Map(units.map((unit) => [unit.uid, unit.x]));
   for (const unit of units) {
+    unit.moving = false;
+    if (unit.action || unit.hitStun > 0) continue;
     const target = findTarget(unit, units, state);
     if (!target) continue;
     const targetX =
       target.kind === "unit" ? positions.get(target.uid) : target.x;
     const delta = targetX - unit.x;
+    if (delta) unit.facing = Math.sign(delta);
     const remaining = Math.abs(delta) - unit.range;
     if (remaining <= 0) continue;
     const movement = Math.min(remaining, unit.speed * dt);
     unit.x = clamp(unit.x + Math.sign(delta) * movement, WORLD_MIN, WORLD_MAX);
+    unit.moving = movement > 0;
   }
 }
 
-function addDamage(damageByUid, uid, amount) {
-  damageByUid.set(uid, (damageByUid.get(uid) ?? 0) + amount);
+function damageBatch() {
+  return {
+    damage: new Map(),
+    healing: new Map(),
+    playerCastle: 0,
+    enemyCastle: 0,
+  };
+}
+
+function addDamage(batch, target, amount, direction, kind) {
+  const previous = batch.damage.get(target.uid);
+  batch.damage.set(target.uid, {
+    amount: (previous?.amount ?? 0) + amount,
+    direction,
+    kind,
+  });
+}
+
+function currentTarget(target, units) {
+  const unit =
+    target.kind === "unit"
+      ? units.find(
+          (candidate) => candidate.uid === target.uid && !candidate.dead,
+        )
+      : null;
+  return unit ? { ...target, x: unit.x } : target;
+}
+
+function impact(state, shot, units, batch) {
+  const { target, damage, splashRadius, kind, team } = shot;
+  const primary =
+    target.kind === "unit"
+      ? units.find(
+          (candidate) => candidate.uid === target.uid && !candidate.dead,
+        )
+      : null;
+  const center = primary?.x ?? target.x;
+  let hit = false;
+  for (const candidate of units) {
+    if (candidate.team !== target.team || candidate.dead) continue;
+    if (
+      candidate.uid !== primary?.uid &&
+      !(splashRadius > 0 && Math.abs(candidate.x - center) <= splashRadius)
+    )
+      continue;
+    addDamage(
+      batch,
+      candidate,
+      damage,
+      Math.sign(candidate.x - shot.startX) || (team === "player" ? 1 : -1),
+      kind,
+    );
+    hit = true;
+  }
+  if (
+    target.kind === "castle" ||
+    (splashRadius > 0 &&
+      Math.abs(
+        (target.team === "enemy" ? ENEMY_CASTLE_X : PLAYER_CASTLE_X) - center,
+      ) <= splashRadius)
+  ) {
+    if (target.team === "player") {
+      batch.playerCastle += damage;
+      hit = true;
+    } else if (state.mode !== "idle") {
+      batch.enemyCastle += damage;
+      hit = true;
+    }
+  }
+  emit(state, { type: "impact", x: center, team, kind, splashRadius, hit });
+}
+
+function advanceProjectiles(state, dt, units, batch) {
+  for (const projectile of state.projectiles) {
+    projectile.target = currentTarget(projectile.target, units);
+    projectile.targetX = projectile.target.x;
+    projectile.elapsed = Math.min(projectile.duration, projectile.elapsed + dt);
+    if (projectile.elapsed >= projectile.duration - 1e-9) {
+      impact(state, projectile, units, batch);
+    }
+  }
+  state.projectiles = state.projectiles.filter(
+    (projectile) => projectile.elapsed < projectile.duration - 1e-9,
+  );
 }
 
 function chooseSupportTarget(unit, units, definition) {
@@ -358,135 +459,183 @@ function chooseSupportTarget(unit, units, definition) {
   );
 }
 
-function resolveAttacks(state) {
+function resolveAttacks(state, dt) {
   const units = activeUnits(state);
-  const intents = [];
+  const batch = damageBatch();
+  // Existing shots land in this step; newly released shots start at time zero.
+  advanceProjectiles(state, dt, units, batch);
 
   for (const unit of units) {
-    if (unit.attackTimer > 1e-9) continue;
-    const target = findTarget(unit, units, state);
-    if (!target) continue;
-    const targetX =
-      target.kind === "unit"
-        ? units.find((candidate) => candidate.uid === target.uid)?.x
-        : target.x;
-    if (
-      !Number.isFinite(targetX) ||
-      Math.abs(targetX - unit.x) > unit.range + 1e-9
-    )
-      continue;
-
+    if (unit.hitStun > 0) continue;
     const definition =
       unit.team === "player"
         ? UNIT_BY_ID.get(unit.id)
         : ENEMY_BY_ID.get(unit.id);
-    intents.push({ unit, target: { ...target, x: targetX }, definition });
-    unit.attackTimer = unit.attackInterval;
-    unit.attackFlash = 0.14;
-  }
-
-  const damageByUid = new Map();
-  const healByUid = new Map();
-  let playerCastleDamage = 0;
-  let enemyCastleDamage = 0;
-
-  for (const intent of intents) {
-    const { unit, target, definition } = intent;
-    const targets = units.filter(
-      (candidate) => candidate.team === target.team && !candidate.dead,
+    if (!definition) continue;
+    if (unit.action?.phase === "recovery") continue;
+    if (!unit.action) {
+      if (unit.attackTimer > 1e-9) continue;
+      const target = findTarget(unit, units, state);
+      if (!target || Math.abs(target.x - unit.x) > unit.range + 1e-9) continue;
+      unit.facing = Math.sign(target.x - unit.x) || unit.facing;
+      unit.moving = false;
+      unit.attackTimer = unit.attackInterval;
+      unit.action = {
+        phase: "windup",
+        elapsed: 0,
+        duration: definition.attackWindup,
+        kind: definition.projectile?.kind ?? "melee",
+        target,
+      };
+      continue;
+    }
+    unit.action.elapsed = Math.min(
+      unit.action.duration,
+      unit.action.elapsed + dt,
     );
-    if (target.kind === "unit") {
-      const primary = targets.find((candidate) => candidate.uid === target.uid);
-      if (primary) {
-        addDamage(damageByUid, primary.uid, unit.attack);
-        const splashRadius = definition?.splashRadius ?? 0;
-        if (splashRadius > 0) {
-          for (const candidate of targets) {
-            if (
-              candidate.uid !== primary.uid &&
-              Math.abs(candidate.x - primary.x) <= splashRadius
-            ) {
-              addDamage(damageByUid, candidate.uid, unit.attack);
-            }
-          }
-          if (
-            unit.team === "player" &&
-            state.mode !== "idle" &&
-            Math.abs(ENEMY_CASTLE_X - primary.x) <= splashRadius
-          ) {
-            enemyCastleDamage += unit.attack;
-          }
-        }
-      }
-    } else if (target.team === "player") {
-      playerCastleDamage += unit.attack;
-    } else if (state.mode !== "idle") {
-      enemyCastleDamage += unit.attack;
-    }
-
-    if (unit.team === "player") {
-      const supportTarget = chooseSupportTarget(unit, units, definition);
-      if (supportTarget) {
-        healByUid.set(
-          supportTarget.uid,
-          (healByUid.get(supportTarget.uid) ?? 0) + definition.heal,
-        );
-      }
-    }
-
-    state.events.push({
+    if (unit.action.elapsed < unit.action.duration - 1e-9) continue;
+    const target = currentTarget(unit.action.target, units);
+    const kind = unit.action.kind;
+    unit.action = {
+      phase: "recovery",
+      elapsed: 0,
+      duration: definition.attackRecovery,
+      kind,
+      target,
+    };
+    unit.attackFlash = definition.attackRecovery;
+    const shot = {
+      uid: `shot${state._nextProjectileUid++}`,
+      sourceUid: unit.uid,
+      id: unit.id,
+      team: unit.team,
+      startX: unit.x,
+      targetX: target.x,
+      target,
+      damage: unit.attack,
+      splashRadius: definition.splashRadius ?? 0,
+      kind,
+    };
+    emit(state, {
       type: "attack",
+      uid: unit.uid,
       x: unit.x,
       targetX: target.x,
       team: unit.team,
       id: unit.id,
+      kind,
     });
-  }
-
-  for (const unit of units) {
-    const damage = damageByUid.get(unit.uid) ?? 0;
-    const healing = healByUid.get(unit.uid) ?? 0;
-    if (damage > 0 || healing > 0) {
-      unit.hp = clamp(unit.hp - damage + healing, 0, unit.maxHp);
-      if (damage > 0) unit.hitFlash = 0.16;
-      if (unit.hp <= 0 && !unit.dead) {
-        unit.dead = true;
-        unit.deathTimer = 0.24;
-        state.events.push({
-          type: "death",
-          x: unit.x,
-          team: unit.team,
-          id: unit.id,
-        });
-      } else if (healing > 0) {
-        state.events.push({
-          type: "heal",
-          x: unit.x,
-          team: unit.team,
-          amount: healing,
-        });
+    if (definition.projectile) {
+      state.projectiles.push({
+        ...shot,
+        elapsed: 0,
+        duration: clamp(
+          Math.abs(target.x - unit.x) / definition.projectile.speed,
+          0.1,
+          0.6,
+        ),
+      });
+    } else if (Math.abs(target.x - unit.x) <= unit.range + 1e-9) {
+      impact(state, shot, units, batch);
+    } else {
+      emit(state, {
+        type: "impact",
+        x: target.x,
+        team: unit.team,
+        kind,
+        hit: false,
+        splashRadius: 0,
+      });
+    }
+    if (unit.team === "player") {
+      const supportTarget = chooseSupportTarget(unit, units, definition);
+      if (supportTarget) {
+        batch.healing.set(
+          supportTarget.uid,
+          (batch.healing.get(supportTarget.uid) ?? 0) + definition.heal,
+        );
       }
     }
   }
+  applyDamage(state, units, batch);
+}
 
-  if (playerCastleDamage > 0) {
-    state.playerHp = Math.max(0, state.playerHp - playerCastleDamage);
-    state.events.push({
+function applyDamage(state, units, batch) {
+  // Aggregate the whole tick so both sides' committed hits resolve together.
+  for (const unit of units) {
+    const hit = batch.damage.get(unit.uid);
+    const damage = hit?.amount ?? 0;
+    const healing = batch.healing.get(unit.uid) ?? 0;
+    if (!damage && !healing) continue;
+    unit.hp = clamp(unit.hp - damage + healing, 0, unit.maxHp);
+    if (damage > 0) {
+      unit.hitFlash = 0.18;
+      unit.hitDirection = hit.direction;
+      if (unit.hp > 0 && (unit.stunCooldown ?? 0) <= 1e-9) {
+        unit.hitStunDuration = damage >= unit.maxHp * 0.2 ? 0.24 : HIT_STUN;
+        unit.hitStun = unit.hitStunDuration;
+        unit.stunCooldown = STUN_COOLDOWN;
+        unit.moving = false;
+      }
+      emit(state, {
+        type: "hit",
+        uid: unit.uid,
+        x: unit.x,
+        team: unit.team,
+        id: unit.id,
+        kind: hit.kind,
+        amount: damage,
+      });
+    }
+    if (unit.hp <= 0) {
+      unit.dead = true;
+      unit.moving = false;
+      unit.action = null;
+      unit.deathTimer = 0.32;
+      emit(state, {
+        type: "death",
+        uid: unit.uid,
+        x: unit.x,
+        team: unit.team,
+        id: unit.id,
+      });
+    } else if (healing > 0) {
+      emit(state, {
+        type: "heal",
+        x: unit.x,
+        team: unit.team,
+        amount: healing,
+      });
+    }
+  }
+  if (batch.playerCastle > 0) {
+    state.playerHp = Math.max(0, state.playerHp - batch.playerCastle);
+    emit(state, {
       type: "castle-hit",
       x: PLAYER_CASTLE_X,
       team: "player",
-      amount: playerCastleDamage,
+      amount: batch.playerCastle,
     });
   }
-  if (enemyCastleDamage > 0) {
-    state.enemyHp = Math.max(0, state.enemyHp - enemyCastleDamage);
-    state.events.push({
+  if (batch.enemyCastle > 0) {
+    state.enemyHp = Math.max(0, state.enemyHp - batch.enemyCastle);
+    emit(state, {
       type: "castle-hit",
       x: ENEMY_CASTLE_X,
       team: "enemy",
-      amount: enemyCastleDamage,
+      amount: batch.enemyCastle,
     });
   }
+}
+
+export function fireCannon(state) {
+  if (!state || state.finished || state.mode === "idle") return false;
+  const enemies = activeUnits(state).filter((unit) => unit.team === "enemy");
+  const batch = damageBatch();
+  for (const enemy of enemies) addDamage(batch, enemy, 110, 1, "cannon");
+  applyDamage(state, enemies, batch);
+  for (const enemy of enemies) enemy.x = Math.min(1110, enemy.x + 75);
+  return true;
 }
 
 function advanceTimers(state, dt) {
@@ -499,8 +648,15 @@ function advanceTimers(state, dt) {
       continue;
     }
     unit.attackTimer = Math.max(0, unit.attackTimer - dt);
-    unit.hitFlash = Math.max(0, unit.hitFlash - dt);
-    unit.attackFlash = Math.max(0, unit.attackFlash - dt);
+    unit.hitFlash = Math.max(0, (unit.hitFlash ?? 0) - dt);
+    unit.attackFlash = Math.max(0, (unit.attackFlash ?? 0) - dt);
+    unit.hitStun = Math.max(0, (unit.hitStun ?? 0) - dt);
+    unit.stunCooldown = Math.max(0, (unit.stunCooldown ?? 0) - dt);
+    if (unit.action?.phase === "recovery" && unit.hitStun <= 1e-9) {
+      unit.action.elapsed += dt;
+      if (unit.action.elapsed >= unit.action.duration - 1e-9)
+        unit.action = null;
+    }
   }
   state.units = state.units.filter((unit) => !unit.dead || unit.deathTimer > 0);
 }
@@ -514,7 +670,7 @@ function simulateFixedStep(state, dt) {
   if (state.mode === "idle") runIdleQueue(state);
 
   moveUnits(state, dt);
-  resolveAttacks(state);
+  resolveAttacks(state, dt);
 
   if (state.playerHp <= 0) {
     setFinished(state, false);
@@ -537,7 +693,8 @@ export function stepBattle(state, dt) {
   state.events = [];
   let remaining = Math.min(requestedDt, state.duration - state.time);
   while (remaining > 1e-9 && !state.finished) {
-    const slice = Math.min(FIXED_STEP, remaining);
+    // Preserve full ticks when subtraction leaves only floating-point residue.
+    const slice = remaining >= FIXED_STEP - 1e-9 ? FIXED_STEP : remaining;
     simulateFixedStep(state, slice);
     remaining -= slice;
   }

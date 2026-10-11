@@ -1,5 +1,28 @@
 import { spriteSvg } from "./art.js";
+import { sampleUnitPose } from "./combat-visuals.js";
 const INK = "#4b5140";
+const MAX_FX = 96;
+const FX_LIFETIME = {
+  attack: 0.2,
+  impact: 0.42,
+  hit: 0.2,
+  heal: 0.62,
+  death: 0.56,
+  "castle-hit": 0.5,
+  summon: 0.44,
+  spawn: 0.38,
+  burst: 0.72,
+};
+const ATTACK_KIND = {
+  sheep: "melee",
+  rabbit: "melee",
+  squirrel: "seed",
+  teapot: "water",
+  cloud: "bolt",
+  beetle: "melee",
+  mushroom: "spore",
+  boar: "melee",
+};
 const SPRITES = {};
 for (const id of [
   "sheep",
@@ -226,7 +249,7 @@ export class Renderer {
     this.canvas = canvas;
     this.ctx = canvas.getContext("2d");
     this.fx = [];
-    this.seenAttacks = new Map();
+    this.battleIdentity = null;
     this.bg = document.createElement("canvas");
     this.width = 0;
     this.height = 0;
@@ -467,41 +490,449 @@ export class Renderer {
     for (let i = 0; i < 12; i++)
       bush(c, w * (i * 0.095), h * 1.01, cs * 0.3, "#a6bb82");
   }
+  resetForBattle(battle) {
+    const identity = battle ?? null;
+    if (identity === this.battleIdentity) return;
+    this.battleIdentity = identity;
+    this.fx = [];
+  }
+  addFx(fx) {
+    this.fx.push(fx);
+    if (this.fx.length > MAX_FX) this.fx.splice(0, this.fx.length - MAX_FX);
+  }
+  consumeEvents(events, battle) {
+    this.resetForBattle(battle);
+    const fallbackTime = Number.isFinite(battle?.time) ? battle.time : 0;
+    for (const event of Array.isArray(events) ? events : []) {
+      const life =
+        event?.type === "hit" && event.kind === "cannon"
+          ? 0.58
+          : FX_LIFETIME[event?.type];
+      if (!life || !Number.isFinite(event.x)) continue;
+      this.addFx({
+        ...event,
+        type: event.type,
+        time: Number.isFinite(event.time) ? event.time : fallbackTime,
+        life,
+      });
+    }
+  }
+  drawWindupAccent(c, unit, size) {
+    const kind = unit.action?.kind ?? ATTACK_KIND[unit.id];
+    const color = unit.team === "enemy" ? "#c59a79" : "#a8b987";
+    c.save();
+    c.globalAlpha = 0.76;
+    if (unit.id === "rabbit") {
+      line(
+        c,
+        size * 0.27,
+        -size * 0.42,
+        size * 0.4,
+        -size * 0.75,
+        "#c3ad82",
+        Math.max(1.5, size * 0.035),
+      );
+      line(
+        c,
+        size * 0.36,
+        -size * 0.52,
+        size * 0.44,
+        -size * 0.69,
+        "#f0dfb8",
+        1.3,
+      );
+    } else if (unit.id === "sheep") {
+      c.strokeStyle = "#d8dfc5";
+      c.lineWidth = Math.max(1.5, size * 0.04);
+      c.beginPath();
+      c.ellipse(
+        size * 0.3,
+        -size * 0.4,
+        size * 0.12,
+        size * 0.2,
+        0.15,
+        -1.2,
+        1.2,
+      );
+      c.stroke();
+      line(
+        c,
+        size * 0.2,
+        -size * 0.5,
+        size * 0.34,
+        -size * 0.47,
+        "#e9e8c9",
+        1.5,
+      );
+    } else if (unit.id === "boar") {
+      oval(c, size * 0.38, -size * 0.06, size * 0.085, size * 0.035, color);
+      oval(c, size * 0.5, -size * 0.1, size * 0.05, size * 0.025, "#d8d6bd");
+    } else if (kind === "seed") {
+      oval(c, size * 0.27, -size * 0.53, size * 0.055, size * 0.04, "#c9b47e");
+      line(c, size * 0.27, -size * 0.53, size * 0.35, -size * 0.61, color, 1.5);
+    } else if (kind === "water") {
+      for (let i = 0; i < 3; i++)
+        oval(
+          c,
+          size * (0.38 + i * 0.055),
+          -size * (0.69 + (i % 2) * 0.07),
+          size * 0.025,
+          size * 0.035,
+          "#d9e5d0",
+        );
+    } else if (kind === "bolt") {
+      oval(c, size * 0.08, -size * 0.82, size * 0.13, size * 0.035, "#d9dda9");
+      line(
+        c,
+        size * 0.05,
+        -size * 0.87,
+        size * 0.12,
+        -size * 0.77,
+        "#c2c894",
+        1.6,
+      );
+      oval(
+        c,
+        -size * 0.22,
+        -size * 0.77,
+        size * 0.075,
+        size * 0.045,
+        "#f3f3e8",
+      );
+      oval(c, size * 0.26, -size * 0.78, size * 0.065, size * 0.04, "#f3f3e8");
+    } else if (kind === "spore") {
+      for (const [dx, dy] of [
+        [-0.14, -0.85],
+        [0.08, -0.9],
+        [0.25, -0.82],
+      ])
+        oval(c, size * dx, size * dy, size * 0.035, size * 0.035, "#e4d7b6");
+    } else {
+      oval(c, size * 0.36, -size * 0.12, size * 0.05, size * 0.026, color);
+      oval(c, size * 0.43, -size * 0.08, size * 0.03, size * 0.02, color);
+    }
+    c.restore();
+  }
+  drawProjectile(c, projectile, ground, baseSize, w, h) {
+    const duration = Number.isFinite(projectile.duration)
+      ? projectile.duration
+      : 0;
+    const progress = Math.max(
+      0,
+      Math.min(1, duration > 0 ? projectile.elapsed / duration : 1),
+    );
+    const startX = Number.isFinite(projectile.startX) ? projectile.startX : 0;
+    const targetX = Number.isFinite(projectile.targetX)
+      ? projectile.targetX
+      : startX;
+    const kind = projectile.kind ?? "seed";
+    const team = projectile.team === "enemy" ? "enemy" : "player";
+    const colors = {
+      seed: team === "enemy" ? "#b18c69" : "#9c9c68",
+      water: team === "enemy" ? "#c49c82" : "#a9c9bf",
+      bolt: team === "enemy" ? "#d1a27e" : "#d5d69e",
+      spore: team === "enemy" ? "#c18f78" : "#b5a675",
+    };
+    const color = colors[kind] ?? colors.seed;
+    const arcHeight =
+      kind === "water"
+        ? Math.min(h * 0.16, 34)
+        : kind === "spore"
+          ? Math.min(h * 0.12, 27)
+          : kind === "seed"
+            ? Math.min(h * 0.045, 10)
+            : 0;
+    const pointAt = (t) => ({
+      x: ((startX + (targetX - startX) * t) / 1200) * w,
+      y: ground - baseSize * 0.58 - Math.sin(Math.PI * t) * arcHeight,
+    });
+    const point = pointAt(progress);
+    const tail = pointAt(Math.max(0, progress - 0.12));
+    const dir = Math.sign(targetX - startX) || (team === "player" ? 1 : -1);
+    const radius = Math.max(4, baseSize * 0.105);
+
+    c.save();
+    c.globalAlpha = 0.66;
+    c.strokeStyle = color;
+    c.lineWidth = Math.max(1.4, radius * 0.45);
+    c.lineCap = "round";
+    c.beginPath();
+    c.moveTo(tail.x, tail.y);
+    c.lineTo(point.x, point.y);
+    c.stroke();
+    c.globalAlpha = 1;
+    c.translate(point.x, point.y);
+    if (kind === "bolt") {
+      c.strokeStyle = color;
+      c.lineWidth = Math.max(2, radius * 0.48);
+      c.lineCap = "round";
+      c.lineJoin = "round";
+      c.beginPath();
+      c.moveTo(-dir * radius, -radius * 0.9);
+      c.lineTo(dir * radius * 0.15, -radius * 0.2);
+      c.lineTo(-dir * radius * 0.15, radius * 0.2);
+      c.lineTo(dir * radius, radius * 0.9);
+      c.stroke();
+    } else if (kind === "water") {
+      c.rotate(dir * (0.2 + progress * 0.24));
+      c.beginPath();
+      c.moveTo(0, -radius * 1.35);
+      c.quadraticCurveTo(
+        radius * 1.05,
+        -radius * 0.1,
+        radius * 0.78,
+        radius * 0.68,
+      );
+      c.quadraticCurveTo(0, radius * 1.4, -radius * 0.78, radius * 0.68);
+      c.quadraticCurveTo(-radius * 1.05, -radius * 0.1, 0, -radius * 1.35);
+      c.fillStyle = color;
+      c.fill();
+      oval(
+        c,
+        -radius * 0.22,
+        radius * 0.32,
+        radius * 0.18,
+        radius * 0.27,
+        "#f8f7e8",
+      );
+    } else if (kind === "spore") {
+      round(
+        c,
+        -radius * 0.19,
+        0,
+        radius * 0.38,
+        radius * 0.9,
+        radius * 0.16,
+        "#f1e5c8",
+      );
+      oval(c, 0, -radius * 0.08, radius * 0.9, radius * 0.48, color);
+    } else {
+      c.rotate(dir * (0.15 + progress * 0.35));
+      oval(c, 0, 0, radius * 0.72, radius * 0.48, color, "#766d4f", 1);
+      path(
+        c,
+        [
+          ["moveTo", radius * 0.15, -radius * 0.05],
+          [
+            "quadraticCurveTo",
+            radius * 0.9,
+            -radius * 0.95,
+            radius * 1.15,
+            -radius * 0.15,
+          ],
+          [
+            "quadraticCurveTo",
+            radius * 0.65,
+            radius * 0.12,
+            radius * 0.15,
+            -radius * 0.05,
+          ],
+        ],
+        "#a9b585",
+      );
+    }
+    c.restore();
+  }
+  drawEffect(c, fx, age, ground, baseSize, w, h) {
+    const progress = Math.max(0, Math.min(1, age / fx.life));
+    const fade = (1 - progress) ** 1.25;
+    const x = (fx.x / 1200) * w;
+    const y = fx.type === "burst" ? h * 0.7 : ground - baseSize * 0.54;
+    const dir = fx.team === "enemy" ? -1 : 1;
+    const warm = fx.team === "enemy";
+    const main = warm ? "#c08d74" : "#a5b484";
+    const pale = warm ? "#e9d3be" : "#e9e8c9";
+
+    c.save();
+    c.globalAlpha =
+      fade * (fx.type === "impact" && fx.hit === false ? 0.62 : 1);
+    if (fx.type === "attack") {
+      if ((fx.kind ?? ATTACK_KIND[fx.id]) === "melee") {
+        c.translate(x, y);
+        c.scale(dir, 1);
+        c.strokeStyle = pale;
+        c.lineWidth = Math.max(2, baseSize * 0.045);
+        c.lineCap = "round";
+        c.beginPath();
+        c.arc(
+          baseSize * 0.16,
+          0,
+          baseSize * (0.26 + progress * 0.12),
+          -1.05,
+          0.86,
+        );
+        c.stroke();
+        c.strokeStyle = main;
+        c.lineWidth = Math.max(1, baseSize * 0.018);
+        c.beginPath();
+        c.arc(
+          baseSize * 0.16,
+          0,
+          baseSize * (0.33 + progress * 0.12),
+          -0.96,
+          0.78,
+        );
+        c.stroke();
+      } else {
+        oval(
+          c,
+          x + dir * baseSize * 0.18,
+          y,
+          baseSize * (0.11 - progress * 0.055),
+          baseSize * 0.085,
+          pale,
+        );
+        line(
+          c,
+          x + dir * baseSize * 0.18,
+          y,
+          x + dir * baseSize * 0.42,
+          y - baseSize * 0.045,
+          main,
+          1.5,
+        );
+      }
+    } else if (
+      fx.type === "impact" ||
+      fx.type === "burst" ||
+      fx.type === "castle-hit" ||
+      fx.type === "summon" ||
+      fx.type === "spawn"
+    ) {
+      const splash = Number.isFinite(fx.splashRadius)
+        ? (fx.splashRadius / 1200) * w * 0.72
+        : 0;
+      const maxRadius =
+        fx.type === "burst"
+          ? Math.min(h * 0.19, 58)
+          : fx.type === "castle-hit"
+            ? baseSize * 0.45
+            : Math.min(Math.max(baseSize * 0.22, splash), 44);
+      const radius = maxRadius * (0.28 + progress * 0.72);
+      c.strokeStyle = fx.hit === false ? pale : main;
+      c.lineWidth = Math.max(
+        1.5,
+        (1 - progress) * (fx.type === "burst" ? 5 : 3),
+      );
+      c.beginPath();
+      c.arc(x, y, radius, 0, Math.PI * 2);
+      c.stroke();
+      if (
+        fx.type === "burst" ||
+        fx.type === "impact" ||
+        fx.type === "castle-hit"
+      ) {
+        const count = fx.type === "burst" ? 9 : 6;
+        for (let index = 0; index < count; index++) {
+          const angle = (Math.PI * 2 * index) / count + (warm ? 0.2 : 0);
+          const distance = radius * (0.5 + (index % 3) * 0.15);
+          const dotX = x + Math.cos(angle) * distance;
+          const dotY =
+            y + Math.sin(angle) * distance * 0.62 - progress * baseSize * 0.09;
+          oval(
+            c,
+            dotX,
+            dotY,
+            Math.max(1.2, baseSize * 0.035 * (1 - progress)),
+            Math.max(1, baseSize * 0.025 * (1 - progress)),
+            index % 2 ? pale : main,
+          );
+        }
+      }
+    } else if (fx.type === "hit") {
+      if (fx.kind === "cannon") {
+        const radius = baseSize * (0.28 + progress * 0.48);
+        c.strokeStyle = "#e8dcb5";
+        c.lineWidth = Math.max(2, baseSize * 0.055 * (1 - progress * 0.65));
+        c.beginPath();
+        c.arc(x, y, radius, 0, Math.PI * 2);
+        c.stroke();
+        for (let index = 0; index < 7; index++) {
+          const angle = (Math.PI * 2 * index) / 7;
+          const distance = radius * (0.58 + (index % 3) * 0.12);
+          oval(
+            c,
+            x + Math.cos(angle) * distance,
+            y + Math.sin(angle) * distance * 0.62,
+            baseSize * 0.045 * (1 - progress),
+            baseSize * 0.033 * (1 - progress),
+            index % 2 ? pale : main,
+          );
+        }
+      } else {
+        const radius = baseSize * (0.12 + progress * 0.18);
+        c.strokeStyle = warm ? "#e2b79a" : "#e9e5c3";
+        c.lineWidth = Math.max(1.5, baseSize * 0.025);
+        for (let index = 0; index < 4; index++) {
+          const angle = (Math.PI * 2 * index) / 4 + Math.PI / 4;
+          line(
+            c,
+            x + Math.cos(angle) * radius * 0.35,
+            y + Math.sin(angle) * radius * 0.35,
+            x + Math.cos(angle) * radius,
+            y + Math.sin(angle) * radius,
+            c.strokeStyle,
+            c.lineWidth,
+          );
+        }
+      }
+    } else if (fx.type === "heal") {
+      for (let index = 0; index < 4; index++) {
+        const drift = progress * baseSize * (0.2 + index * 0.045);
+        const dotX = x + Math.sin(index * 2.2) * baseSize * 0.2;
+        const dotY = y - drift - (index % 2) * baseSize * 0.14;
+        oval(
+          c,
+          dotX,
+          dotY,
+          baseSize * 0.035,
+          baseSize * 0.06,
+          index % 2 ? "#dfe6c6" : "#a9bd91",
+        );
+      }
+    } else if (fx.type === "death") {
+      for (let index = 0; index < 5; index++) {
+        const spread = (index - 2) * baseSize * 0.09;
+        const lift = progress * baseSize * (0.12 + (index % 3) * 0.035);
+        oval(
+          c,
+          x + spread,
+          y + baseSize * 0.18 - lift,
+          baseSize * 0.075,
+          baseSize * 0.035,
+          index % 2 ? pale : main,
+        );
+      }
+    }
+    c.restore();
+  }
   render(battle, wallTime, paused = false) {
+    // `paused` stays in the public signature; battle.time is the frozen visual clock.
+    void paused;
     const c = this.ctx,
       w = this.width,
       h = this.height;
     if (!w || !h) return;
+    this.resetForBattle(battle);
     c.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     c.drawImage(this.bg, 0, 0, w, h);
     const ground = h * 0.74;
     const castleSize = Math.min(115, h * 0.37, w * 0.105);
-    castle(c, w * (80 / 1200), ground, castleSize, false, wallTime);
-    castle(c, w * (1120 / 1200), ground, castleSize, true, wallTime);
+    const simulationTime = Number.isFinite(battle?.time)
+      ? battle.time
+      : wallTime;
+    castle(c, w * (80 / 1200), ground, castleSize, false, simulationTime);
+    castle(c, w * (1120 / 1200), ground, castleSize, true, simulationTime);
     if (!battle) return;
-    const units = battle.units.filter((u) => !u.dead).sort((a, b) => a.x - b.x);
+    const units = battle.units
+      .filter((u) => !u.dead || (u.deathTimer ?? 0) > 0)
+      .sort((a, b) => a.x - b.x);
     const baseSize = Math.min(82, h * 0.29, w * 0.078);
-    for (const u of units) {
-      const previous = this.seenAttacks.get(u.uid) || 0;
-      if (u.attackFlash > previous + 0.01 && !paused) {
-        this.fx.push({
-          x: (u.x / 1200) * w,
-          y: ground - baseSize * 0.48,
-          team: u.team,
-          id: u.id,
-          life: 0.3,
-          maxLife: 0.3,
-        });
-      }
-      this.seenAttacks.set(u.uid, u.attackFlash || 0);
-    }
-    const liveIds = new Set(units.map((u) => u.uid));
-    for (const id of this.seenAttacks.keys())
-      if (!liveIds.has(id)) this.seenAttacks.delete(id);
     for (const u of units) {
       const sprite = SPRITES[u.id];
       if (!sprite?.complete || !sprite.naturalWidth) continue;
-      const uid = parseInt(u.uid.slice(1)) || 0;
+      const uid =
+        Number.parseInt(String(u.uid ?? "").replace(/^\D+/, ""), 10) || 0;
       const size =
         baseSize *
         (u.id === "boar"
@@ -511,22 +942,30 @@ export class Renderer {
             : u.id === "beetle"
               ? 0.85
               : 1);
-      const x = (u.x / 1200) * w;
+      const pose = sampleUnitPose(u, simulationTime);
+      const facing =
+        u.facing === -1 || u.facing === 1
+          ? u.facing
+          : u.team === "enemy"
+            ? -1
+            : 1;
+      const x = (u.x / 1200) * w + pose.offsetX * size;
       const row = (uid % 3) * Math.min(5, h * 0.011);
-      const step = paused ? 0 : Math.sin(battle.time * 9 + uid) * 1.8;
-      const bob =
-        u.id === "cloud" ? Math.sin(wallTime * 2 + uid) * 3 : Math.abs(step);
-      const y = ground - row - bob;
-      oval(c, x, y + 1, size * 0.31, size * 0.058, "#405b301d");
+      const y = ground - row + pose.offsetY * size;
+      c.globalAlpha = 0.34 * pose.alpha;
+      oval(c, x, ground - row + 1, size * 0.31, size * 0.058, "#405b301d");
+      c.globalAlpha = 1;
       c.save();
       c.translate(x, y);
-      if (u.team === "enemy") c.scale(-1, 1);
-      if (u.attackFlash > 0) c.rotate(-u.attackFlash * 0.12);
-      else if (!paused) c.rotate(step * 0.009);
-      c.globalAlpha = u.hitFlash > 0 ? 0.58 : 1;
+      c.scale(facing, 1);
+      c.rotate(pose.rotation);
+      c.scale(pose.scaleX, pose.scaleY);
+      c.globalAlpha = pose.alpha * (u.hitFlash > 0 ? 0.58 : 1);
       c.drawImage(sprite, -size / 2, -size, size, size * 0.9375);
+      if (u.action?.phase === "windup" && pose.phase === "windup")
+        this.drawWindupAccent(c, u, size);
       c.restore();
-      if (u.hp < u.maxHp) {
+      if (!u.dead && u.hp < u.maxHp) {
         round(
           c,
           x - size * 0.22,
@@ -547,40 +986,27 @@ export class Renderer {
         );
       }
     }
-    for (const f of this.fx) {
-      if (!paused) f.life -= 1 / 60;
-      const ratio = f.life / f.maxLife;
-      c.globalAlpha = Math.max(0, ratio);
-      const dir = f.team === "player" ? 1 : -1,
-        dist = (1 - ratio) * 30;
-      c.strokeStyle = f.team === "player" ? "#f8f5d0" : "#d3a080";
-      c.lineWidth = 2;
-      c.beginPath();
-      if (["squirrel", "mushroom", "cloud"].includes(f.id)) {
-        oval(
-          c,
-          f.x + dir * dist,
-          f.y - (1 - ratio) * 10,
-          3,
-          2.5,
-          f.id === "cloud" ? "#d8dcb9" : "#a49367",
-        );
-      } else {
-        c.arc(f.x + dir * 18, f.y, 8 + (1 - ratio) * 7, -1.1, 1.1);
-        c.stroke();
-      }
-      c.globalAlpha = 1;
+    const projectiles = Array.isArray(battle.projectiles)
+      ? battle.projectiles
+      : [];
+    for (const projectile of projectiles)
+      this.drawProjectile(c, projectile, ground, baseSize, w, h);
+    this.fx = this.fx
+      .filter((fx) => simulationTime - fx.time < fx.life)
+      .slice(-MAX_FX);
+    for (const fx of this.fx) {
+      const age = Math.max(0, simulationTime - fx.time);
+      this.drawEffect(c, fx, age, ground, baseSize, w, h);
     }
-    this.fx = this.fx.filter((f) => f.life > 0).slice(-45);
   }
-  burst(x = 600) {
-    this.fx.push({
-      x: (x / 1200) * this.width,
-      y: this.height * 0.7,
+  burst(x = 600, time = 0) {
+    this.addFx({
+      type: "burst",
+      x,
       team: "player",
       id: "teapot",
-      life: 0.6,
-      maxLife: 0.6,
+      time: Number.isFinite(time) ? time : 0,
+      life: FX_LIFETIME.burst,
     });
   }
 }
