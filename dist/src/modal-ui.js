@@ -9,6 +9,8 @@ const layouts = {
   "reset-account": "message",
   import: "message",
   settings: "panel",
+  "test-login": "message",
+  admin: "panel",
   income: "panel",
   "return-income": "message",
   "leave-battle": "message",

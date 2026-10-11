@@ -144,6 +144,24 @@ export class AccountClient {
     }
   }
 
+  async startTestSession(username, password) {
+    const epoch = ++this.epoch;
+    const previousStatus = this.status;
+    this.#rejectQueue(new SessionReplacedError());
+    this.blocked = false;
+    this.retryAction = null;
+    this.status = "authenticating";
+    try {
+      const envelope = await this.#post("/api/game/test/login", { username, password }, null);
+      if (epoch !== this.epoch) throw new SessionReplacedError();
+      this.#acceptSession(envelope, epoch);
+      return envelope;
+    } catch (error) {
+      if (epoch === this.epoch) this.status = previousStatus;
+      throw error;
+    }
+  }
+
   resumeSession() {
     if (this.status !== "connected" || !this.token)
       return Promise.reject(new AccountClientError("account session is unavailable"));

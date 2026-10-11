@@ -12,6 +12,8 @@ npm run dev
 
 서버 게스트 흐름은 `npm ci` 후 `npm run dev:server`로 `http://localhost:4174`에서 확인합니다. SQLite 개발 DB는 무시 경로 `.sites-local/game.sqlite`에 보관합니다. 서버 빌드를 갱신하려면 재실행합니다. 로컬 개발 서버는 외부에서 전달한 Sites 인증 헤더를 제거하므로 실제 계정 연결은 Sites 배포에서 확인합니다. 이 대역을 공개 서버로 사용하지 않습니다.
 
+로컬 테스트 로그인은 개발 서버 프로세스에 `TEST_LOGIN_ENABLED=true`와 `TEST_LOGIN_ACCOUNTS`를 전달하면 활성화됩니다. 목록의 아이디별 값은 `{salt, hash, iterations: 100000, role: admin/player}`이며 salt는 16바이트 hex, hash는 PBKDF2-SHA256 32바이트 hex입니다. `server/test-access.js`의 `passwordHash`로 해시를 계산할 수 있습니다. 비밀 설정은 셸 인자·추적 파일에 넣지 않습니다. 설정 없는 로컬 서버는 테스트 로그인을 제공하지 않습니다.
+
 ## 소스 구조
 
 | 위치 | 역할 |

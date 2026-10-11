@@ -60,6 +60,31 @@ test("an explicit guest session start sends the requested identity", async () =>
   assert.equal(startRequest.headers["X-Game-Session"], undefined);
 });
 
+test("test login replaces the game session without storing the password or retrying rejected credentials", async () => {
+  const stored = new Map();
+  const calls = [];
+  let rejectLogin = false;
+  const client = new AccountClient({
+    sessionStorage: { getItem: key => stored.get(key), setItem: (key, value) => stored.set(key, value) },
+    fetchImpl: async (path, init) => {
+      calls.push({path, body: JSON.parse(init.body), headers: init.headers});
+      if (rejectLogin) return response({error:'invalid_credentials'}, 401);
+      return response({...sessionEnvelope({session:'test-token'}), identity:{kind:'test',displayName:'root',isAdmin:true}});
+    },
+  });
+  await client.startTestSession('root', '12345');
+  assert.equal(calls[0].path, '/api/game/test/login');
+  assert.deepEqual(calls[0].body, {username:'root',password:'12345'});
+  assert.equal(calls[0].headers['X-Game-Session'], undefined);
+  assert.equal(client.identity.isAdmin, true);
+  assert.deepEqual([...stored.values()], ['test-token']);
+  rejectLogin = true;
+  await assert.rejects(client.startTestSession('root','wrong'), error => error.status === 401);
+  assert.equal(client.status,'connected');
+  assert.equal(client.token,'test-token');
+  assert.equal(client.retryAction,null);
+});
+
 test("commands serialize in submission order", async () => {
   const firstReply = deferred();
   const secondReply = deferred();

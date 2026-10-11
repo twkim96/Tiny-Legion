@@ -4,8 +4,16 @@ import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
 import { handleGameRequest } from '../server/api.js';
 import { createBattle, stepBattle, summonUnit } from '../dist/src/engine.js';
+import { passwordHash } from '../server/test-access.js';
 
-function harness() {
+const rootSalt = 'a'.repeat(32), playerSalt = 'b'.repeat(32);
+const testConfig = {
+  root: { salt: rootSalt, hash: await passwordHash('12345', rootSalt), iterations: 100000, role: 'admin' },
+  player: { salt: playerSalt, hash: await passwordHash('test-player', playerSalt), iterations: 100000, role: 'player' },
+};
+const testingEnv = () => ({ TEST_LOGIN_ENABLED: 'true', TEST_LOGIN_ACCOUNTS: JSON.stringify(testConfig) });
+
+function harness(overrides = {}) {
   const sqlite = new DatabaseSync(':memory:');
   sqlite.exec(readFileSync(new URL('../drizzle/0000_lonely_power_man.sql', import.meta.url), 'utf8').replaceAll('--> statement-breakpoint', ''));
   const db = { prepare(sql) {
@@ -19,6 +27,7 @@ function harness() {
     catch (error) { sqlite.exec('ROLLBACK'); throw error; }
   } };
   let now = 1800000000000;
+  const env = { DB: db, ...overrides };
   const browser = () => ({ cookie: '', token: '', owner: null });
   async function call(b, path, body = {}, origin = 'https://game.test') {
     const headers = { 'Content-Type': 'application/json', Origin: origin };
@@ -30,7 +39,7 @@ function harness() {
       headers['oai-authenticated-user-full-name'] = encodeURIComponent(b.name);
       headers['oai-authenticated-user-full-name-encoding'] = 'percent-encoded-utf-8';
     }
-    const response = await handleGameRequest(new Request(`https://game.test/api/game/${path}`, { method: 'POST', headers, body: JSON.stringify(body) }), { DB: db }, { now });
+    const response = await handleGameRequest(new Request(`https://game.test/api/game/${path}`, { method: 'POST', headers, body: JSON.stringify(body) }), env, { now });
     const setCookie = response.headers.get('Set-Cookie');
     if (setCookie) b.cookie = setCookie.split(';')[0];
     const data = await response.json();
@@ -45,8 +54,60 @@ function harness() {
     Object.assign(account, patch);
     sqlite.prepare('UPDATE game_accounts SET account_json = ? WHERE account_id = ?').run(JSON.stringify(account), row.account_id);
   };
-  return { sqlite, browser, call, command, seed, advance: ms => now += ms };
+  return { sqlite, browser, call, command, seed, env, advance: ms => now += ms };
 }
+
+test('test login is disabled by default and never accepts a supplied admin role', async () => {
+  const disabled = harness(), anonymous = disabled.browser();
+  assert.equal((await disabled.call(anonymous, 'test/login', { username: 'root', password: '12345' })).error, 'test_login_disabled');
+  const h = harness(testingEnv()), b = h.browser();
+  assert.equal((await h.call(b, 'test/login', { username: 'root', password: 'wrong', isAdmin: true })).error, 'invalid_credentials');
+  assert.equal((await h.call(b, 'test/login', { username: 'constructor', password: '12345' })).error, 'invalid_credentials');
+  await h.call(b, 'session/start', { identity: 'guest', username: 'root', isAdmin: true });
+  assert.equal((await h.command(b, 'admin.grant', { currency: 'gold', amount: 10000, isAdmin: true })).status, 403);
+  b.owner = 'normal-user'; await h.call(b, 'session/start', { identity: 'account' });
+  assert.equal((await h.command(b, 'admin.grant', { currency: 'diamonds', amount: 1000 })).error, 'forbidden');
+  const player = await h.call(b, 'test/login', { username: 'player', password: 'test-player', role: 'admin' });
+  assert.equal(player.identity.isAdmin, false);
+  assert.equal((await h.command(b, 'admin.grant', { currency: 'gold', amount: 1000 })).error, 'forbidden');
+});
+
+test('root grants are saved, repeated deliberately, and idempotent on retries', async () => {
+  const h = harness(testingEnv()), b = h.browser();
+  const login = await h.call(b, 'test/login', { username: 'root', password: '12345', account: { gold: 1e12 } });
+  assert.equal(login.identity.kind, 'test'); assert.equal(login.identity.displayName, 'root');
+  assert.equal(login.identity.isAdmin, true); assert.equal(login.account.gold, 600);
+  const args = { currency: 'gold', amount: 10000 };
+  const [first, retry] = await Promise.all([h.command(b, 'admin.grant', args, 'grant-one'), h.command(b, 'admin.grant', args, 'grant-one')]);
+  assert.equal(first.status, 200); assert.equal(retry.status, 200);
+  assert.equal(first.account.gold, 10600); assert.equal(retry.account.gold, 10600);
+  assert.equal((await h.command(b, 'admin.grant', args)).account.gold, 20600);
+  assert.equal((await h.command(b, 'admin.grant', { currency: 'gold', amount: 1000 })).account.gold, 21600);
+  assert.equal((await h.command(b, 'admin.grant', { currency: 'diamonds', amount: 1000 })).account.diamonds, 1060);
+  assert.equal((await h.command(b, 'admin.grant', { currency: 'diamonds', amount: 10000 })).account.diamonds, 11060);
+  assert.equal((await h.call(b, 'session/resume')).account.gold, 21600);
+  for (const invalid of [{currency:'gold',amount:-1000},{currency:'gold',amount:9999},{currency:'tickets',amount:1000}])
+    assert.equal((await h.command(b, 'admin.grant', invalid)).error, 'invalid_grant');
+  assert.equal((await h.call(b, 'session/resume')).account.gold, 21600);
+});
+
+test('test sessions revoke older logins, cannot link to real accounts, and stop when disabled or changed', async () => {
+  const h = harness(testingEnv()), b = h.browser(), other = h.browser();
+  await h.call(b, 'test/login', { username: 'root', password: '12345' });
+  await h.command(b, 'admin.grant', {currency:'gold',amount:1000});
+  const again = await h.call(other, 'test/login', { username: 'root', password: '12345' });
+  assert.equal(again.account.gold, 1600);
+  assert.equal((await h.command(b, 'admin.grant', {currency:'gold',amount:1000})).error, 'session_replaced');
+  other.owner = 'real-user';
+  assert.equal((await h.call(other, 'account/link')).error, 'test_account_link_forbidden');
+  assert.equal((await h.call(other, 'session/start', {identity:'account'})).account.gold, 600);
+  await h.call(other, 'test/login', {username:'root',password:'12345'});
+  h.env.TEST_LOGIN_ENABLED = 'false';
+  assert.equal((await h.call(other, 'session/resume')).error, 'test_login_disabled');
+  h.env.TEST_LOGIN_ENABLED = 'true';
+  h.env.TEST_LOGIN_ACCOUNTS = JSON.stringify({...testConfig, root: {...testConfig.root, hash: '0'.repeat(64)}});
+  assert.equal((await h.command(other, 'admin.grant', {currency:'gold',amount:1000})).error, 'test_login_disabled');
+});
 
 test('guest uses secret cookie and session; import and forged balances cannot enter server account or link', async () => {
   const h = harness(), guest = h.browser();

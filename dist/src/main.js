@@ -1,5 +1,6 @@
 import { enemyCombatStats } from "./character-stats.js";
 import { signInPath, signInIntent, entryPanel, accountIdentityPanel } from "./sign-in.js";
+import { testLoginPanel, bindTestLogin, adminPanel } from "./test-access-ui.js";
 import { UNITS, ENEMIES, ATTRIBUTES, NEUTRAL_ATTRIBUTE, ROLE_SPECIALIZATION, getEnemy } from "./characters.js";
 import { effectLines } from "./effects.js";
 import {
@@ -74,6 +75,8 @@ import {
 
 const hostedMode = globalThis.TINY_LEGION_SERVER === true;
 const sitesSignedIn = globalThis.TINY_LEGION_SIGNED_IN === true;
+const testLoginEnabled = hostedMode && globalThis.TINY_LEGION_TEST_LOGIN === true;
+const testLoginRequested = testLoginEnabled && new URL(location.href).searchParams.get("testLogin") === "1";
 const loginIntent = hostedMode ? signInIntent(location.href) : null;
 let cloudBootstrapEnvelope = null;
 let cloudIdentity = null;
@@ -105,15 +108,20 @@ function chooseCloudEntry() {
   const root = ensureCloudGate();
   root.hidden = false;
   root.style.display = "grid";
-  root.innerHTML = entryPanel();
   return new Promise((resolve) => {
-    root.querySelector("#entry-guest").onclick = () => resolve("guest");
-    root.querySelector("#entry-account").onclick = (event) => {
-      if (sitesSignedIn) {
-        event.preventDefault();
-        resolve("account");
-      }
+    const showEntry = () => {
+      root.innerHTML = entryPanel(testLoginEnabled);
+      root.querySelector("#entry-guest").onclick = () => resolve("guest");
+      root.querySelector("#entry-account").onclick = (event) => {
+        if (sitesSignedIn) { event.preventDefault(); resolve("account"); }
+      };
+      if (testLoginEnabled) root.querySelector("#entry-test").onclick = showTestEntry;
     };
+    const showTestEntry = () => {
+      root.innerHTML = `<div class="account-entry test-login-entry"><h1>테스트 로그인</h1>${testLoginPanel()}</div>`;
+      bindTestLogin(root, accountClient, { onSuccess: resolve, onCancel: showEntry });
+    };
+    if (testLoginRequested) showTestEntry(); else showEntry();
   });
 }
 
@@ -123,7 +131,7 @@ function showCloudGate(state = cloudGateState) {
   const root = ensureCloudGate();
   const replaced = state.status === "replaced";
   const offline = state.status === "offline" || state.status === "connecting" || state.status === "retrying";
-  const loginRequired = state.error?.payload?.error === "login_required";
+  const loginRequired = ["login_required", "test_login_disabled"].includes(state.error?.payload?.error);
   if (replaced && cloudAppReady) cloudGameHooks.halt();
   if (offline && cloudAppReady && cloudPauseBeforeOffline === null) {
     cloudGameHooks.pause();
@@ -142,7 +150,7 @@ function showCloudGate(state = cloudGateState) {
   const heading = replaced ? "다른 기기에서 접속했습니다" : loginRequired ? "ChatGPT 로그인이 필요합니다" : connecting ? "연결 중" : "서버에 연결할 수 없습니다";
   const useAccountChoice = state.error?.payload?.error === "account_exists";
   const action = replaced ? "여기서 계속하기" : loginRequired ? "ChatGPT로 로그인" : useAccountChoice ? "기존 계정으로" : connecting ? "연결 중" : "다시 연결";
-  root.innerHTML = `<div style="max-width:320px"><strong style="display:block;margin-bottom:16px">${useAccountChoice ? "이미 연결된 계정이 있습니다" : heading}</strong>${loginRequired ? `<a class="primary-button" href="${signInPath()}" target="_top">${action}</a>` : `<button id="cloud-gate-action" style="padding:10px 18px;border:0;border-radius:10px;background:#e8d89a;color:#26271f;font:inherit">${action}</button>`}</div>`;
+  root.innerHTML = `<div style="max-width:320px"><strong style="display:block;margin-bottom:16px">${useAccountChoice ? "이미 연결된 계정이 있습니다" : heading}</strong>${loginRequired ? `<a class="primary-button" href="${signInPath()}" target="_top">${action}</a>` : `<button id="cloud-gate-action" style="padding:10px 18px;border:0;border-radius:10px;background:#e8d89a;color:#26271f;font:inherit">${action}</button>`}${testLoginEnabled && !connecting ? '<a class="secondary-button" style="margin-top:12px" href="/?testLogin=1">테스트 로그인</a>' : ''}</div>`;
   if (loginRequired) return;
   root.querySelector("#cloud-gate-action").disabled = connecting;
   root.querySelector("#cloud-gate-action").onclick = async () => {
@@ -153,6 +161,7 @@ function showCloudGate(state = cloudGateState) {
         await accountClient.startNewSession("account");
         location.reload();
       } else if (replaced) {
+        if (cloudIdentity?.kind === "test") { location.assign("/?testLogin=1"); return; }
         await accountClient.startNewSession();
         location.reload();
       } else if (state.operation === "command") {
@@ -170,12 +179,15 @@ function showCloudGate(state = cloudGateState) {
 if (hostedMode) {
   ensureCloudGate();
   try {
-    if (loginIntent === "account") cloudBootstrapEnvelope = await accountClient.startNewSession("account");
-    else if (!accountClient.token && loginIntent !== "link") cloudBootstrapEnvelope = await accountClient.startNewSession(await chooseCloudEntry());
+    if (testLoginRequested || (!accountClient.token && !loginIntent)) {
+      const choice = await chooseCloudEntry();
+      cloudBootstrapEnvelope = typeof choice === "string" ? await accountClient.startNewSession(choice) : choice;
+    } else if (loginIntent === "account") cloudBootstrapEnvelope = await accountClient.startNewSession("account");
     else cloudBootstrapEnvelope = await accountClient.bootstrap();
-    if (loginIntent) {
+    if (loginIntent || testLoginRequested) {
       const cleanUrl = new URL(location.href);
       cleanUrl.searchParams.delete("login");
+      cleanUrl.searchParams.delete("testLogin");
       history.replaceState(null, "", cleanUrl.pathname + cleanUrl.search + cleanUrl.hash);
     }
     cloudIdentity = cloudBootstrapEnvelope.identity ?? { kind: "guest", canLink: true };
@@ -985,6 +997,7 @@ function renderMenu() {
     ["sequence", "순서", "sequence", sequenceUnlocked(account)],
     ["settings", "설정", "settings", true],
   ];
+  if (hostedMode && cloudIdentity?.isAdmin) items.push(["admin", "관리자 기능", "settings", true]);
   $("modal-content").innerHTML = `<div class="content-menu-grid">${items.map(([id, title, glyph, enabled]) => `<button class="content-menu-item" data-content-menu="${id}" ${enabled ? "" : "disabled"} aria-label="${title}${enabled ? "" : " 잠김"}"><span>${icon(glyph)}</span><strong>${title}</strong>${!enabled ? `<small>${icon("lock")}${tutorial ? "" : id === "sequence" ? "1-2" : "2-2"}</small>` : ""}</button>`).join("")}</div>`;
   $("modal-content").querySelectorAll("[data-content-menu]").forEach((button) => {
     button.onclick = () => {
@@ -1001,6 +1014,7 @@ function renderMenu() {
       else if (id === "sequence") {
         openSequence();
       } else if (id === "settings") openModal("설정", "settings", renderSettings);
+      else if (id === "admin") openModal("관리자 기능", "admin", renderAdmin);
     };
   });
 }
@@ -1580,7 +1594,7 @@ function openModal(title, kind, render, { layout = modalLayout(kind), navigation
     toast("1-2 방치에서 처음 실패하면 편성 교체가 열립니다.");
     return;
   }
-  if (isOnboarding(account) && !["onboarding", "menu", "settings", "import", "codex", "reset-account", "leave-battle", "guest-choice", "account-choice"].includes(kind)) return;
+  if (isOnboarding(account) && !["onboarding", "menu", "settings", "import", "codex", "reset-account", "leave-battle", "guest-choice", "account-choice", "test-login", "admin"].includes(kind)) return;
   if (modalKind === "onboarding" && kind !== "onboarding") return;
   const root = $("modal-backdrop").hidden || navigation === "root";
   if (root) {
@@ -2130,13 +2144,37 @@ async function linkGuestAccount() {
     }
   }
 }
+function renderTestLogin() {
+  if (!testLoginEnabled) return;
+  const root = $("modal-content");
+  root.innerHTML = testLoginPanel();
+  bindTestLogin(root, accountClient, { onSuccess: () => location.reload(), onCancel: () => backModal() });
+}
+function renderAdmin() {
+  if (!hostedMode || !cloudIdentity?.isAdmin) return;
+  $("modal-content").innerHTML = adminPanel(account, fmt, icon);
+  $("modal-content").querySelectorAll("[data-admin-grant]").forEach(button => {
+    button.onclick = async () => {
+      if (button.disabled) return;
+      button.disabled = true;
+      const envelope = await sendCommand("admin.grant", {
+        currency: button.dataset.adminGrant, amount: Number(button.dataset.amount),
+      });
+      if (envelope) {
+        updateUi();
+        if (modalKind === "admin") renderAdmin();
+      } else button.disabled = false;
+    };
+  });
+}
 function renderSettings() {
   const hostedAccountRows = hostedMode
-    ? `<div class="settings-row settings-account"><span>계정</span>${accountIdentityPanel(cloudIdentity)}<div>${cloudIdentity?.kind === "guest" ? `<a class="secondary-button" id="login-account" href="${signInPath()}" target="_top">계정 로그인</a> ${cloudIdentity?.canLink ? '<button class="secondary-button" id="link-account">계정 연결</button>' : ""}` : '<button class="secondary-button" id="switch-to-guest">게스트로</button>'}</div></div>`
+    ? `<div class="settings-row settings-account"><span>계정</span>${accountIdentityPanel(cloudIdentity)}<div>${cloudIdentity?.kind === "guest" ? `<a class="secondary-button" id="login-account" href="${signInPath()}" target="_top">계정 로그인</a> ${cloudIdentity?.canLink ? '<button class="secondary-button" id="link-account">계정 연결</button>' : ""}` : '<button class="secondary-button" id="switch-to-guest">게스트로</button>'}${testLoginEnabled ? ' <button class="secondary-button" id="test-login">테스트 로그인</button>' : ''}</div></div>`
     : "";
   $("modal-content").innerHTML =
     `<div class="settings-row"><span>소리</span><button class="secondary-button" id="setting-sound">${account.settings.sound ? "켜짐" : "꺼짐"}</button></div><div class="settings-row"><span>화면</span><button class="secondary-button" id="fullscreen">${icon("fullscreen")}전체 화면</button></div><div class="settings-row"><span>저장 파일</span><div><button class="secondary-button" id="export-save">내려받기</button>${hostedMode ? "" : ' <button class="secondary-button" id="import-save">불러오기</button><input type="file" id="save-file" accept="application/json,.json" hidden>'}</div></div><div class="settings-row"><span>방치 결과</span><button class="secondary-button" id="restore-idle-results" ${account.settings.hiddenIdleResults.length ? "" : "disabled"}>다시 표시</button></div>${hostedAccountRows}<div class="settings-row"><span>계정</span><button class="secondary-button" id="reset-account">계정 초기화</button></div>${hostedMode && cloudBootstrapEnvelope.created ? '<p class="settings-note">새 온라인 계정을 만들었습니다. 기존 브라우저 저장 기록은 그대로 보존됩니다.</p>' : hostedMode ? '<p class="settings-note">진행도는 온라인 계정에 저장됩니다.</p>' : '<p class="settings-note">진행도는 이 브라우저에 저장됩니다.<br>다른 기기로 옮기려면 저장 파일을 사용하세요.</p>'}<p class="settings-note">키보드: 1–9·0 소환 · Space 일시 정지 · Esc 뒤로 / 닫기</p>`;
   if ($("link-account")) $("link-account").onclick = () => linkGuestAccount();
+  if (testLoginEnabled) $("test-login").onclick = () => openModal("테스트 로그인", "test-login", renderTestLogin);
   if (hostedMode && $("login-account") && sitesSignedIn) $("login-account").onclick = (event) => {
     event.preventDefault();
     void switchToExistingAccount();

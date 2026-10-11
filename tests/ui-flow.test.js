@@ -12,6 +12,7 @@ import {drawGem,gemByUid,gemDefinition,gemDescription,gemOptionText,gemUpgradeCo
 import { moveSequenceItem } from '../dist/src/sequence-ui.js';
 import {gemPage,gemDetail,gemCard} from '../dist/src/gem-ui.js';
 import { entryPanel, signInPath, signInIntent, accountIdentityPanel } from '../dist/src/sign-in.js';
+import { testLoginPanel, bindTestLogin, adminPanel } from '../dist/src/test-access-ui.js';
 
 const source = fs.readFileSync(new URL('../dist/src/main.js', import.meta.url), 'utf8');
 function functionSource(name) {
@@ -48,7 +49,7 @@ function harness(names) {
   account.highestCleared = 1;
   const calls = [];
   const context = {
-    $, account, calls, hostedMode:false, accountClient:null, sendCommand:async()=>null, updatePreference:async()=>true, STAGES, stageLabel, currentMission, recordMissionBattle, claimMission, accrue, recordIdle, isOnboarding, recruitOnboardingCompanion, growthUnlocked, sequenceUnlocked, sequenceForMode, setSequence, playableSequence, growUnit, refundUnitLevels, unitLevelRefund, levelCost, recruitEarlyRabbit, applyGuideSequence, canUseUnit, ownsUnit, UNITS,
+    $, account, calls, hostedMode:false, testLoginEnabled:false, testLoginRequested:false, cloudIdentity:null, adminPanel, accountClient:null, sendCommand:async()=>null, updatePreference:async()=>true, STAGES, stageLabel, currentMission, recordMissionBattle, claimMission, accrue, recordIdle, isOnboarding, recruitOnboardingCompanion, growthUnlocked, sequenceUnlocked, sequenceForMode, setSequence, playableSequence, growUnit, refundUnitLevels, unitLevelRefund, levelCost, recruitEarlyRabbit, applyGuideSequence, canUseUnit, ownsUnit, UNITS,
     bindSequenceDrag(){}, moveSequenceItem, modalHistory:[], modalLayout, messagePanel, modalKind:null, modalRender:null, lastFocused:null, hideTooltip(){},
     readyBattle(){calls.push("ready");}, openCodex(){},
     gemViewPreset:0, drawGem,gemByUid,gemDefinition,gemDescription,gemOptionText,gemUpgradeCost,gemTransferCost,gemUpgradeMaterials,upgradeGem,transferGem,equipGem,GEM_BANNERS,GEM_OPTIONS,gemPage,gemDetail,gemCard,
@@ -783,4 +784,48 @@ test('settings distinguish guest login state and safely display the signed-in ac
   assert.match(panel, /player@test.invalid/);
   assert.match(panel, /&lt;img src=x&gt;/);
   assert.doesNotMatch(panel, /<img/);
+});
+
+test('only a server-admin identity exposes the menu and dispatches repeatable grants', async () => {
+  const c=harness(['renderMenu','renderAdmin']);
+  c.hostedMode=true; c.cloudIdentity={kind:'guest'}; c.mode='challenge';
+  c.renderMenu();
+  assert.doesNotMatch(c.$('modal-content').innerHTML,/data-content-menu="admin"/);
+  c.cloudIdentity={kind:'test',isAdmin:true,displayName:'root'};
+  c.renderMenu();
+  assert.match(c.$('modal-content').innerHTML,/data-content-menu="admin"/);
+  c.modalKind='admin';
+  c.sendCommand=async(type,args)=>{
+    c.calls.push({type,args});
+    c.account[args.currency]+=args.amount;
+    return {account:c.account};
+  };
+  c.renderAdmin();
+  const button=c.$('modal-content:data-admin-grant:gold');
+  await button.onclick();
+  assert.equal(c.account.gold,10600);
+  // Rendering replaces DOM buttons after a successful server response.
+  button.disabled=false;
+  await button.onclick();
+  assert.equal(c.account.gold,20600);
+  assert.deepEqual(JSON.parse(JSON.stringify(c.calls.filter(call=>call.type==='admin.grant'))),[
+    {type:'admin.grant',args:{currency:'gold',amount:10000}},
+    {type:'admin.grant',args:{currency:'gold',amount:10000}},
+  ]);
+  assert.match(accountIdentityPanel(c.cloudIdentity),/root/);
+});
+
+test('test login clears the password field and shows authentication errors in its form', async () => {
+  const c=harness([]), root=c.$('test');
+  root.innerHTML=testLoginPanel();
+  c.$('test:#test-username').value=' root ';
+  c.$('test:#test-password').value='wrong';
+  let credentials;
+  bindTestLogin(root,{async startTestSession(username,password){credentials={username,password};throw {payload:{error:'invalid_credentials'},status:401};}},
+    {onSuccess(){throw Error('Unexpected login');},onCancel(){}});
+  await c.$('test:#test-login-form').onsubmit({preventDefault(){}});
+  assert.deepEqual(credentials,{username:'root',password:'wrong'});
+  assert.equal(c.$('test:#test-password').value,'');
+  assert.match(c.$('test:#test-login-error').textContent,/비밀번호/);
+  assert.equal(c.$('test:#submit-test-login').disabled,false);
 });

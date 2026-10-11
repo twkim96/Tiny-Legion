@@ -31,6 +31,7 @@ const DB = { prepare(sql) { return { values: [], bind(...values) { this.values =
   finally { release(); }
 } };
 const worker = (await import(resolve(root, 'dist/server/index.js'))).default;
+const runtime = { DB, TEST_LOGIN_ENABLED: process.env.TEST_LOGIN_ENABLED, TEST_LOGIN_ACCOUNTS: process.env.TEST_LOGIN_ACCOUNTS };
 const server = createServer(async (incoming, outgoing) => {
   try {
     const chunks = []; let length = 0;
@@ -46,7 +47,7 @@ const server = createServer(async (incoming, outgoing) => {
     const request = new Request(`http://localhost:4174${incoming.url}`, {
       method, headers, ...(!['GET', 'HEAD'].includes(method) ? { body: Buffer.concat(chunks) } : {}),
     });
-    const response = await worker.fetch(request, { DB });
+    const response = await worker.fetch(request, runtime);
     outgoing.writeHead(response.status, Object.fromEntries(response.headers));
     outgoing.end(Buffer.from(await response.arrayBuffer()));
   } catch (error) { console.error(error.message); outgoing.writeHead(500).end('Server error'); }
