@@ -1,5 +1,5 @@
 // Initial tuning, subject to play acceptance. Bonuses of the same kind add.
-export const BALANCE_VERSION = "regional-talents-4";
+export const BALANCE_VERSION = "treasure-presets-5";
 export const ATTRIBUTES = [
   { id: "wild", name: "야생", symbol: "♧", color: "#72b54b", ink: "#3f852e", colorName: "초록색" },
   { id: "machine", name: "기계", symbol: "⚙", color: "#a8b5c5", ink: "#667487", colorName: "은색" },
@@ -964,6 +964,11 @@ for (const source of firstRegion) {
       if (source.id < 4) { group.attribute = "wild"; group.regeneration = false; }
       else if (source.id >= 6 && index % 2 === 0) group.id = "shadow-mushroom";
     }
+  }
+  if (source.id === 2) {
+    stage.enemyHp = 11500;
+    stage.enemyAttack = 6.5;
+    stage.description = "기계 무리가 더 거세게 몰려와요. 보석으로 골드 수급을 늘리고 동료를 키워 보세요.";
   }
   if (source.id === 1) {
     stage.description = "공방 입구에서 쉬어 가요. 적은 무리를 막으며 도토리를 모아 보세요.";

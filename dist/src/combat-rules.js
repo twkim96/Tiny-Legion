@@ -9,10 +9,11 @@ const boundedBonus = (value, cap) =>
 
 // Each target is evaluated independently, including each victim of a splash hit.
 export function specializationBonus(source, target, kind) {
-  if (!source?.specialties?.includes(target?.attribute)) return 0;
+  const gemBonus = boundedBonus(source?.gemAttributeBonuses?.[target?.attribute]?.[kind], .9);
+  if (!source?.specialties?.includes(target?.attribute)) return gemBonus;
   const base = ROLE_SPECIALIZATION[source.role]?.[kind] ?? 0;
   const extra = source.attributeBonuses?.[target.attribute]?.[kind] ?? 0;
-  return boundedBonus(base + extra, ATTRIBUTE_BONUS_CAP) + boundedBonus(source.specialtyUpgradeBonus?.[kind], .1);
+  return boundedBonus(base + extra, ATTRIBUTE_BONUS_CAP) + boundedBonus(source.specialtyUpgradeBonus?.[kind], .1) + gemBonus;
 }
 
 export function resolveDamage(target, rawDamage, source = {}) {

@@ -89,6 +89,8 @@ export function applyUnitAbilities(unit, raw = {}) {
 export function unitCombatStats(unit, level = 1, modifiers = {}, ranks = {}) {
   const result = applyUnitAbilities(unit, ranks);
   const scale = 1 + (level - 1) * UNIT_LEVEL_GROWTH;
+  result.speed *= modifiers.speed ?? 1;
+  result.gemAttributeBonuses = structuredClone(modifiers.attributeBonuses ?? {});
   result.hp = Math.round(result.hp * scale * (modifiers.hp ?? 1));
   result.attack = Math.max(1, Math.round(result.attack * scale * (modifiers.attack ?? 1)));
   return result;

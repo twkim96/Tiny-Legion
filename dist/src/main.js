@@ -13,6 +13,8 @@ import {
 import { createBattle, fireCannon, stepBattle, summonUnit } from "./engine.js";
 import { icon, portrait } from "./art.js";
 import { modalLayout, messagePanel } from "./modal-ui.js";
+import { drawGem, gemByUid, gemDefinition, gemUpgradeCost, gemTransferCost, gemUpgradeMaterials, upgradeGem, transferGem, equipGem, GEM_BANNERS, GEM_OPTIONS } from "./gems.js";
+import { gemPage, gemDetail, gemCard } from "./gem-ui.js";
 import { companionPanel } from "./companion-ui.js";
 import { specializationBonus } from "./combat-rules.js";
 import { Renderer } from "./renderer.js";
@@ -26,7 +28,9 @@ import {
 import { battlefieldLayout } from "./combat-visuals.js";
 import { onboardingEncounter, earlyGuideEncounter } from "./onboarding.js";
 import {
-  GEMS,
+  collectReturnIncome,
+  advancedContentUnlocked,
+  gemPresetForMode,
   canUseUnit,
   playableSequence,
   sequenceForMode,
@@ -52,7 +56,6 @@ import {
   speedrunReward,
   recruitUnits,
   ownsUnit,
-  recruitGem,
   isOnboarding,
   advanceOnboardingBattle,
   recruitOnboardingCompanion,
@@ -252,12 +255,16 @@ let { account, error: loadError } = loadAccount();
 let sequenceDraft = null;
 let sequenceDraftMode = "idle";
 let sequenceDrafts = null;
+let sequenceDraftIndex = 0;
+let sequenceDraftGem = 0;
+let sequenceDraftChoices = null;
+let gemViewPreset = 0;
 let recruitCleanup = null;
 let recruitReceipt = null;
 let recruitBanner = "forest";
 let codexRarity = "all",
   codexOwned = "all";
-const earned = accrue(account);
+let pendingReturnIncome = collectReturnIncome(account);
 let mode = isOnboarding(account) ? "challenge" : "idle",
   stageId = onboardingEncounter(account.onboarding?.phase)?.id ?? account.idleStage,
   battle = null,
@@ -379,7 +386,7 @@ function startBattle() {
     levels,
     abilities: account.abilities,
     sequence: playableSequence(account, mode),
-    modifiers: gemModifiers(account),
+    modifiers: gemModifiers(account, mode),
     ownedUnits: UNITS.filter((u) => canUseUnit(account, u.id)).map((u) => u.id),
     onboardingPhase: isOnboarding(account) ? account.onboarding.phase : null,
     earlyGuidePhase: stageId === 2 ? account.earlyGuide?.phase : null,
@@ -392,6 +399,8 @@ function startBattle() {
     abilities: structuredClone(account.abilities),
     sequence: playableSequence(account, mode),
     gem: account.equippedGem,
+    gemEffects: structuredClone(gemModifiers(account, mode)),
+    gemPreset: gemPresetForMode(account, mode),
     dailyKey: account.daily.key,
   };
   paused = false;
@@ -420,8 +429,8 @@ function readyBattle() {
 }
 function setMode(next) {
   if (isOnboarding(account)) return;
-  if (next === "speedrun" && account.highestCleared < 3) {
-    toast("1-3을 완료하면 열립니다.");
+  if (next === "speedrun" && !advancedContentUnlocked(account)) {
+    toast("2-1을 완료하면 열립니다.");
     return;
   }
   settleProduction();
@@ -477,7 +486,7 @@ function closeIdleResult() {
 function showIdleResult(result) {
   if (account.settings.hiddenIdleResults.includes(stageId) || !$("idle-result-popup").hidden) return;
   idleResultStage = stageId;
-  const bonus = battleSnapshot.gem === "gold" ? 1.15 : 1;
+  const bonus = battleSnapshot.gemEffects?.acorn ?? (battleSnapshot.gem === "gold" ? 1.15 : 1);
   const gold = Math.floor(result.reward * bonus);
   const income = idleIncome;
   $("idle-result-title").textContent = result.won ? "방치 완료" : "방치 실패";
@@ -523,6 +532,7 @@ function actOnMission() {
       toast(`도토리 +${fmt(reward.gold)} · 다이아 +${reward.diamonds}`);
     }
   } else if (mission.kind === "challenge") startChallenge(mission.stageId);
+  else if (mission.kind === "gem") openGemGuide();
   else if (mission.kind === "growth") openModal("동료", "growth", renderGrowth);
   else if (mission.stageId === 2 && account.earlyGuide?.phase === "remove-rabbit") {
     if (mode !== "idle" || stageId !== 2) enterSecondIdle();
@@ -541,9 +551,121 @@ function actOnMission() {
     }
   }
 }
+function openGemGuide() {
+  if (!advancedContentUnlocked(account)) return;
+  openModal("보석", "gem-guide", () => {
+    $("modal-content").innerHTML = messagePanel({text:"2-2의 적은 훨씬 강해요.<br>숲의 보물에서 보석을 무료로 모집하고 세 칸 중 하나에 장착해 보세요.<br>순서에서 콘텐츠별 보석 프리셋을 고를 수 있어요. 속공에서도 보석 조각을 얻습니다.",actions:'<button class="primary-button" id="gem-guide-open">보석 보기</button>'});
+    $("gem-guide-open").onclick = openGems;
+  });
+}
+function openGems() {
+  if (!advancedContentUnlocked(account)) { toast("2-1을 완료하면 열립니다."); return; }
+  gemViewPreset = gemPresetForMode(account, mode);
+  openModal("보석", "gems", renderGems);
+}
+function renderGems() {
+  $("modal-content").innerHTML = gemPage(account,gemViewPreset);
+  $("modal-content").querySelectorAll("[data-gem-preset]").forEach(button => button.onclick = () => { gemViewPreset=Number(button.dataset.gemPreset); renderGems(); });
+  $("modal-content").querySelectorAll("[data-gem-uid]").forEach(button => button.onclick = () => openGemDetail(button.dataset.gemUid));
+  $("modal-content").querySelectorAll("[data-gem-slot]").forEach(button => button.onclick = () => openGemPicker(Number(button.dataset.gemSlot)));
+  if($("gem-free")) $("gem-free").onclick = () => drawResourceGem("diamonds",true);
+  $("gem-draw-tickets").onclick = () => drawResourceGem("tickets");
+  $("gem-draw-diamonds").onclick = () => drawResourceGem("diamonds");
+  $("gem-rates").onclick = () => openModal("확률","probability",() => {
+    $("modal-content").innerHTML = `<h3>${GEM_BANNERS[0].name}</h3><div class="income-list">${GEM_BANNERS[0].types.map(type => `<div class="income-row"><strong>${gemDefinition(type).name}</strong><span>25%</span></div>`).join("")}</div><p class="settings-note">첫 무료 모집은 햇살 보석을 지급합니다. 추가옵션은 1·2·3줄이 각각 1/3 확률이며 같은 옵션이 반복될 수 있습니다. 각 줄의 종류는 같은 확률이고 범위 안 정수 %를 동일한 확률로 정합니다.</p><div class="gem-options">${GEM_OPTIONS.map(option => `<p>${option.name} ${Math.round(option.min*100)}~${Math.round(option.max*100)}%</p>`).join("")}</div><div class="modal-footer"><button class="secondary-button" id="gem-rates-back">돌아가기</button></div>`;
+    $("gem-rates-back").onclick = () => openModal("보석","gems",renderGems);
+  });
+}
+function drawResourceGem(payment,free=false) {
+  const item=drawGem(account,{payment,free});
+  if(!item) { toast("모집 재화를 확인해 주세요."); return; }
+  persist(); updateUi(); chirp("win"); openGemDetail(item.uid);
+}
+function openGemPicker(slot) {
+  openModal("보석 선택","gems",() => {
+    $("modal-content").innerHTML = `<div class="gem-grid">${account.gemItems.map(item=>gemCard(item,"gem-equip")).join("")}</div><div class="modal-footer"><button class="secondary-button" id="gem-remove">비우기</button><button class="secondary-button" id="gem-picker-back">돌아가기</button></div>`;
+    $("modal-content").querySelectorAll("[data-gem-equip]").forEach(button=>button.onclick=()=>{
+      if(!equipGem(account,gemViewPreset,slot,button.dataset.gemEquip)) { toast("같은 보석은 한 프리셋에 한 번만 장착할 수 있어요."); return; }
+      persist(); updateUi(); openModal("보석","gems",renderGems);
+    });
+    $("gem-remove").onclick=()=>{if(equipGem(account,gemViewPreset,slot,null)){persist();updateUi();}openModal("보석","gems",renderGems);};
+    $("gem-picker-back").onclick=()=>openModal("보석","gems",renderGems);
+  });
+}
+function openGemDetail(uid) {
+  if(!gemByUid(account,uid)) return;
+  openModal("보석", "gem-detail", () => renderGemDetail(uid));
+}
+function renderGemDetail(uid) {
+  const item=gemByUid(account,uid);
+  if(!item) { openModal("보석","gems",renderGems); return; }
+  $("modal-content").innerHTML=gemDetail(account,uid,gemViewPreset);
+  $("gem-back").onclick=()=>openModal("보석","gems",renderGems);
+  $("modal-content").querySelectorAll("[data-detail-equip]").forEach(button=>button.onclick=()=>{
+    if(!equipGem(account,gemViewPreset,Number(button.dataset.detailEquip),uid)){toast("같은 보석은 한 프리셋에 한 번만 장착할 수 있어요.");return;}
+    persist();updateUi();toast("장착했습니다. 다음 전투부터 적용됩니다.");renderGemDetail(uid);
+  });
+  $("gem-upgrade").onclick=()=>showGemUpgrade(uid);
+  $("gem-transfer").onclick=()=>showGemTransfer(uid);
+}
+function showGemUpgrade(uid) {
+  const item=gemByUid(account,uid),cost=gemUpgradeCost(item);
+  if(!cost) return;
+  const selected=new Set();
+  openModal("강화 재료", "gem-upgrade",()=>{
+    const candidates=gemUpgradeMaterials(account,uid);
+    const reserves=account.gemReserves[item.type]??0;
+    $("modal-content").innerHTML=`<p class="settings-note">같은 보석 ${cost.copies}개와 도토리 ${fmt(cost.gold)}개가 필요합니다. 선택한 보석은 소모됩니다. 모든 프리셋의 장착 보석과 강화한 보석은 재료에서 제외합니다.</p><p>이전 보석 재료 ${fmt(reserves)}개</p><div class="gem-grid">${candidates.map(candidate=>gemCard(candidate,"gem-material")).join("")}</div><p id="gem-material-count">선택 0 / ${cost.copies}</p><div class="modal-footer"><button class="secondary-button" id="gem-upgrade-cancel">취소</button><button class="primary-button" id="gem-upgrade-confirm">강화</button></div>`;
+    $("modal-content").querySelectorAll("[data-gem-material]").forEach(button=>button.onclick=()=>{
+      const id=button.dataset.gemMaterial;
+      if(selected.has(id)) selected.delete(id); else if(selected.size<cost.copies) selected.add(id);
+      button.setAttribute("aria-pressed",String(selected.has(id)));
+      $("gem-material-count").textContent=`선택 ${selected.size} / ${cost.copies}`;
+    });
+    $("gem-upgrade-cancel").onclick=()=>openGemDetail(uid);
+    $("gem-upgrade-confirm").onclick=()=>{
+      settleProduction();
+      if(!upgradeGem(account,uid,[...selected])){toast("선택한 재료와 도토리를 확인해 주세요.");return;}
+      persist();updateUi();openGemDetail(uid);chirp();
+    };
+  });
+}
+function showGemTransfer(uid) {
+  const source=gemByUid(account,uid);
+  if(!source||source.level<=1) return;
+  openModal("전승 대상", "gems",()=>{
+    $("modal-content").innerHTML=`<p class="settings-note">받는 보석의 추가옵션은 유지하고 강화 단계만 Lv. ${source.level}로 옮깁니다.</p><div class="gem-grid">${account.gemItems.filter(item=>item.uid!==uid&&item.level<source.level).map(item=>gemCard(item,"gem-target")).join("")}</div><div class="modal-footer"><button class="secondary-button" id="gem-transfer-back">취소</button></div>`;
+    $("gem-transfer-back").onclick=()=>openGemDetail(uid);
+    $("modal-content").querySelectorAll("[data-gem-target]").forEach(button=>button.onclick=()=>{
+      const targetUid=button.dataset.gemTarget,target=gemByUid(account,targetUid);
+      openModal("전승", "gem-transfer",()=>{
+        $("modal-content").innerHTML=messagePanel({text:`${gemDefinition(source.type).name} Lv. ${source.level} 보석은 사라집니다.<br>${gemDefinition(target.type).name}의 추가옵션을 유지하고 Lv. ${source.level}로 올립니다.<br>도토리 ${fmt(gemTransferCost(source))}개를 사용합니다.`,actions:'<button class="secondary-button" id="gem-transfer-cancel">취소</button><button class="primary-button" id="gem-transfer-confirm">전승</button>'});
+        $("gem-transfer-cancel").onclick=()=>openGemDetail(uid);
+        $("gem-transfer-confirm").onclick=()=>{
+          settleProduction();
+          if(!transferGem(account,uid,targetUid)){toast("전승 대상과 도토리를 확인해 주세요.");return;}
+          persist();updateUi();openGemDetail(targetUid);chirp();
+        };
+      });
+    });
+  });
+}
+function showReturnIncome() {
+  const summary=pendingReturnIncome;
+  if(!summary) return;
+  pendingReturnIncome=null;
+  closeIdleResult();
+  const minutes=Math.floor(summary.awaySeconds/60),hours=Math.floor(minutes/60);
+  const duration=hours ? `${hours}시간 ${minutes%60}분` : `${minutes}분`;
+  const timestamp=new Intl.DateTimeFormat("ko-KR",{timeZone:"Asia/Seoul",month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"}).format(new Date(summary.from));
+  openModal("자리 비운 동안", "return-income",()=>{
+    $("modal-content").innerHTML=`<div class="return-income-summary"><p>마지막 접속 ${timestamp}</p><strong>${duration}</strong><div class="result-rewards"><span>${icon("acorn")}+${fmt(summary.gold)}</span><span>${icon("gem")}+${summary.diamonds.toFixed(2)}</span></div><p class="settings-note">재화는 이미 반영되었습니다.${summary.capped ? "<br>최대 8시간의 생산을 반영했어요." : ""}</p><button class="primary-button" id="return-income-confirm">확인</button></div>`;
+    $("return-income-confirm").onclick=()=>closeModal();
+  });
+}
 function renderMenu() {
   const tutorial = isOnboarding(account);
-  const unlocked = account.highestCleared >= 3;
+  const unlocked = advancedContentUnlocked(account);
   const items = [
     ["mission", "미션", "flag", !tutorial && !!currentMission(account)],
     ["growth", "동료", "units", !tutorial],
@@ -555,7 +677,7 @@ function renderMenu() {
     ["sequence", "순서", "sequence", sequenceUnlocked(account)],
     ["settings", "설정", "settings", true],
   ];
-  $("modal-content").innerHTML = `<div class="content-menu-grid">${items.map(([id, title, glyph, enabled]) => `<button class="content-menu-item" data-content-menu="${id}" ${enabled ? "" : "disabled"} aria-label="${title}${enabled ? "" : " 잠김"}"><span>${icon(glyph)}</span><strong>${title}</strong>${!enabled ? `<small>${icon("lock")}${tutorial ? "" : id === "sequence" ? "1-2" : "1-3"}</small>` : ""}</button>`).join("")}</div>`;
+  $("modal-content").innerHTML = `<div class="content-menu-grid">${items.map(([id, title, glyph, enabled]) => `<button class="content-menu-item" data-content-menu="${id}" ${enabled ? "" : "disabled"} aria-label="${title}${enabled ? "" : " 잠김"}"><span>${icon(glyph)}</span><strong>${title}</strong>${!enabled ? `<small>${icon("lock")}${tutorial ? "" : id === "sequence" ? "1-2" : "2-2"}</small>` : ""}</button>`).join("")}</div>`;
   $("modal-content").querySelectorAll("[data-content-menu]").forEach((button) => {
     button.onclick = () => {
       const id = button.dataset.contentMenu;
@@ -567,7 +689,7 @@ function renderMenu() {
         if (mode !== "idle") { closeModal(); closeIdleResult(); setMode("idle"); }
         openModal("방치", "income", renderIncome);
       } else if (id === "daily") openModal("속공", "daily", renderDaily);
-      else if (id === "gems") openModal("보석", "recruit", () => renderRecruit("gems"));
+      else if (id === "gems") openGems();
       else if (id === "sequence") {
         openSequence();
       } else if (id === "settings") openModal("설정", "settings", renderSettings);
@@ -617,14 +739,14 @@ function finishBattle() {
   }
   let rewards = { gold: 0, diamonds: 0 };
   if (mode === "challenge" && r.won) {
-    const wasLocked = account.highestCleared < 3;
+    const wasLocked = !advancedContentUnlocked(account);
     const newRegion = account.highestCleared < 10;
     rewards = completeChallenge(account, stageId);
     if (newRegion && account.highestCleared >= 10) {
       createHand();
       toast("2-1 개방 · 공방과 별빛 모집이 열렸습니다.");
     }
-    if (wasLocked && account.highestCleared >= 3)
+    if (wasLocked && advancedContentUnlocked(account))
       setTimeout(() => toast("보석과 속공이 열렸습니다."), 900);
   }
   if (mode === "speedrun" && r.won) {
@@ -1047,7 +1169,7 @@ function renderGrowth() {
     return;
   }
   $("modal-content").innerHTML = `<div class="unit-grid">${UNITS.filter((u) => ownsUnit(account, u.id)).map((u) => {
-    const level = account.levels[u.id], stats = companionStats(account, u.id);
+    const level = account.levels[u.id], stats = companionStats(account, u.id, mode);
     return `<article class="growth-card"><button class="companion-open" data-companion="${u.id}" aria-label="${u.name} 상세와 강화">${rarityBadge(u)}${portrait(u.id)}<span class="level-label">Lv. ${level}</span><h3>${u.name}</h3><div class="stats"><span>${icon("heart")}${stats.hp}</span><span>${icon("swords")}${stats.attack}</span></div></button><button class="primary-button" data-grow="${u.id}" ${account.gold < levelCost(level) || level >= 100 ? "disabled" : ""}>${icon(level >= 100 ? "check" : "acorn")}${level >= 100 ? "완료" : fmt(levelCost(level)) + " ↑"}</button></article>`;
   }).join("")}</div><div class="modal-footer"><span class="resource-inline">${icon("acorn")}${fmt(account.gold)}</span></div>`;
   $("modal-content").querySelectorAll("[data-grow]").forEach((button) => {
@@ -1066,9 +1188,9 @@ function openUnitDetail(id) {
   openModal(names[id], "companion", () => renderUnitDetail(id));
 }
 function renderUnitDetail(id) {
-  const stats = companionStats(account, id);
+  const stats = companionStats(account, id, mode);
   if (!stats || !ownsUnit(account, id)) return;
-  $("modal-content").innerHTML = companionPanel(account, id, unitAbilityLines(stats));
+  $("modal-content").innerHTML = companionPanel(account, id, unitAbilityLines(stats), mode);
   $("companions-back").onclick = () => openModal("동료", "growth", renderGrowth);
   $("companion-refund").onclick = () => showUnitRefund(id);
   $("companion-level").onclick = () => {
@@ -1110,15 +1232,16 @@ function showUnitRefund(id) {
 
 function openSequence(preset = mode) {
   sequenceDraftMode = preset;
-  sequenceDrafts = Object.fromEntries(["idle", "challenge", "speedrun"].map((id) => [id, [...sequenceForMode(account, id)]]));
-  sequenceDraft = sequenceDrafts[preset];
+  sequenceDraftChoices = {...(account.activeLineup ?? {idle:0,challenge:0,speedrun:0})};
+  sequenceDrafts = Object.fromEntries(["idle", "challenge", "speedrun"].map(id => [id,Array.from({length:10},(_,index) => ({sequence:[...sequenceForMode(account,id,index)],gemPreset:gemPresetForMode(account,id,index)}))]));
+  sequenceDraftIndex = sequenceDraftChoices[preset] ?? 0;
+  sequenceDraft = sequenceDrafts[preset][sequenceDraftIndex].sequence;
+  sequenceDraftGem = sequenceDrafts[preset][sequenceDraftIndex].gemPreset;
   openModal("순서", "sequence", renderSequence);
 }
 function renderSequence() {
-  sequenceDrafts ??= Object.fromEntries(["idle", "challenge", "speedrun"].map((id) => [id, [...sequenceForMode(account, id)]]));
-  sequenceDraft ??= sequenceDrafts[sequenceDraftMode];
   $("modal-content").innerHTML =
-    `<div class="sequence-presets" role="group" aria-label="콘텐츠 편성">${[["idle", "방치"], ["challenge", "도전"], ["speedrun", "속공"]].map(([id, label]) => `<button data-sequence-preset="${id}" aria-pressed="${sequenceDraftMode === id}">${label}</button>`).join("")}</div><div class="sequence-list">${sequenceDraft.map((id, i) => `<article class="sequence-slot"><span class="slot-index">${i + 1}</span>${id ? portrait(id) : '<div class="empty-sequence-art"></div>'}<strong>${names[id] || "빈 슬롯"}</strong>${id && !canUseUnit(account, id) ? "<small>2-1에서 사용</small>" : ""}<div class="sequence-arrows"><button data-move="${i}" data-direction="-1" aria-label="${names[id] || "빈 슬롯"} 앞으로" ${i === 0 ? "disabled" : ""}>${icon("up")}</button><button data-move="${i}" data-direction="1" aria-label="${names[id] || "빈 슬롯"} 뒤로" ${i === sequenceDraft.length - 1 ? "disabled" : ""}>${icon("down")}</button></div><button class="inspect-button secondary-button" data-replace="${i}" style="font-size:10px;padding:5px 8px;margin-top:7px">교체</button></article>`).join("")}</div><p class="sequence-hint">${sequenceDraftMode === "idle" ? "골드가 모이면 차례대로 소환합니다. 쿨타임 중인 동료는 건너뜁니다." : "전투에서 사용할 소환 카드의 순서를 정합니다."}</p><div class="modal-footer"><span class="hint">같은 동료를 여러 번 넣을 수 있습니다.</span><button class="primary-button" id="apply-sequence">적용</button></div>`;
+    `<div class="sequence-presets" role="group" aria-label="콘텐츠 편성">${[["idle", "방치"], ["challenge", "도전"], ["speedrun", "속공"]].map(([id, label]) => `<button data-sequence-preset="${id}" aria-pressed="${sequenceDraftMode === id}">${label}</button>`).join("")}</div><div class="preset-numbers" role="group" aria-label="편성 프리셋">${Array.from({length:10},(_,index) => `<button data-lineup-index="${index}" aria-pressed="${sequenceDraftIndex === index}">${index+1}</button>`).join("")}</div>${advancedContentUnlocked(account) ? `<label class="sequence-gem-label">보석 프리셋 <select id="sequence-gem-preset">${Array.from({length:10},(_,index) => `<option value="${index}" ${sequenceDraftGem === index ? "selected" : ""}>${index+1}</option>`).join("")}</select></label>` : ""}<div class="sequence-list">${sequenceDraft.map((id, i) => `<article class="sequence-slot"><span class="slot-index">${i + 1}</span>${id ? portrait(id) : '<div class="empty-sequence-art"></div>'}<strong>${names[id] || "빈 슬롯"}</strong>${id && !canUseUnit(account, id) ? "<small>2-1에서 사용</small>" : ""}<div class="sequence-arrows"><button data-move="${i}" data-direction="-1" aria-label="${names[id] || "빈 슬롯"} 앞으로" ${i === 0 ? "disabled" : ""}>${icon("up")}</button><button data-move="${i}" data-direction="1" aria-label="${names[id] || "빈 슬롯"} 뒤로" ${i === sequenceDraft.length - 1 ? "disabled" : ""}>${icon("down")}</button></div><button class="inspect-button secondary-button" data-replace="${i}" style="font-size:10px;padding:5px 8px;margin-top:7px">교체</button></article>`).join("")}</div><p class="sequence-hint">${sequenceDraftMode === "idle" ? "골드가 모이면 차례대로 소환합니다. 쿨타임 중인 동료는 건너뜁니다." : "전투에서 사용할 소환 카드의 순서를 정합니다."}</p><div class="modal-footer"><span class="hint">같은 동료를 여러 번 넣을 수 있습니다.</span><button class="primary-button" id="apply-sequence">적용</button></div>`;
   $("modal-content")
     .querySelectorAll("[data-move]")
     .forEach(
@@ -1167,12 +1290,25 @@ function renderSequence() {
     );
   $("modal-content").querySelectorAll("[data-sequence-preset]").forEach((button) => {
     button.onclick = () => {
-      sequenceDrafts[sequenceDraftMode] = sequenceDraft;
+      sequenceDrafts[sequenceDraftMode][sequenceDraftIndex] = {sequence:sequenceDraft,gemPreset:sequenceDraftGem};
       sequenceDraftMode = button.dataset.sequencePreset;
-      sequenceDraft = sequenceDrafts[sequenceDraftMode];
+      sequenceDraftIndex = sequenceDraftChoices[sequenceDraftMode] ?? 0;
+      sequenceDraft = sequenceDrafts[sequenceDraftMode][sequenceDraftIndex].sequence;
+      sequenceDraftGem = sequenceDrafts[sequenceDraftMode][sequenceDraftIndex].gemPreset;
       renderSequence();
     };
   });
+  $("modal-content").querySelectorAll("[data-lineup-index]").forEach(button => {
+    button.onclick = () => {
+      sequenceDrafts[sequenceDraftMode][sequenceDraftIndex] = {sequence:sequenceDraft,gemPreset:sequenceDraftGem};
+      sequenceDraftIndex = Number(button.dataset.lineupIndex);
+      sequenceDraftChoices[sequenceDraftMode] = sequenceDraftIndex;
+      sequenceDraft = sequenceDrafts[sequenceDraftMode][sequenceDraftIndex].sequence;
+      sequenceDraftGem = sequenceDrafts[sequenceDraftMode][sequenceDraftIndex].gemPreset;
+      renderSequence();
+    };
+  });
+  if($("sequence-gem-preset")) $("sequence-gem-preset").onchange = () => sequenceDraftGem = Number($("sequence-gem-preset").value);
   $("apply-sequence").onclick = () => {
     if (!sequenceDraft.every((id) => id === null || canUseUnit(account, id))) {
       toast("숲속 이외 동료는 2-1에서 사용할 수 있습니다.");
@@ -1190,12 +1326,12 @@ function renderSequence() {
       toast("토끼 칸의 교체를 눌러 비운 뒤 적용하세요.");
       return;
     }
-    if (!setSequence(account, sequenceDraft, sequenceDraftMode)) return;
+    if (!setSequence(account, sequenceDraft, sequenceDraftMode, sequenceDraftIndex, sequenceDraftGem)) return;
     persist();
     if (sequenceDraftMode === mode) startBattle();
     else updateUi();
     closeModal();
-    toast(`${{ idle: "방치", challenge: "도전", speedrun: "속공" }[sequenceDraftMode]} 순서를 적용했습니다.`);
+    toast(`${{ idle: "방치", challenge: "도전", speedrun: "속공" }[sequenceDraftMode]} ${sequenceDraftIndex+1}번 순서를 적용했습니다.`);
   };
 }
 function openCodex(id = null, enemy = false) {
@@ -1298,7 +1434,7 @@ function enemyCounterText(enemy) {
   return counters;
 }
 function renderCodexDetail(id, enemy) {
-  const u = enemy ? ENEMIES.find((u) => u.id === id) : companionStats(account, id),
+  const u = enemy ? ENEMIES.find((u) => u.id === id) : companionStats(account, id, mode),
     scale = 1,
     gimmicks = enemyGimmicks(u),
     detailLines = enemy
@@ -1348,58 +1484,20 @@ function renderRecruit(tab = "units") {
     showRecruitResult();
     return;
   }
-  const unlocked = account.highestCleared >= 3;
+  if (tab === "gems") { openGems(); return; }
   if (account.highestCleared < (bannerById(recruitBanner)?.unlock ?? Infinity)) recruitBanner = "forest";
-  $("modal-content").innerHTML =
-    `<div class="modal-subnav"><button class="${tab === "units" ? "selected" : ""}" id="recruit-units">동료</button><button class="${tab === "gems" ? "selected" : ""}" id="recruit-gems" ${unlocked ? "" : 'data-tip="1-3을 완료하면 열립니다."'}>${unlocked ? "" : icon("lock")}보석</button></div>${tab === "units" ? recruitPanel(account, recruitBanner) : `<div class="gem-grid">${GEMS.map((g) => `<button class="gem-card ${account.equippedGem === g.id ? "equipped" : ""}" data-equip="${g.id}" ${account.gems[g.id] ? "" : "disabled"} data-tip="${g.description}"><span class="gem-art" style="color:${g.color}">${icon("gem")}</span><strong>${g.name}</strong><span>${account.gems[g.id] || "미보유"}</span>${account.equippedGem === g.id ? "<small>장착 중</small>" : ""}</button>`).join("")}</div><div class="gem-draw-actions"><button class="primary-button" id="draw-gem-tickets" ${account.tickets < 5 ? "disabled" : ""}>${icon("gem")}조각 5 · 모집</button><button class="secondary-button" id="draw-gem-diamonds" ${account.diamonds < 30 ? "disabled" : ""}>${icon("gem")}30 · 모집</button></div>`}<div class="modal-footer"><span class="resource-inline">${icon("gem")}${fmt(account.diamonds)}</span>${unlocked ? `<span class="hint">보석 조각 ${fmt(account.tickets)}</span>` : ""}<button class="secondary-button" id="draw-info">확률</button></div>`;
+  $("modal-content").innerHTML = recruitPanel(account, recruitBanner) + `<div class="modal-footer"><span class="resource-inline">${icon("gem")}${fmt(account.diamonds)}</span><button class="secondary-button" id="draw-info">확률</button></div>`;
   $("modal-content").querySelectorAll("[data-banner]").forEach((button) => {
-    button.onclick = () => { recruitBanner = button.dataset.banner; renderRecruit("units"); };
+    button.onclick = () => { recruitBanner = button.dataset.banner; renderRecruit(); };
   });
-  $("recruit-units").onclick = () => renderRecruit("units");
-  $("recruit-gems").onclick = () =>
-    unlocked ? renderRecruit("gems") : toast("1-3을 완료하면 열립니다.");
-  $("modal-content")
-    .querySelectorAll("[data-draw-count]")
-    .forEach(
-      (b) => (b.onclick = () => drawCompanions(Number(b.dataset.drawCount))),
-    );
-  if ($("welcome-draw"))
-    $("welcome-draw").onclick = () => drawCompanions(10, true);
-  const gemDraw = (payment) => {
-    const g = recruitGem(account, payment);
-    if (!g) return;
-    persist();
-    updateUi();
-    renderRecruit("gems");
-    toast(`${g.name} 보석을 얻었습니다.`);
-    chirp("win");
-  };
-  if ($("draw-gem-tickets"))
-    $("draw-gem-tickets").onclick = () => gemDraw("tickets");
-  if ($("draw-gem-diamonds"))
-    $("draw-gem-diamonds").onclick = () => gemDraw("diamonds");
-  $("modal-content")
-    .querySelectorAll("[data-equip]")
-    .forEach(
-      (b) =>
-        (b.onclick = () => {
-          account.equippedGem =
-            account.equippedGem === b.dataset.equip ? null : b.dataset.equip;
-          persist();
-          renderRecruit("gems");
-          toast("다음 전투부터 적용됩니다.");
-        }),
-    );
-  $("draw-info").onclick = () =>
-    openModal("확률", "probability", () => {
-      $("modal-content").innerHTML =
-        tab === "units"
-          ? probabilityPanel(account, recruitBanner)
-          : `<div class="income-list">${GEMS.map((g) => `<div class="income-row"><strong>${g.name}</strong><span>33.33%</span></div>`).join("")}</div><div class="modal-footer"><button class="secondary-button" id="rates-back">돌아가기</button></div>`;
-      $("rates-back").onclick = () =>
-        openModal("모집", "recruit", () => renderRecruit(tab));
-    });
+  $("modal-content").querySelectorAll("[data-draw-count]").forEach(button => button.onclick = () => drawCompanions(Number(button.dataset.drawCount)));
+  if ($("welcome-draw")) $("welcome-draw").onclick = () => drawCompanions(10,true);
+  $("draw-info").onclick = () => openModal("확률", "probability", () => {
+    $("modal-content").innerHTML = probabilityPanel(account,recruitBanner);
+    $("rates-back").onclick = () => openModal("모집","recruit",renderRecruit);
+  });
 }
+
 function drawCompanions(count, free = false) {
   if (recruitReceipt) return;
   const results = recruitUnits(account, count, { free, banner: recruitBanner });
@@ -1546,6 +1644,7 @@ function renderSettings() {
         closeIdleResult();
         account = fresh;
         recruitReceipt = null;
+        pendingReturnIncome = null;
         sequenceDraft = null;
         sequenceDrafts = null;
         codexRarity = "all";
@@ -1578,6 +1677,7 @@ function renderSettings() {
           openModal("설정", "settings", renderSettings);
         $("confirm-import").onclick = () => {
           recruitReceipt = null;
+          pendingReturnIncome = null;
           sequenceDraft = null;
           sequenceDrafts = null;
           closeIdleResult();
@@ -1675,7 +1775,7 @@ document.addEventListener("keydown", (e) => {
     if (e.key === "Tab") {
       const focusables = [
         ...$("modal").querySelectorAll(
-          "button:not(:disabled),a[href],input:not([hidden])",
+          "button:not(:disabled),a[href],input:not([hidden]),select:not(:disabled)",
         ),
       ].filter((element) => element.getClientRects().length > 0);
       if (!focusables.length) return;
@@ -1757,7 +1857,13 @@ $("skill").onclick = () => {
   updateUi();
 };
 document.addEventListener("visibilitychange", () => {
-  settleProduction();
+  if(document.hidden) settleProduction();
+  else {
+    const summary = collectReturnIncome(account);
+    if(summary) pendingReturnIncome = pendingReturnIncome
+      ? {...summary,from:pendingReturnIncome.from,gold:pendingReturnIncome.gold+summary.gold,diamonds:pendingReturnIncome.diamonds+summary.diamonds,seconds:pendingReturnIncome.seconds+summary.seconds,awaySeconds:pendingReturnIncome.awaySeconds+summary.awaySeconds,capped:pendingReturnIncome.capped||summary.capped}
+      : summary;
+  }
   persist();
   accumulator = 0;
   lastFrame = performance.now();
@@ -1780,15 +1886,9 @@ if (loadError)
       toast("저장 파일을 읽지 못했습니다. 설정에서 파일을 불러올 수 있습니다."),
     900,
   );
-else if (earned.seconds > 60 && earned.gold >= 1)
-  setTimeout(
-    () =>
-      toast(
-        `도토리 +${fmt(earned.gold)} · 다이아 +${earned.diamonds.toFixed(2)}`,
-      ),
-    900,
-  );
+
 function frame(now) {
+  if(pendingReturnIncome && !isOnboarding(account) && $("modal-backdrop").hidden && !document.hidden) showReturnIncome();
   const dt = Math.min(0.12, (now - lastFrame) / 1000);
   lastFrame = now;
   const portraitMode = matchMedia(
@@ -1823,7 +1923,7 @@ function frame(now) {
     !portraitMode
   )
     startBattle();
-  if (Date.now() - lastAccrual >= 1000) {
+  if (!document.hidden && Date.now() - lastAccrual >= 1000) {
     settleProduction();
     persist();
     lastAccrual = Date.now();

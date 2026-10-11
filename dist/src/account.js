@@ -1,5 +1,6 @@
 import { UNITS, STAGES, RARITIES, STARTER_UNIT_IDS, bannerById, bannerPool, bannerRarities, stageLabel } from "./data.js";
 import { MARK_TYPES, DUPLICATE_MARKS, markTypeFor, unitAbilities, normalizeAbilities, abilityCost, unitCombatStats } from "./abilities.js";
+import { initialGemState, normalizeGemState, gemEffects, drawGem } from "./gems.js";
 export const SAVE_KEY = "tiny-legion.save.v1";
 const ONBOARDING_PHASES = new Set([
   "intro",
@@ -14,6 +15,7 @@ const MISSION_IDS = new Set([
   "idle-intro",
   "idle-second",
   "growth-intro",
+  "gem-intro",
   ...STAGES.slice(1).map((stage) => `challenge-${stage.id}`),
 ]);
 export const GEMS = [
@@ -46,7 +48,7 @@ export function dailyKey(now = Date.now()) {
   }).format(new Date(now));
 }
 export function newAccount(now = Date.now()) {
-  return {
+  const account = {
     version: 1,
     gold: 600,
     diamonds: 60,
@@ -80,7 +82,11 @@ export function newAccount(now = Date.now()) {
     settings: { sound: false, speed: 1, hiddenIdleResults: [] },
     challengeRewards: [],
     missions: { idleCompleted: false, claimed: [] },
+    gemGuide: { drawn: false, equipped: false },
   };
+  Object.assign(account, initialGemState());
+  initializeLineups(account);
+  return account;
 }
 export function normalizeAccount(raw, now = Date.now()) {
   const a = newAccount(now);
@@ -139,7 +145,7 @@ export function normalizeAccount(raw, now = Date.now()) {
       r &&
       Number.isFinite(r.gold) &&
       r.gold >= 0 &&
-      r.gold <= s.baseReward * 2 &&
+      r.gold <= s.baseReward * 4 &&
       Number.isFinite(r.diamonds) &&
       r.diamonds >= 0 &&
       r.diamonds <= 2
@@ -230,6 +236,9 @@ export function normalizeAccount(raw, now = Date.now()) {
       ["remove-rabbit", "idle-retry", "growth", "complete"].includes(a.earlyGuide.phase) && ownsUnit(a, "rabbit")) {
     addToSequence(a.sequencePresets.challenge, "rabbit");
   }
+  Object.assign(a, normalizeGemState(raw));
+  a.gemGuide = { drawn: raw.gemGuide?.drawn === true, equipped: raw.gemGuide?.equipped === true };
+  initializeLineups(a, raw);
   return a;
 }
 function addToSequence(sequence, id) {
@@ -237,23 +246,61 @@ function addToSequence(sequence, id) {
   const slot = sequence.indexOf(null);
   sequence[slot < 0 ? 9 : slot] = id;
 }
-export function sequenceForMode(a, mode = "idle") {
+export const CONTENT_MODES = ["idle", "challenge", "speedrun"];
+export function initializeLineups(a, raw = {}) {
+  a.activeLineup = {};
+  a.lineupPresets = {};
+  for (const mode of CONTENT_MODES) {
+    const fallback = mode === "idle" ? a.sequence : a.sequencePresets[mode];
+    const saved = raw.lineupPresets?.[mode];
+    const active = Number.isInteger(raw.activeLineup?.[mode]) && raw.activeLineup[mode] >= 0 && raw.activeLineup[mode] < 10 ? raw.activeLineup[mode] : 0;
+    a.activeLineup[mode] = active;
+    a.lineupPresets[mode] = Array.from({length:10}, (_, index) => {
+      const candidate = saved?.[index];
+      const sequence = (index !== active && Array.isArray(candidate?.sequence) ? candidate.sequence : fallback).slice(0,10).map(id => ownsUnit(a,id) ? id : null);
+      while(sequence.length < 10) sequence.push(null);
+      if(!sequence.some(Boolean)) sequence[0] = "sheep";
+      return { sequence, gemPreset: Math.floor(cap(candidate?.gemPreset,0,9)) };
+    });
+    // The selected preset remains mirrored in the old fields for save compatibility.
+    const sequence = a.lineupPresets[mode][active].sequence;
+    if(mode === "idle") a.sequence = sequence;
+    else a.sequencePresets[mode] = sequence;
+  }
+}
+export function sequenceForMode(a, mode = "idle", index = a.activeLineup?.[mode] ?? 0) {
+  if(index !== (a.activeLineup?.[mode] ?? 0)) return a.lineupPresets?.[mode]?.[index]?.sequence ?? [];
   return mode === "idle" ? a.sequence : a.sequencePresets?.[mode] ?? a.sequence;
 }
-export function setSequence(a, sequence, mode = "idle") {
-  if (!["idle", "challenge", "speedrun"].includes(mode) || !sequenceUnlocked(a) ||
+export function gemPresetForMode(a, mode = "idle", index = a.activeLineup?.[mode] ?? 0) {
+  return a.lineupPresets?.[mode]?.[index]?.gemPreset ?? 0;
+}
+export function setSequence(a, sequence, mode = "idle", index = a.activeLineup?.[mode] ?? 0, gemPreset = gemPresetForMode(a,mode,index)) {
+  if (!CONTENT_MODES.includes(mode) || !sequenceUnlocked(a) ||
+      !Number.isInteger(index) || index < 0 || index >= 10 || !Number.isInteger(gemPreset) || gemPreset < 0 || gemPreset >= 10 ||
+      (!advancedContentUnlocked(a) && gemPreset !== 0) ||
       !Array.isArray(sequence) || sequence.length !== 10 ||
       !sequence.some(Boolean) || !sequence.every((id) => id === null || canUseUnit(a, id))) return false;
   if (mode === "idle") {
     if (a.earlyGuide?.phase === "idle-defense" && !sequence.includes("rabbit")) return false;
     if (a.earlyGuide?.phase === "remove-rabbit" && sequence.includes("rabbit")) return false;
+  }
+  if(!a.lineupPresets || !a.activeLineup) initializeLineups(a);
+  const previous = a.activeLineup[mode];
+  a.lineupPresets[mode][previous].sequence = [...sequenceForMode(a,mode)];
+  if (mode === "idle") {
     applyGuideSequence(a, sequence);
     a.sequence = [...sequence];
   } else {
     a.sequencePresets ??= {};
     a.sequencePresets[mode] = [...sequence];
   }
+  a.activeLineup[mode] = index;
+  a.lineupPresets[mode][index] = {sequence: mode === "idle" ? a.sequence : a.sequencePresets[mode], gemPreset};
   return true;
+}
+export function advancedContentUnlocked(a) {
+  return !isOnboarding(a) && a.highestCleared >= 11;
 }
 export function sequenceUnlocked(a) {
   return !isOnboarding(a) && ["remove-rabbit", "idle-retry", "growth", "complete"].includes(a.earlyGuide?.phase ?? "complete");
@@ -331,9 +378,9 @@ export function upgradeUnitAbility(a, id, abilityId) {
   a.abilities[id] = { ...ranks, [abilityId]: ranks[abilityId] + 1 };
   return true;
 }
-export function companionStats(a, id) {
+export function companionStats(a, id, mode = "idle") {
   const unit = UNITS.find((u) => u.id === id);
-  return unit ? unitCombatStats(unit, (a.levels[id] ?? 1) + (a.special[id] ?? 0), gemModifiers(a), a.abilities?.[id]) : null;
+  return unit ? unitCombatStats(unit, (a.levels[id] ?? 1) + (a.special[id] ?? 0), gemModifiers(a, mode), a.abilities?.[id]) : null;
 }
 export function unitLevelRefund(a, id) {
   if (!ownsUnit(a, id)) return 0;
@@ -357,11 +404,15 @@ export function battleLevels(a) {
     UNITS.map((u) => [u.id, a.levels[u.id] + a.special[u.id]]),
   );
 }
-export function gemModifiers(a) {
-  return {
-    attack: a.equippedGem === "attack" ? 1.1 : 1,
-    hp: a.equippedGem === "hp" ? 1.15 : 1,
-  };
+export function gemModifiers(a, mode = "idle") {
+  const effects = gemEffects(a, gemPresetForMode(a,mode));
+  // Direct legacy callers and pre-migration battle snapshots retain their effects.
+  if(!a.gemItems?.length) {
+    if(a.equippedGem === "attack") effects.attack *= 1.1;
+    if(a.equippedGem === "hp") effects.hp *= 1.15;
+    if(a.equippedGem === "gold") effects.acorn *= 1.15;
+  }
+  return {...effects, killGold: advancedContentUnlocked(a) ? effects.killGold : 0};
 }
 export function combatPower(a) {
   const levels = battleLevels(a),
@@ -376,7 +427,7 @@ export function combatPower(a) {
 }
 export function recordIdle(a, result, snapshot, now = Date.now()) {
   accrue(a, now);
-  const rateBonus = snapshot.gem === "gold" ? 1.15 : 1;
+  const rateBonus = Number.isFinite(snapshot.gemEffects?.acorn) ? snapshot.gemEffects.acorn : snapshot.gem === "gold" ? 1.15 : 1;
   const r = {
     gold: Math.floor(result.reward * rateBonus),
     diamonds:
@@ -434,6 +485,10 @@ export function currentMission(account) {
     };
   }
   for (const stage of STAGES.slice(1)) {
+    if(stage.id === 12 && claimed.has("challenge-11") && !claimed.has("gem-intro")) return {
+      id: "gem-intro", kind: "gem", title: "보석 모집하고 장착하기", gold: 600, diamonds: 30,
+      completed: account.gemGuide?.drawn === true && account.gemGuide?.equipped === true,
+    };
     const id = `challenge-${stage.id}`;
     if (claimed.has(id)) continue;
     return {
@@ -628,16 +683,15 @@ export function recruitUnit(a, random = Math.random) {
   return recruitUnits(a, 1, { random })?.[0].unit ?? null;
 }
 export function recruitGem(a, payment = "tickets", random = Math.random) {
-  if (isOnboarding(a)) return null;
-  if (a.highestCleared < 3) return null;
-  const cost = payment === "tickets" ? 5 : 30;
-  if (!["tickets", "diamonds"].includes(payment) || a[payment] < cost)
-    return null;
-  a[payment] -= cost;
-  const g = GEMS[Math.min(GEMS.length - 1, Math.floor(random() * GEMS.length))];
-  a.gems[g.id]++;
-  if (!a.equippedGem) a.equippedGem = g.id;
-  return g;
+  return drawGem(a, {payment,random});
+}
+export function collectReturnIncome(a, now = Date.now()) {
+  const from = a.lastSettled;
+  const income = accrue(a,now);
+  const awaySeconds = Math.max(0,(now-from)/1000);
+  return awaySeconds >= 60 && (income.gold > 0 || income.diamonds > 0)
+    ? {...income,from,to:now,awaySeconds,capped:awaySeconds > 8*3600}
+    : null;
 }
 export function loadAccount(storage = localStorage, now = Date.now()) {
   try {

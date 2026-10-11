@@ -110,6 +110,7 @@ function makeUnit(state, definition, team, x, level = 1) {
     attribute: definition.attribute,
     specialties: [...(definition.specialties ?? [])],
     specialtyUpgradeBonus: definition.specialtyUpgradeBonus,
+    gemAttributeBonuses: team === "player" ? structuredClone(state._modifiers.attributeBonuses) : undefined,
     attributeBonuses: definition.attributeBonuses
       ? structuredClone(definition.attributeBonuses)
       : undefined,
@@ -140,7 +141,7 @@ function makeUnit(state, definition, team, x, level = 1) {
       ),
     ),
     range: definition.range,
-    speed: definition.speed,
+    speed: definition.speed * (team === "player" ? state._modifiers.speed : 1),
     attackTimer: 0,
     attackInterval: definition.attackInterval,
     hitFlash: 0,
@@ -221,7 +222,7 @@ export function createBattle(options = {}) {
     time: 0,
     duration: durationSeconds,
     gold: 220,
-    maxGold: 1000,
+    maxGold: Math.round(1000 * Math.max(1, finiteNumber(modifiers.goldCapacity, 1))),
     playerHp: 1000,
     playerMaxHp: 1000,
     enemyHp: enemyMaxHp,
@@ -248,6 +249,10 @@ export function createBattle(options = {}) {
     _modifiers: {
       hp: Math.max(1, finiteNumber(modifiers.hp, 1)),
       attack: Math.max(1, finiteNumber(modifiers.attack, 1)),
+      speed: Math.max(1, finiteNumber(modifiers.speed, 1)),
+      goldIncome: Math.max(1, finiteNumber(modifiers.goldIncome, 1)),
+      killGold: Math.max(0, finiteNumber(modifiers.killGold, 0)),
+      attributeBonuses: structuredClone(modifiers.attributeBonuses ?? {}),
     },
   };
 
@@ -602,6 +607,7 @@ function resolveAttacks(state, dt) {
         specialties: [...(unit.specialties ?? [])],
         attributeBonuses: unit.attributeBonuses,
         specialtyUpgradeBonus: unit.specialtyUpgradeBonus,
+        gemAttributeBonuses: unit.gemAttributeBonuses,
         poison: definition.poison,
         slow: definition.slow,
         suppressRegen: definition.suppressRegen,
@@ -742,6 +748,11 @@ function applyDamage(state, units, batch) {
       unit.moving = false;
       unit.action = null;
       unit.deathTimer = 0.32;
+      if(unit.team === "enemy" && state._modifiers.killGold > 0) {
+        const amount = 18 * state._modifiers.killGold;
+        state.gold = Math.min(state.maxGold,state.gold+amount);
+        emit(state,{type:"gold",x:unit.x,team:"player",amount});
+      }
       emit(state, {
         type: "death",
         uid: unit.uid,
@@ -821,7 +832,7 @@ function simulateFixedStep(state, dt) {
   const nextTime = state.time + dt;
   state.time = nextTime >= state.duration - 1e-9 ? state.duration : nextTime;
   advanceTimers(state, dt);
-  state.gold = Math.min(state.maxGold, state.gold + GOLD_PER_SECOND * dt);
+  state.gold = Math.min(state.maxGold, state.gold + GOLD_PER_SECOND * state._modifiers.goldIncome * dt);
   spawnDueEnemies(state);
   if (state.mode === "idle") runIdleQueue(state);
 

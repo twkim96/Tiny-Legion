@@ -6,8 +6,10 @@ import { newAccount, currentMission, recordMissionBattle, claimMission, accrue, 
 import { STAGES, UNITS, stageLabel } from '../dist/src/data.js';
 import { recruitPanel } from '../dist/src/recruitment-ui.js';
 import { modalLayout, messagePanel } from '../dist/src/modal-ui.js';
-import { companionStats, upgradeUnitAbility } from '../dist/src/account.js';
+import { companionStats, upgradeUnitAbility, gemPresetForMode, advancedContentUnlocked, collectReturnIncome } from '../dist/src/account.js';
 import { companionPanel } from '../dist/src/companion-ui.js';
+import {drawGem,gemByUid,gemDefinition,gemDescription,gemOptionText,gemUpgradeCost,gemTransferCost,gemUpgradeMaterials,upgradeGem,transferGem,equipGem,GEM_BANNERS,GEM_OPTIONS} from '../dist/src/gems.js';
+import {gemPage,gemDetail,gemCard} from '../dist/src/gem-ui.js';
 
 const source = fs.readFileSync(new URL('../dist/src/main.js', import.meta.url), 'utf8');
 function functionSource(name) {
@@ -21,7 +23,7 @@ function functionSource(name) {
 function harness(names) {
   const elements = new Map();
   const $ = (id) => {
-    if (!elements.has(id)) elements.set(id, { hidden: true, checked: false, innerHTML: '', textContent: '', dataset: {}, focus() {}, querySelector(selector) {return $(`${id}:${selector}`);}, querySelectorAll(selector) {
+    if (!elements.has(id)) elements.set(id, { hidden: true, checked: false, innerHTML: '', textContent: '', dataset: {}, focus() {}, setAttribute(key,value){this[key]=value;}, querySelector(selector) {return $(`${id}:${selector}`);}, querySelectorAll(selector) {
       const attr=selector.slice(1,-1);
       return [...this.innerHTML.matchAll(/<button[^>]*>/g)].filter(([tag])=>tag.includes(`${attr}=`)).map(([tag])=>{
         const key=tag.match(new RegExp(`${attr}="([^"]*)"`))[1];
@@ -40,9 +42,10 @@ function harness(names) {
     $, account, calls, STAGES, stageLabel, currentMission, recordMissionBattle, claimMission, accrue, recordIdle, isOnboarding, recruitOnboardingCompanion, growthUnlocked, sequenceUnlocked, sequenceForMode, setSequence, playableSequence, growUnit, refundUnitLevels, unitLevelRefund, levelCost, recruitEarlyRabbit, applyGuideSequence, canUseUnit, ownsUnit, UNITS,
     modalLayout, messagePanel, modalKind:null, modalRender:null, lastFocused:null, hideTooltip(){},
     readyBattle(){calls.push("ready");}, openCodex(){},
-    companionStats, upgradeUnitAbility, companionPanel, unitAbilityLines:()=>[],
+    gemViewPreset:0, drawGem,gemByUid,gemDefinition,gemDescription,gemOptionText,gemUpgradeCost,gemTransferCost,gemUpgradeMaterials,upgradeGem,transferGem,equipGem,GEM_BANNERS,GEM_OPTIONS,gemPage,gemDetail,gemCard,
+    companionStats, upgradeUnitAbility, gemPresetForMode, advancedContentUnlocked, collectReturnIncome, companionPanel, unitAbilityLines:()=>[],
     renderGrowth(){calls.push('growth-screen');}, renderRecruit(){calls.push('recruit-screen');},
-    sequenceDraft:null, sequenceDraftMode:"idle", sequenceDrafts:null, names:Object.fromEntries(UNITS.map(u=>[u.id,u.name])), portrait:id=>`[${id}]`, rarityBadge:()=>"",
+    sequenceDraftIndex:0, sequenceDraftGem:0, sequenceDraftChoices:null, pendingReturnIncome:null, sequenceDraft:null, sequenceDraftMode:"idle", sequenceDrafts:null, names:Object.fromEntries(UNITS.map(u=>[u.id,u.name])), portrait:id=>`[${id}]`, rarityBadge:()=>"",
     mode: 'idle', stageId: 1, idleResultStage: null, resultHandled: false, restartAt: 0,
     battle: {result: {won:true, survival:120, hpRatio:1, reward:80}, finished:true, time:120, events:[]},
     battleSnapshot: {stageId:1, gem:null}, idleIncome:{gold:12,diamonds:.1},
@@ -438,4 +441,68 @@ test('companion detail upgrades deduct marks and acorns, update effects, and kee
   assert.match(c.$('modal-content').innerHTML,/체력 \+1%/);
   assert.equal(c.$('modal-title').textContent,'양 방패');
   assert.equal(c.account.abilities.squirrel.hp,0);
+});
+
+test('gem guide links a free banner draw to equipment and then the next challenge mission',()=>{
+ const c=harness(['actOnMission','openGemGuide','openGems','renderGems','drawResourceGem','openGemDetail','renderGemDetail']);
+ c.account.earlyGuide.phase='complete';c.account.highestCleared=11;c.account.missions.idleCompleted=true;
+ c.account.missions.claimed=['idle-intro','idle-second','growth-intro',...Array.from({length:10},(_,i)=>`challenge-${i+2}`)];
+ c.actOnMission();assert.ok(c.calls.some(call=>Array.isArray(call)&&call[1]==='gem-guide'));
+ c.$('gem-guide-open').onclick();assert.match(c.$('modal-content').innerHTML,/1회 무료|숲의 보물/);
+ const diamonds=c.account.diamonds;
+ c.$('gem-free').onclick();assert.equal(c.account.gemItems.length,1);assert.equal(c.account.diamonds,diamonds);
+ const uid=c.account.gemItems[0].uid;
+ assert.equal(c.account.gemPresets[0][0],null);
+ c.$('modal-content:data-detail-equip:0').onclick();assert.equal(c.account.gemPresets[0][0],uid);
+ assert.equal(currentMission(c.account).completed,true);
+ c.actOnMission();assert.equal(currentMission(c.account).id,'challenge-12');
+});
+test('gem transfer confirmation preserves target options and consumes the donor only after confirm',()=>{
+ const c=harness(['showGemTransfer','openGemDetail','renderGemDetail','settleProduction']);
+ c.account.earlyGuide.phase='complete';c.account.highestCleared=11;c.account.gold=5000;
+ c.account.gemItems=[{uid:'donor',type:'income',level:3,options:[{id:'hp',value:.01}]},{uid:'target',type:'harvest',level:1,options:[{id:'attack',value:.03}]}];
+ c.account.gemPresets[0][0]='donor';
+ c.showGemTransfer('donor');c.$('modal-content:data-gem-target:target').onclick();
+ assert.match(c.$('modal-content').innerHTML,/사라집니다/);
+ c.$('gem-transfer-cancel').onclick();assert.equal(c.account.gemItems.length,2);
+ c.showGemTransfer('donor');c.$('modal-content:data-gem-target:target').onclick();
+ c.$('gem-transfer-confirm').onclick();assert.equal(c.account.gemItems.length,1);
+ assert.deepEqual(c.account.gemItems[0].options,[{id:'attack',value:.03}]);
+ assert.equal(c.account.gemItems[0].level,3);assert.equal(c.account.gold,3500);
+ assert.equal(c.account.gemPresets[0][0],null);
+ const after=JSON.stringify(c.account);c.$('gem-transfer-confirm').onclick();assert.equal(JSON.stringify(c.account),after);
+});
+test('gem material picker shows options and consumes only the chosen eligible copy',()=>{
+ const c=harness(['showGemUpgrade','openGemDetail','renderGemDetail','settleProduction']);
+ c.account.earlyGuide.phase='complete';c.account.highestCleared=11;c.account.gold=5000;
+ c.account.gemItems=[{uid:'target',type:'income',level:1,options:[]},{uid:'poor',type:'income',level:1,options:[{id:'hp',value:.01}]},{uid:'keep',type:'income',level:1,options:[{id:'attack',value:.03}]}];
+ c.showGemUpgrade('target');assert.match(c.$('modal-content').innerHTML,/공격력 \+3%/);
+ c.$('modal-content:data-gem-material:poor').onclick();c.$('gem-upgrade-confirm').onclick();
+ assert.equal(gemByUid(c.account,'poor'),null);assert.ok(gemByUid(c.account,'keep'));
+ assert.equal(gemByUid(c.account,'target').level,2);assert.equal(c.account.gold,4700);
+});
+test('return summary is informational, clears its pending receipt and leaves idle simulation running',()=>{
+ const c=harness(['openModal','showReturnIncome','closeIdleResult','frame']);
+ c.pendingReturnIncome={from:Date.now()-3600000,gold:2400,diamonds:.5,awaySeconds:3600,seconds:3600,capped:false};
+ const before=JSON.stringify(c.account);
+ c.showReturnIncome();assert.equal(c.pendingReturnIncome,null);
+ assert.equal(c.$('modal-backdrop').hidden,false);
+ assert.match(c.$('modal-content').innerHTML,/1시간 0분|2,?400/);
+ assert.equal(JSON.stringify(c.account),before);
+ c.battle={time:0,finished:false,events:[]};c.frame(3200);assert.ok(c.calls.includes('step'));
+ c.$('return-income-confirm').onclick();assert.ok(c.calls.includes('close-modal'));
+ assert.equal(JSON.stringify(c.account),before);
+});
+test('numbered lineup drafts preserve their own gem selections and only apply the chosen content',()=>{
+ const c=harness(['openSequence','renderSequence']);
+ c.account.earlyGuide.phase='complete';c.account.highestCleared=11;c.account.owned.squirrel=true;
+ c.openSequence();c.$('modal-content:data-lineup-index:3').onclick();
+ c.$('modal-content:data-replace:1').onclick();c.$('modal-content:data-pick:squirrel').onclick();
+ c.$('sequence-gem-preset').value='4';c.$('sequence-gem-preset').onchange();
+ c.$('modal-content:data-lineup-index:0').onclick();assert.equal(c.sequenceDraft[1],null);
+ c.$('modal-content:data-lineup-index:3').onclick();assert.equal(c.sequenceDraft[1],'squirrel');assert.equal(c.sequenceDraftGem,4);
+ c.$('apply-sequence').onclick();assert.equal(c.account.activeLineup.idle,3);
+ assert.equal(sequenceForMode(c.account,'idle')[1],'squirrel');assert.equal(gemPresetForMode(c.account,'idle'),4);
+ assert.equal(c.account.activeLineup.challenge,0);
+ assert.equal(sequenceForMode(c.account,'idle',0)[1],null);
 });

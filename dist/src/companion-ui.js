@@ -1,7 +1,8 @@
 import { UNITS, ATTRIBUTES, ROLE_SPECIALIZATION } from "./data.js";
-import { companionStats, levelCost, growthUnlocked, ownsUnit } from "./account.js";
+import { companionStats, levelCost, growthUnlocked, ownsUnit, gemPresetForMode } from "./account.js";
 import { unitAbilities, normalizeAbilities, abilityCost, markTypeFor, markName } from "./abilities.js";
 import { specializationBonus } from "./combat-rules.js";
+import { gemByUid, gemDefinition, gemDescription, gemOptionText } from "./gems.js";
 import { portrait, icon } from "./art.js";
 import { rarityBadge } from "./recruitment-ui.js";
 
@@ -21,10 +22,10 @@ export function appliedAbilityLines(unit, ranks) {
           `${a.effect === "hp" ? "체력" : a.effect === "attack" ? "공격력" : "이동속도"} +${fmt(ranks[a.id] * a.amount * 100)}%`,
   );
 }
-export function companionPanel(account, id, nativeEffects = []) {
+export function companionPanel(account, id, nativeEffects = [], mode = "idle") {
   const unit = UNITS.find((u) => u.id === id);
   if (!unit || !ownsUnit(account, id)) return "";
-  const stats = companionStats(account, id);
+  const stats = companionStats(account, id, mode);
   const ranks = normalizeAbilities(id, account.abilities?.[id]);
   const mark = markTypeFor(unit);
   const bonuses = Object.keys(ROLE_SPECIALIZATION[unit.role] ?? {}).map((kind) =>
@@ -33,7 +34,7 @@ export function companionPanel(account, id, nativeEffects = []) {
   const effects = [
     ...appliedAbilityLines(unit, ranks),
     ...(account.special[id] ? [`이전 특별강화 +${account.special[id]}레벨`] : []),
-    ...(account.equippedGem === "hp" ? ["온기 보석 · 체력 +15%"] : account.equippedGem === "attack" ? ["용기 보석 · 공격력 +10%"] : []),
+    ...((account.gemPresets?.[gemPresetForMode(account,mode)] ?? []).map(uid=>gemByUid(account,uid)).filter(Boolean).map(item=>`${gemDefinition(item.type).name} Lv. ${item.level} · ${gemDescription(item)}${item.options.length ? " · "+item.options.map(gemOptionText).join(" · ") : ""}`)),
   ];
   const pairs = [["체력", stats.hp], ["공격력", stats.attack], ["초당 공격력", stats.attack / stats.attackInterval],
     ["사거리", stats.range], ["이동속도", stats.speed], ["공격 간격", `${fmt(stats.attackInterval)}초`],

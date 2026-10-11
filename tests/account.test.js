@@ -169,11 +169,13 @@ test("first challenge reward is not paid twice and gem draw consumes the right c
   assert.equal(a.gold, gold);
   assert.equal(recruitGem(a, "diamonds"), null);
   completeChallenge(a, 3);
+  assert.equal(recruitGem(a, "diamonds"), null);
+  completeChallenge(a, 11);
   const diamonds = a.diamonds;
   assert.ok(recruitGem(a, "diamonds", () => 0));
   assert.equal(a.diamonds, diamonds - 30);
-  assert.equal(a.gems.attack, 1);
-  assert.equal(a.equippedGem, "attack");
+  assert.equal(a.gemItems[0].type, "income");
+  assert.equal(a.gemPresets[0][0], null);
 });
 test("damaged saves cannot introduce negative balances, invalid sequence or unknown equipment", () => {
   const a = normalizeAccount(
