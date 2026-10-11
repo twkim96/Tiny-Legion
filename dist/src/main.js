@@ -1482,7 +1482,7 @@ function renderCodexDetail(id, enemy) {
     ]
       .map(
         ([label, value]) =>
-          `<div class="stat-item">${label}<strong>${value}</strong></div>`,
+          `<div class="stat-item">${enemy ? "기본 " : ""}${label}<strong>${value}</strong></div>`,
       )
       .join(
         "",
