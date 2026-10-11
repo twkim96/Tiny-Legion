@@ -1,6 +1,6 @@
 import { ENEMIES, STAGES, UNITS } from "./data.js";
 import { resolveDamage, specializationBonus } from "./combat-rules.js";
-import { onboardingEncounter } from "./onboarding.js";
+import { earlyGuideEncounter, onboardingEncounter } from "./onboarding.js";
 
 const WORLD_MIN = 0;
 const WORLD_MAX = 1200;
@@ -197,11 +197,16 @@ export function createBattle(options = {}) {
     modifiers = {},
     ownedUnits = null,
     onboardingPhase = null,
+    earlyGuidePhase = null,
   } = options ?? {};
   const battleMode = ["idle", "challenge", "speedrun"].includes(mode)
     ? mode
     : "idle";
-  const encounter = battleMode === "challenge" ? onboardingEncounter(onboardingPhase) : null;
+  const encounter =
+    (battleMode === "challenge" ? onboardingEncounter(onboardingPhase) : null) ??
+    (Number(stageId) === 2
+      ? earlyGuideEncounter(earlyGuidePhase, battleMode)
+      : null);
   const stage = encounter ?? STAGE_BY_ID.get(Number(stageId)) ?? STAGES[0];
   const durationSeconds = Math.max(0, finiteNumber(encounter?.duration ?? duration, 120));
   const stageEnemyHp = Math.max(1, finiteNumber(stage.enemyHp, 2000));
@@ -462,7 +467,11 @@ function impact(state, shot, units, batch) {
       batch.playerCastle += damage;
       hit = true;
     } else if (state.mode !== "idle") {
-      batch.enemyCastle += damage;
+      batch.enemyCastle +=
+        damage *
+        (team === "player"
+          ? 1 + Math.max(0, finiteNumber(shot.source?.castleDamageBonus, 0))
+          : 1);
       hit = true;
     }
   }
@@ -572,6 +581,7 @@ function resolveAttacks(state, dt) {
       // Capture combat effects at release: projectiles survive their source.
       source: {
         team: unit.team,
+        castleDamageBonus: definition.castleDamageBonus ?? 0,
         role: unit.role,
         attribute: unit.attribute,
         specialties: [...(unit.specialties ?? [])],

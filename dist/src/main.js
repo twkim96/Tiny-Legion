@@ -21,7 +21,7 @@ import {
   rarityOf,
 } from "./recruitment-ui.js";
 import { battlefieldLayout } from "./combat-visuals.js";
-import { onboardingEncounter } from "./onboarding.js";
+import { onboardingEncounter, earlyGuideEncounter } from "./onboarding.js";
 import {
   GEMS,
   canUseUnit,
@@ -53,6 +53,9 @@ import {
   currentMission,
   recordMissionBattle,
   claimMission,
+  growthUnlocked,
+  recruitEarlyRabbit,
+  applyGuideSequence,
 } from "./account.js";
 
 const $ = (id) => document.getElementById(id);
@@ -65,7 +68,7 @@ const unitById = Object.fromEntries(UNITS.map((u) => [u.id, u]));
 const names = Object.fromEntries(UNITS.map((u) => [u.id, u.name]));
 Object.assign(names, {
   sheep: "양 방패",
-  rabbit: "목검 토끼",
+  rabbit: "속공 토끼",
   squirrel: "다람쥐",
   teapot: "주전자",
   cloud: "구름",
@@ -106,6 +109,7 @@ function unitSpecialtyText(unit, rich = false) {
 }
 function unitAbilityLines(unit) {
   const lines = [];
+  if (unit.castleDamageBonus > 0) lines.push(`적 성 추가 피해 +${percent(unit.castleDamageBonus)}`);
   if (Number.isFinite(unit.shieldDamageBonus) && unit.shieldDamageBonus > 0)
     lines.push(
       `방어막 추가 피해 +${percent(unit.shieldDamageBonus)} (방어막에만 적용)`,
@@ -332,9 +336,17 @@ function handUnits() {
   return [...sequence.map((id) => canUseUnit(account, id) ? id : null), ...Array(10).fill(null)].slice(0, 10);
 }
 function currentStage() {
-  return onboardingEncounter(account.onboarding?.phase) ?? STAGES[stageId - 1] ?? STAGES[0];
+  return onboardingEncounter(account.onboarding?.phase) ?? (stageId === 2 ? earlyGuideEncounter(account.earlyGuide?.phase, mode) : null) ?? STAGES[stageId - 1] ?? STAGES[0];
 }
 function startBattle() {
+  if (!isOnboarding(account) && !growthUnlocked(account) && stageId > 2) {
+    toast("1-2 방치 미션을 먼저 완료하세요.");
+    return;
+  }
+  if (!isOnboarding(account) && mode === "challenge" && stageId === 2 && account.earlyGuide?.phase === "rabbit-recruit") {
+    showEarlyDraw();
+    return;
+  }
   if (isOnboarding(account) && !onboardingEncounter(account.onboarding.phase)) {
     resumeOnboarding();
     return;
@@ -352,6 +364,7 @@ function startBattle() {
     modifiers: gemModifiers(account),
     ownedUnits: UNITS.filter((u) => canUseUnit(account, u.id)).map((u) => u.id),
     onboardingPhase: isOnboarding(account) ? account.onboarding.phase : null,
+    earlyGuidePhase: stageId === 2 ? account.earlyGuide?.phase : null,
   });
   idleIncome = { gold: 0, diamonds: 0 };
   battleSnapshot = {
@@ -453,6 +466,8 @@ function showIdleResult(result) {
 }
 function startChallenge(target = Math.min(STAGES.length, account.highestCleared + 1)) {
   if (isOnboarding(account) || target > account.highestCleared + 1) return;
+  if (!growthUnlocked(account) && target > 2) { toast("1-2 방치 미션을 먼저 완료하세요."); return; }
+  if (target === 2 && account.earlyGuide?.phase === "rabbit-recruit") { showEarlyDraw(); return; }
   settleProduction();
   closeModal();
   closeIdleResult();
@@ -487,14 +502,19 @@ function actOnMission() {
       toast(`도토리 +${fmt(reward.gold)} · 다이아 +${reward.diamonds}`);
     }
   } else if (mission.kind === "challenge") startChallenge(mission.stageId);
+  else if (mission.kind === "growth") openModal("동료", "growth", renderGrowth);
+  else if (mission.stageId === 2 && account.earlyGuide?.phase === "remove-rabbit") {
+    if (mode !== "idle" || stageId !== 2) enterSecondIdle();
+    showDefenseGuide();
+  }
   else {
     closeModal();
     closeIdleResult();
-    if (mode !== "idle" || stageId !== 1) {
+    if (mode !== "idle" || stageId !== mission.stageId) {
       settleProduction();
-      account.idleStage = 1;
+      account.idleStage = mission.stageId;
       mode = "idle";
-      stageId = 1;
+      stageId = mission.stageId;
       persist();
       startBattle();
     }
@@ -542,6 +562,7 @@ function finishBattle() {
     finishOnboardingBattle(r);
     return;
   }
+  const earlyPhase = account.earlyGuide?.phase;
   chirp("win");
   if (mode === "idle") {
     settleProduction();
@@ -551,6 +572,20 @@ function finishBattle() {
     showIdleResult(r);
     restartAt = performance.now() + 3000;
     updateUi();
+    if (earlyPhase === "idle-defense" && account.earlyGuide?.phase === "remove-rabbit") showDefenseGuide();
+    if (earlyPhase === "idle-retry" && account.earlyGuide?.phase === "growth") {
+      openModal("레벨업", "growth-guide", () => {
+        $("modal-content").innerHTML = '<p class="settings-note">성을 지켜냈어요! 이제 도토리로 동료의 레벨을 올릴 수 있습니다.<br>방치 미션 보상을 받고 동료를 성장시켜 보세요.</p><button class="primary-button" id="growth-guide-done">확인</button>';
+        $("growth-guide-done").onclick = () => { closeModal(); actOnMission(); };
+      });
+    }
+    return;
+  }
+  recordMissionBattle(account, { mode, stageId, won: r.won });
+  if (stageId === 2 && mode === "challenge" && account.earlyGuide?.phase === "rabbit-recruit") {
+    persist();
+    onboardingMessage("튼튼한 성", "시간 안에 성을 무너뜨리지 못했어요. 성을 빠르게 공격할 동료를 무료로 모집해 보세요.", "동료 모집", showEarlyDraw, "squirrel");
+    updateUi();
     return;
   }
   let rewards = { gold: 0, diamonds: 0 };
@@ -558,7 +593,6 @@ function finishBattle() {
     const wasLocked = account.highestCleared < 3;
     const newRegion = account.highestCleared < 10;
     rewards = completeChallenge(account, stageId);
-    recordMissionBattle(account, { mode, stageId, won: r.won });
     if (newRegion && account.highestCleared >= 10) {
       createHand();
       toast("2-1 개방 · 공방과 별빛 모집이 열렸습니다.");
@@ -574,7 +608,59 @@ function finishBattle() {
   }
   persist();
   showResult(r, rewards);
+  if (mode === "challenge" && stageId === 2 && r.won && account.earlyGuide?.phase === "idle-defense") {
+    $("next-battle").textContent = "1-2 방치";
+    $("next-battle").onclick = enterSecondIdle;
+    $("return-idle").onclick = enterSecondIdle;
+  }
   updateUi();
+}
+function enterSecondIdle() {
+  closeModal(true);
+  closeIdleResult();
+  settleProduction();
+  account.idleStage = 2;
+  mode = "idle";
+  stageId = 2;
+  persist();
+  startBattle();
+}
+function showEarlyDraw() {
+  openModal("모집", "onboarding", () => {
+    $("modal-content").innerHTML = recruitPanel(account, "forest", { tutorial: true, tutorialText: "성을 공략할 동료를 무료로 만나 보세요." });
+    $("modal-content").querySelector('[data-draw-count="1"]').onclick = () => {
+      const result = recruitEarlyRabbit(account);
+      if (!result) return;
+      persist();
+      createHand();
+      updateUi();
+      recruitCleanup = revealRecruit($("modal-content"), [result], {
+        done: () => onboardingMessage("속공 토끼", "빠르게 달려가 적 성에 추가 피해를 줍니다. 양 방패와 다람쥐로 길을 열고 토끼를 소환해 보세요.", "1-2 출정", () => { closeModal(true); startChallenge(2); }, "rabbit"),
+        inspect: () => {}, sound: () => chirp("win"),
+      });
+      $("draw-again").hidden = true;
+      $("draw-done").textContent = "함께 출정";
+      $("draw-skip").focus();
+    };
+  });
+}
+function showDefenseGuide() {
+  // Idle continues while this information and the sequence editor are open.
+  openModal("방치 편성", "defense-guide", () => {
+    $("modal-content").innerHTML = `${portrait("rabbit")}<p class="settings-note">속공 토끼는 성을 무너뜨리는 데 특화되어 있어요.<br>성을 지키는 방치에서는 토끼를 빼고 방패와 다람쥐에 골드를 써 보세요.<br>순서 → 토끼의 교체 → 비우기 → 적용을 누르면 됩니다.</p><button class="primary-button" id="defense-edit">편성 바꾸기</button>`;
+    $("defense-edit").onclick = () => {
+      closeIdleResult();
+      sequenceDraft = [...account.sequence];
+      openModal("순서", "sequence", renderSequence);
+    };
+  });
+}
+function resumeEarlyGuide() {
+  if (account.earlyGuide?.phase === "rabbit-recruit") showEarlyDraw();
+  else if (account.earlyGuide?.phase === "remove-rabbit") {
+    if (mode !== "idle" || stageId !== 2) enterSecondIdle();
+    showDefenseGuide();
+  }
 }
 function onboardingMessage(title, text, label, action, companion = "sheep") {
   openModal(title, "onboarding", () => {
@@ -781,6 +867,11 @@ function updateUi() {
     else if (phase === "first-battle") note = "양 방패로 적 성에 도전하세요";
     else if (phase === "retry-battle") note = battle?.units.some((u) => u.id === "sheep" && u.team === "player" && !u.dead) ? "골드를 모아 다람쥐도 소환하세요" : "양 방패를 먼저 소환하세요";
   }
+  if (!isOnboarding(account) && stageId === 2) {
+    if (mode === "challenge" && account.earlyGuide?.phase === "wall-battle") note = "시간 안에 튼튼한 적 성을 무너뜨리세요";
+    else if (mode === "challenge" && account.earlyGuide?.phase === "wall-retry") note = "속공 토끼로 적 성을 공략하세요";
+    else if (mode === "idle" && account.earlyGuide?.phase === "remove-rabbit") note = "순서에서 속공 토끼를 빼 보세요";
+  }
   $("field-note-text").textContent = note;
   $("unit-hand")
     .querySelectorAll(".unit-card")
@@ -850,7 +941,7 @@ function closeModal(force = false) {
   hideTooltip();
 }
 function renderStages() {
-  const unlocked = Math.min(STAGES.length, account.highestCleared + 1);
+  const unlocked = Math.min(growthUnlocked(account) ? STAGES.length : 2, account.highestCleared + 1);
   $("modal-content").innerHTML =
     `<div class="stage-grid">${STAGES.map((s) => `<div style="position:relative"><button class="stage-tile ${s.id === stageId ? "selected" : ""}" data-stage="${s.id}" ${s.id > unlocked ? "disabled" : ""} style="width:100%"><strong>${stageLabel(s.id)}</strong><span class="stage-tile-name">${s.name}</span>${icon(s.id > unlocked ? "lock" : s.id <= account.highestCleared ? "check" : "flag")}${account.records[s.id] ? `<span class="stage-rate">${icon("acorn")}${fmt(account.records[s.id].gold * 30)} / 시간</span>` : ""}</button><button class="stage-info-button" data-stage-info="${s.id}" aria-label="${s.name} 전장 정보" title="${s.name} 전장 정보" style="position:absolute;left:5px;bottom:5px;padding:2px 4px;border:0;background:transparent;color:#7b9463;line-height:0">${icon("book")}</button></div>`).join("")}</div>`;
   $("modal-content")
@@ -885,6 +976,10 @@ function renderStages() {
     );
 }
 function renderGrowth() {
+  if (!growthUnlocked(account)) {
+    $("modal-content").innerHTML = '<p class="settings-note">1-2 방치 미션을 완료하면 레벨업이 열립니다.</p>';
+    return;
+  }
   $("modal-content").innerHTML = `<div class="unit-grid">${UNITS.filter((u) =>
     ownsUnit(account, u.id),
   )
@@ -1002,6 +1097,15 @@ function renderSequence() {
       toast("동료를 한 명 이상 넣어 주세요.");
       return;
     }
+    if (account.earlyGuide?.phase === "idle-defense" && !sequenceDraft.includes("rabbit")) {
+      toast("먼저 1-2 방치에서 현재 편성을 확인해 보세요.");
+      return;
+    }
+    if (account.earlyGuide?.phase === "remove-rabbit" && sequenceDraft.includes("rabbit")) {
+      toast("토끼 칸의 교체를 눌러 비운 뒤 적용하세요.");
+      return;
+    }
+    applyGuideSequence(account, sequenceDraft);
     account.sequence = [...sequenceDraft];
     persist();
     createHand();
@@ -1150,6 +1254,11 @@ function renderCodexDetail(id, enemy) {
   $("codex-back").onclick = () => openCodex();
 }
 function renderRecruit(tab = "units") {
+  if (!growthUnlocked(account)) {
+    if (account.earlyGuide?.phase === "rabbit-recruit") { closeModal(); showEarlyDraw(); }
+    else $("modal-content").innerHTML = '<p class="settings-note">미션을 따라 숲길을 탐험해 보세요. 1-2 방치 미션 뒤 일반 모집이 열립니다.</p>';
+    return;
+  }
   recruitCleanup?.();
   recruitCleanup = null;
   if (tab === "units" && recruitReceipt) {
@@ -1397,6 +1506,7 @@ function renderSettings() {
             stageId = account.idleStage;
             createHand();
             startBattle();
+            resumeEarlyGuide();
           }
           toast("저장 파일을 불러왔습니다.");
         };
@@ -1578,7 +1688,7 @@ hydrateIcons();
 $("brand-icon").innerHTML = portrait("sheep");
 createHand();
 if (isOnboarding(account)) resumeOnboarding();
-else startBattle();
+else { startBattle(); resumeEarlyGuide(); }
 persist();
 if (loadError)
   setTimeout(

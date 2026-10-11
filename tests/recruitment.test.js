@@ -28,6 +28,7 @@ const rolls = (...values) => {
 function completedAccount() {
   const account = newAccount(now);
   account.onboarding.phase = "complete";
+  account.earlyGuide = { phase: "complete", legacy: true };
   for (const id of STARTER_UNIT_IDS) account.owned[id] = true;
   account.sequence = [...STARTER_UNIT_IDS];
   return account;
@@ -230,7 +231,7 @@ test("idle queue skips a locked entry instead of blocking the usable lineup", ()
   );
 });
 
-test("onboarding keeps ordinary economy and growth APIs locked until the idle guide", () => {
+test("onboarding and early defense guide keep growth locked until 1-2 idle completion", () => {
   const account = newAccount(now);
   account.gold = 10000;
   account.diamonds = 1000;
@@ -252,6 +253,8 @@ test("onboarding keeps ordinary economy and growth APIs locked until the idle gu
   account.onboarding.phase = "idle-guide";
   assert.equal(growUnit(account, "sheep"), false);
   account.onboarding.phase = "complete";
+  assert.equal(growUnit(account, "sheep"), false);
+  account.earlyGuide.phase = "growth";
   assert.equal(growUnit(account, "sheep"), true);
 });
 

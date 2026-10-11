@@ -55,6 +55,7 @@ test("account reset persists only a fresh intro account and preserves saves on w
 function completedAccount() {
   const account = newAccount(now);
   account.onboarding.phase = "complete";
+  account.earlyGuide = { phase: "complete", legacy: true };
   for (const id of STARTER_UNIT_IDS) account.owned[id] = true;
   account.sequence = [...STARTER_UNIT_IDS];
   return account;
@@ -372,6 +373,7 @@ test("legacy mission migration avoids retroactive rewards and respects onboardin
     onboarding: { phase: "complete" },
   };
   delete legacyCleared.missions;
+  delete legacyCleared.earlyGuide;
   const migratedCleared = normalizeAccount(legacyCleared, now);
   assert.deepEqual(migratedCleared.missions, {
     idleCompleted: true,

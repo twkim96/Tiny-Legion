@@ -9,8 +9,11 @@ const ONBOARDING_PHASES = new Set([
   "idle-guide",
   "complete",
 ]);
+const EARLY_PHASES = new Set(["wall-battle", "rabbit-recruit", "wall-retry", "idle-defense", "remove-rabbit", "idle-retry", "growth", "complete"]);
 const MISSION_IDS = new Set([
   "idle-intro",
+  "idle-second",
+  "growth-intro",
   ...STAGES.slice(1).map((stage) => `challenge-${stage.id}`),
 ]);
 export const GEMS = [
@@ -60,6 +63,7 @@ export function newAccount(now = Date.now()) {
     },
     sequence: ["sheep", ...Array(9).fill(null)],
     onboarding: { phase: "intro" },
+    earlyGuide: { phase: "wall-battle", legacy: false },
     highestCleared: 0,
     records: {},
     idleStage: 1,
@@ -193,7 +197,34 @@ export function normalizeAccount(raw, now = Date.now()) {
       }
     }
   }
+  // Saves from before this guide keep their existing growth and completed stages.
+  const progressed = a.highestCleared >= 2 || UNITS.some((u) => a.levels[u.id] > 1 || a.special[u.id] > 0);
+  const phase = raw.earlyGuide?.phase;
+  a.earlyGuide = { phase: EARLY_PHASES.has(phase) ? phase : progressed ? "complete" : "wall-battle", legacy: raw.earlyGuide?.legacy === true || (!EARLY_PHASES.has(phase) && progressed) };
+  if (["wall-retry", "idle-defense", "remove-rabbit", "idle-retry"].includes(a.earlyGuide.phase) && !ownsUnit(a, "rabbit")) {
+    a.earlyGuide.phase = "rabbit-recruit";
+  }
   return a;
+}
+export function growthUnlocked(a) {
+  return !isOnboarding(a) && ["growth", "complete"].includes(a.earlyGuide?.phase ?? "complete");
+}
+export function recruitEarlyRabbit(a) {
+  if (isOnboarding(a) || a.earlyGuide?.phase !== "rabbit-recruit") return null;
+  const unit = UNITS.find((u) => u.id === "rabbit");
+  const isNew = !ownsUnit(a, "rabbit");
+  a.owned.rabbit = true;
+  a.earlyGuide.phase = "wall-retry";
+  if (!a.sequence.includes("rabbit")) {
+    const slot = a.sequence.indexOf(null);
+    a.sequence[slot < 0 ? 9 : slot] = "rabbit";
+  }
+  return { unit, isNew, fragments: 0, guaranteed: true };
+}
+export function applyGuideSequence(a, sequence) {
+  if (a.earlyGuide?.phase !== "remove-rabbit" || sequence.includes("rabbit") || !sequence.some((id) => canUseUnit(a, id))) return false;
+  a.earlyGuide.phase = "idle-retry";
+  return true;
 }
 export function levelCost(level) {
   return Math.floor(60 + level * 25 + level * level * 5);
@@ -220,16 +251,17 @@ export function accrue(a, now = Date.now()) {
   return { gold, diamonds, seconds };
 }
 export function growUnit(a, id) {
-  if (isOnboarding(a)) return false;
+  if (!growthUnlocked(a)) return false;
   if (!ownsUnit(a, id) || a.levels[id] >= 100) return false;
   const cost = levelCost(a.levels[id]);
   if (a.gold < cost) return false;
   a.gold -= cost;
   a.levels[id]++;
+  if (a.earlyGuide?.phase === "growth") a.earlyGuide.phase = "complete";
   return true;
 }
 export function enhanceUnit(a, id) {
-  if (isOnboarding(a)) return false;
+  if (!growthUnlocked(a)) return false;
   if (!ownsUnit(a, id) || (a.fragments[id] ?? 0) < 3 || a.special[id] >= 20)
     return false;
   a.fragments[id] -= 3;
@@ -322,6 +354,18 @@ export function currentMission(account) {
       completed: missions.idleCompleted === true,
     };
   }
+  if (account.highestCleared >= 2 && !account.earlyGuide?.legacy && claimed.has("challenge-2")) {
+    if (!claimed.has("idle-second")) return {
+      id: "idle-second", kind: "idle", stageId: 2,
+      title: account.earlyGuide?.phase === "remove-rabbit" ? "속공 토끼를 편성에서 빼기" : "1-2 방치 클리어",
+      gold: 160, diamonds: 10,
+      completed: ["growth", "complete"].includes(account.earlyGuide?.phase),
+    };
+    if (!claimed.has("growth-intro")) return {
+      id: "growth-intro", kind: "growth", title: "동료 레벨 올리기", gold: 100, diamonds: 10,
+      completed: account.earlyGuide?.phase === "complete",
+    };
+  }
   for (const stage of STAGES.slice(1)) {
     const id = `challenge-${stage.id}`;
     if (claimed.has(id)) continue;
@@ -338,7 +382,35 @@ export function currentMission(account) {
   return null;
 }
 export function recordMissionBattle(account, { mode, stageId, won } = {}) {
-  if (!account || mode !== "idle" || stageId !== 1 || won !== true) return false;
+  if (!account) return false;
+  const phase = account.earlyGuide?.phase;
+  if (stageId === 2 && mode === "challenge") {
+    if (won && ["wall-battle", "wall-retry"].includes(phase)) {
+      account.earlyGuide.phase = "idle-defense";
+      account.idleStage = 2;
+      // Manual summons use ownership; restore the castle specialist for the defense lesson.
+      if (ownsUnit(account, "rabbit") && !account.sequence.includes("rabbit")) {
+        const slot = account.sequence.indexOf(null);
+        account.sequence[slot < 0 ? 9 : slot] = "rabbit";
+      }
+      return true;
+    }
+    if (!won && phase === "wall-battle") {
+      account.earlyGuide.phase = "rabbit-recruit";
+      return true;
+    }
+  }
+  if (stageId === 2 && mode === "idle") {
+    if (!won && phase === "idle-defense") {
+      account.earlyGuide.phase = "remove-rabbit";
+      return true;
+    }
+    if (won && phase === "idle-retry" && !account.sequence.includes("rabbit")) {
+      account.earlyGuide.phase = "growth";
+      return true;
+    }
+  }
+  if (mode !== "idle" || stageId !== 1 || won !== true) return false;
   account.missions ??= { idleCompleted: false, claimed: [] };
   const changed = account.missions.idleCompleted !== true;
   account.missions.idleCompleted = true;
@@ -428,7 +500,7 @@ export function recruitUnits(
   count = 1,
   { free = false, random = Math.random, banner = "forest" } = {},
 ) {
-  if (isOnboarding(a)) return null;
+  if (isOnboarding(a) || !growthUnlocked(a)) return null;
   if (![1, 10].includes(count)) return null;
   const selectedBanner = bannerById(banner);
   if (!selectedBanner || a.highestCleared < selectedBanner.unlock) return null;

@@ -1,5 +1,5 @@
 // Initial tuning, subject to play acceptance. Bonuses of the same kind add.
-export const BALANCE_VERSION = "regional-banners-1";
+export const BALANCE_VERSION = "regional-banners-2";
 export const ATTRIBUTES = [
   { id: "wild", name: "야생", symbol: "♧", color: "#72b54b", ink: "#3f852e", colorName: "초록색" },
   { id: "machine", name: "기계", symbol: "⚙", color: "#a8b5c5", ink: "#667487", colorName: "은색" },
@@ -58,11 +58,12 @@ export const UNITS = [
     id: "rabbit",
     rarity: "common",
     theme: "숲",
-    name: "목검 토끼",
+    name: "속공 토끼",
     role: "fast",
     specialties: ["wild"],
     hp: 155,
     attack: 38,
+    castleDamageBonus: 4, // +400% when this unit hits the enemy castle.
     range: 48,
     speed: 115,
     cost: 270,
@@ -70,7 +71,7 @@ export const UNITS = [
     attackInterval: 0.82,
     attackWindup: 0.16,
     attackRecovery: 0.2,
-    description: "빠르게 달려들어 연속으로 공격해요.",
+    description: "빠르게 달려들고 적 성에 큰 피해를 줘요.",
     color: "#dca68b",
   },
   {
