@@ -14,6 +14,7 @@ import { moveSequenceItem } from '../dist/src/sequence-ui.js';
 import {gemPage,gemDetail,gemCard,gemArt} from '../dist/src/gem-ui.js';
 import { entryPanel, signInPath, signInIntent, accountIdentityPanel } from '../dist/src/sign-in.js';
 import { testLoginPanel, bindTestLogin, adminPanel } from '../dist/src/test-access-ui.js';
+import { bindRotationPrompt, enterLandscapeFullscreen } from '../dist/src/fullscreen.js';
 
 const source = fs.readFileSync(new URL('../dist/src/main.js', import.meta.url), 'utf8');
 function functionSource(name) {
@@ -909,4 +910,71 @@ test('speedrun stage information stays independent of the first-battle and rabbi
   c.earlyGuideEncounter=()=>({name:'토끼 안내'});
   assert.equal(c.currentStage().name, SPEEDRUN_STAGES[1].name);
   assert.equal(c.currentStage().enemyHp, SPEEDRUN_STAGES[1].enemyHp);
+});
+
+test('rotation button requests fullscreen from the click before locking landscape and releases on exit', async () => {
+  const calls = [], button = { disabled: false }, status = { textContent: '' }, listeners = {};
+  const doc = {
+    fullscreenElement: null,
+    getElementById: id => id === 'rotate-fullscreen' ? button : status,
+    addEventListener: (event, callback) => listeners[event] = callback,
+    documentElement: { requestFullscreen: async () => { calls.push('fullscreen'); doc.fullscreenElement = doc.documentElement; } },
+  };
+  const orientation = { lock: async value => calls.push(value), unlock: () => calls.push('unlock') };
+  bindRotationPrompt(doc, orientation);
+  const pending = button.onclick();
+  assert.equal(button.disabled, true);
+  assert.deepEqual(calls, ['fullscreen']);
+  await pending;
+  assert.deepEqual(calls, ['fullscreen', 'landscape']);
+  assert.equal(status.textContent, '');
+  assert.equal(button.disabled, false);
+  doc.fullscreenElement = null;
+  listeners.fullscreenchange();
+  assert.equal(button.textContent, '전체 화면');
+  assert.deepEqual(calls, ['fullscreen', 'landscape', 'unlock']);
+});
+
+test('rotation failures explain manual rotation and leave successful fullscreen intact', async () => {
+  const doc = { fullscreenElement: null, documentElement: {} };
+  const orientation = { lock: async () => { throw new Error('unsupported'); } };
+  const unsupported = await enterLandscapeFullscreen(doc, orientation);
+  assert.equal(unsupported.fullscreen, false);
+  assert.match(unsupported.message, /지원하지/);
+  let calls = 0;
+  doc.documentElement.requestFullscreen = async () => { calls++; throw new Error('denied'); };
+  const denied = await enterLandscapeFullscreen(doc, { lock: () => { throw new Error('must not lock'); } });
+  assert.equal(denied.fullscreen, false);
+  assert.match(denied.message, /다시/);
+  doc.documentElement.requestFullscreen = async () => { calls++; doc.fullscreenElement = doc.documentElement; };
+  const fullscreenOnly = await enterLandscapeFullscreen(doc, orientation);
+  assert.equal(fullscreenOnly.fullscreen, true);
+  assert.equal(fullscreenOnly.landscapeLocked, false);
+  assert.match(fullscreenOnly.message, /회전 잠금/);
+  const alreadyFullscreen = await enterLandscapeFullscreen(doc, undefined);
+  assert.equal(alreadyFullscreen.fullscreen, true);
+  assert.equal(calls, 2);
+});
+
+test('rotation button displays unavailable feedback and allows retry', async () => {
+  const button = {}, status = {}, doc = {
+    documentElement: {},
+    getElementById: id => id === 'rotate-fullscreen' ? button : status,
+    addEventListener() {},
+  };
+  bindRotationPrompt(doc);
+  await button.onclick();
+  assert.match(status.textContent, /기기를 가로/);
+  assert.equal(button.disabled, false);
+});
+
+test('fullscreen exit during a pending orientation lock cannot leave the screen locked', async () => {
+  let finishLock, unlocked = 0;
+  const doc = { fullscreenElement: {}, documentElement: {} };
+  const pending = enterLandscapeFullscreen(doc, { lock: () => new Promise(resolve => finishLock = resolve), unlock: () => unlocked++ });
+  doc.fullscreenElement = null;
+  finishLock();
+  const result = await pending;
+  assert.equal(result.fullscreen, false);
+  assert.equal(unlocked, 1);
 });

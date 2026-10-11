@@ -1,4 +1,5 @@
 import { GameAudio } from "./audio.js";
+import { bindRotationPrompt, enterLandscapeFullscreen } from "./fullscreen.js";
 import { enemyCombatStats } from "./character-stats.js";
 import { signInPath, signInIntent, entryPanel, accountIdentityPanel } from "./sign-in.js";
 import { testLoginPanel, bindTestLogin, adminPanel } from "./test-access-ui.js";
@@ -78,6 +79,7 @@ import {
 import { SPEEDRUN_LIMIT_SECONDS, SPEEDRUN_TARGET_SECONDS, SPEEDRUN_STAGES, speedrunStageReward } from "./speedrun.js";
 
 const hostedMode = globalThis.TINY_LEGION_SERVER === true;
+bindRotationPrompt();
 const sitesSignedIn = globalThis.TINY_LEGION_SIGNED_IN === true;
 const testLoginEnabled = hostedMode && globalThis.TINY_LEGION_TEST_LOGIN === true;
 const testLoginRequested = testLoginEnabled && new URL(location.href).searchParams.get("testLogin") === "1";
@@ -2253,7 +2255,11 @@ function renderSettings() {
   $("fullscreen").onclick = async () => {
     try {
       if (document.fullscreenElement) await document.exitFullscreen();
-      else await document.documentElement.requestFullscreen();
+      else {
+        const result = await enterLandscapeFullscreen();
+        if (!result.fullscreen || (!result.landscapeLocked && matchMedia("(orientation: portrait)").matches))
+          toast(result.message);
+      }
     } catch {
       toast("이 환경에서는 전체 화면을 사용할 수 없습니다.");
     }
