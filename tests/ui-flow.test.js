@@ -11,6 +11,7 @@ import { companionPanel } from '../dist/src/companion-ui.js';
 import {drawGem,gemByUid,gemDefinition,gemDescription,gemOptionText,gemUpgradeCost,gemTransferCost,gemUpgradeMaterials,upgradeGem,transferGem,equipGem,GEM_BANNERS,GEM_OPTIONS} from '../dist/src/gems.js';
 import { moveSequenceItem } from '../dist/src/sequence-ui.js';
 import {gemPage,gemDetail,gemCard} from '../dist/src/gem-ui.js';
+import { entryPanel, signInPath, signInIntent, accountIdentityPanel } from '../dist/src/sign-in.js';
 
 const source = fs.readFileSync(new URL('../dist/src/main.js', import.meta.url), 'utf8');
 function functionSource(name) {
@@ -739,4 +740,47 @@ test('account choices remain available from settings during the first tutorial',
   c.openModal('기존 계정', 'account-choice', () => {}, { layout: 'message' });
   assert.equal(c.$('modal-backdrop').dataset.kind, 'account-choice');
   assert.equal(c.backModal(), true);
+});
+
+test('entry waits for a guest choice or a verified Sites account choice', async () => {
+  const c = harness(['chooseCloudEntry']);
+  c.entryPanel = entryPanel;
+  c.ensureCloudGate = () => c.$('entry');
+  c.$('entry').style = {};
+  c.sitesSignedIn = false;
+  let chosen = false;
+  const guest = c.chooseCloudEntry().then(value => { chosen = true; return value; });
+  let prevented = false;
+  c.$('entry:#entry-account').onclick({ preventDefault() { prevented = true; } });
+  await Promise.resolve();
+  assert.equal(chosen, false);
+  assert.equal(prevented, false); // An anonymous visitor follows the normal sign-in anchor.
+  c.$('entry:#entry-guest').onclick();
+  assert.equal(await guest, 'guest');
+  c.sitesSignedIn = true;
+  const account = c.chooseCloudEntry();
+  c.$('entry:#entry-account').onclick({ preventDefault() { prevented = true; } });
+  assert.equal(await account, 'account');
+  assert.equal(prevented, true);
+});
+
+test('Sites sign-in keeps account login and guest linking distinct on return', () => {
+  for (const action of ['account', 'link']) {
+    const signIn = new URL(signInPath(action), 'https://game.test');
+    assert.equal(signIn.pathname, '/signin-with-chatgpt');
+    const returnTo = signIn.searchParams.get('return_to');
+    assert.equal(signInIntent(new URL(returnTo, signIn.origin).href), action);
+  }
+  assert.equal(signInIntent('https://game.test/?login=https://elsewhere.test'), null);
+  assert.match(entryPanel(), /target="_top"/);
+});
+
+test('settings distinguish guest login state and safely display the signed-in account', () => {
+  assert.match(accountIdentityPanel({ kind: 'guest', email: 'hidden@test.invalid' }), /로그인 안 됨/);
+  assert.doesNotMatch(accountIdentityPanel({ kind: 'guest', email: 'hidden@test.invalid' }), /hidden/);
+  const panel = accountIdentityPanel({ kind: 'account', displayName: '<img src=x>', email: 'player@test.invalid' });
+  assert.match(panel, /로그인됨/);
+  assert.match(panel, /player@test.invalid/);
+  assert.match(panel, /&lt;img src=x&gt;/);
+  assert.doesNotMatch(panel, /<img/);
 });

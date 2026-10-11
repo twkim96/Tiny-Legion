@@ -1,4 +1,5 @@
 import { enemyCombatStats } from "./character-stats.js";
+import { signInPath, signInIntent, entryPanel, accountIdentityPanel } from "./sign-in.js";
 import { UNITS, ENEMIES, ATTRIBUTES, NEUTRAL_ATTRIBUTE, ROLE_SPECIALIZATION, getEnemy } from "./characters.js";
 import { effectLines } from "./effects.js";
 import {
@@ -72,6 +73,8 @@ import {
 } from "./account.js";
 
 const hostedMode = globalThis.TINY_LEGION_SERVER === true;
+const sitesSignedIn = globalThis.TINY_LEGION_SIGNED_IN === true;
+const loginIntent = hostedMode ? signInIntent(location.href) : null;
 let cloudBootstrapEnvelope = null;
 let cloudIdentity = null;
 let cloudGateRoot = null;
@@ -96,6 +99,22 @@ function ensureCloudGate() {
   });
   document.body.append(cloudGateRoot);
   return cloudGateRoot;
+}
+
+function chooseCloudEntry() {
+  const root = ensureCloudGate();
+  root.hidden = false;
+  root.style.display = "grid";
+  root.innerHTML = entryPanel();
+  return new Promise((resolve) => {
+    root.querySelector("#entry-guest").onclick = () => resolve("guest");
+    root.querySelector("#entry-account").onclick = (event) => {
+      if (sitesSignedIn) {
+        event.preventDefault();
+        resolve("account");
+      }
+    };
+  });
 }
 
 function showCloudGate(state = cloudGateState) {
@@ -123,16 +142,13 @@ function showCloudGate(state = cloudGateState) {
   const heading = replaced ? "다른 기기에서 접속했습니다" : loginRequired ? "ChatGPT 로그인이 필요합니다" : connecting ? "연결 중" : "서버에 연결할 수 없습니다";
   const useAccountChoice = state.error?.payload?.error === "account_exists";
   const action = replaced ? "여기서 계속하기" : loginRequired ? "ChatGPT로 로그인" : useAccountChoice ? "기존 계정으로" : connecting ? "연결 중" : "다시 연결";
-  root.innerHTML = `<div style="max-width:320px"><strong style="display:block;margin-bottom:16px">${useAccountChoice ? "이미 연결된 계정이 있습니다" : heading}</strong><button id="cloud-gate-action" style="padding:10px 18px;border:0;border-radius:10px;background:#e8d89a;color:#26271f;font:inherit">${action}</button></div>`;
+  root.innerHTML = `<div style="max-width:320px"><strong style="display:block;margin-bottom:16px">${useAccountChoice ? "이미 연결된 계정이 있습니다" : heading}</strong>${loginRequired ? `<a class="primary-button" href="${signInPath()}" target="_top">${action}</a>` : `<button id="cloud-gate-action" style="padding:10px 18px;border:0;border-radius:10px;background:#e8d89a;color:#26271f;font:inherit">${action}</button>`}</div>`;
+  if (loginRequired) return;
   root.querySelector("#cloud-gate-action").disabled = connecting;
   root.querySelector("#cloud-gate-action").onclick = async () => {
     const button = root.querySelector("#cloud-gate-action");
     button.disabled = true;
     try {
-      if (loginRequired) {
-        location.assign("/signin-with-chatgpt?return_to=/");
-        return;
-      }
       if (useAccountChoice) {
         await accountClient.startNewSession("account");
         location.reload();
@@ -154,7 +170,14 @@ function showCloudGate(state = cloudGateState) {
 if (hostedMode) {
   ensureCloudGate();
   try {
-    cloudBootstrapEnvelope = await accountClient.bootstrap();
+    if (loginIntent === "account") cloudBootstrapEnvelope = await accountClient.startNewSession("account");
+    else if (!accountClient.token && loginIntent !== "link") cloudBootstrapEnvelope = await accountClient.startNewSession(await chooseCloudEntry());
+    else cloudBootstrapEnvelope = await accountClient.bootstrap();
+    if (loginIntent) {
+      const cleanUrl = new URL(location.href);
+      cleanUrl.searchParams.delete("login");
+      history.replaceState(null, "", cleanUrl.pathname + cleanUrl.search + cleanUrl.hash);
+    }
     cloudIdentity = cloudBootstrapEnvelope.identity ?? { kind: "guest", canLink: true };
     cloudGateRoot.hidden = true;
   } catch (error) {
@@ -2066,7 +2089,7 @@ async function switchToExistingAccount() {
     await accountClient.startNewSession("account");
     location.reload();
   } catch (error) {
-    showCloudGate({ status: error instanceof SessionReplacedError ? "replaced" : "offline", operation: "start" });
+    showCloudGate({ status: error instanceof SessionReplacedError ? "replaced" : "offline", operation: "start", error });
   }
 }
 async function switchToGuestAccount() {
@@ -2087,7 +2110,12 @@ async function linkGuestAccount() {
   } catch (error) {
     const code = error?.payload?.error ?? error?.message;
     if (code === "login_required") {
-      location.assign("/signin-with-chatgpt?return_to=/");
+      openModal("계정 연결", "account-choice", () => {
+        $("modal-content").innerHTML = messagePanel({
+          text: "로그인 후 게스트 진행도를 연결합니다.",
+          actions: `<a class="primary-button" href="${signInPath("link")}" target="_top">ChatGPT로 로그인</a>`,
+        });
+      }, { layout: "message" });
     } else if (code === "account_exists") {
       openModal("기존 계정", "account-choice", () => {
         $("modal-content").innerHTML = messagePanel({
@@ -2104,11 +2132,15 @@ async function linkGuestAccount() {
 }
 function renderSettings() {
   const hostedAccountRows = hostedMode
-    ? `<div class="settings-row"><span>계정</span><strong>${cloudIdentity?.kind === "account" ? "계정" : "게스트"}</strong>${cloudIdentity?.kind === "guest" ? (cloudIdentity?.canLink ? '<button class="secondary-button" id="link-account">계정 연결</button>' : "") : '<button class="secondary-button" id="switch-to-guest">게스트로</button>'}</div>`
+    ? `<div class="settings-row settings-account"><span>계정</span>${accountIdentityPanel(cloudIdentity)}<div>${cloudIdentity?.kind === "guest" ? `<a class="secondary-button" id="login-account" href="${signInPath()}" target="_top">계정 로그인</a> ${cloudIdentity?.canLink ? '<button class="secondary-button" id="link-account">계정 연결</button>' : ""}` : '<button class="secondary-button" id="switch-to-guest">게스트로</button>'}</div></div>`
     : "";
   $("modal-content").innerHTML =
     `<div class="settings-row"><span>소리</span><button class="secondary-button" id="setting-sound">${account.settings.sound ? "켜짐" : "꺼짐"}</button></div><div class="settings-row"><span>화면</span><button class="secondary-button" id="fullscreen">${icon("fullscreen")}전체 화면</button></div><div class="settings-row"><span>저장 파일</span><div><button class="secondary-button" id="export-save">내려받기</button>${hostedMode ? "" : ' <button class="secondary-button" id="import-save">불러오기</button><input type="file" id="save-file" accept="application/json,.json" hidden>'}</div></div><div class="settings-row"><span>방치 결과</span><button class="secondary-button" id="restore-idle-results" ${account.settings.hiddenIdleResults.length ? "" : "disabled"}>다시 표시</button></div>${hostedAccountRows}<div class="settings-row"><span>계정</span><button class="secondary-button" id="reset-account">계정 초기화</button></div>${hostedMode && cloudBootstrapEnvelope.created ? '<p class="settings-note">새 온라인 계정을 만들었습니다. 기존 브라우저 저장 기록은 그대로 보존됩니다.</p>' : hostedMode ? '<p class="settings-note">진행도는 온라인 계정에 저장됩니다.</p>' : '<p class="settings-note">진행도는 이 브라우저에 저장됩니다.<br>다른 기기로 옮기려면 저장 파일을 사용하세요.</p>'}<p class="settings-note">키보드: 1–9·0 소환 · Space 일시 정지 · Esc 뒤로 / 닫기</p>`;
   if ($("link-account")) $("link-account").onclick = () => linkGuestAccount();
+  if (hostedMode && $("login-account") && sitesSignedIn) $("login-account").onclick = (event) => {
+    event.preventDefault();
+    void switchToExistingAccount();
+  };
   if ($("switch-to-guest")) $("switch-to-guest").onclick = () => {
     openModal("게스트로 시작", "guest-choice", () => {
       $("modal-content").innerHTML = messagePanel({
@@ -2447,6 +2479,7 @@ hydrateIcons();
 $("brand-icon").innerHTML = portrait("sheep");
 createHand();
 cloudAppReady = hostedMode;
+if (loginIntent === "link") setTimeout(() => void linkGuestAccount(), 0);
 if (isOnboarding(account)) resumeOnboarding();
 else { startBattle(); resumeEarlyGuide(); }
 persist();

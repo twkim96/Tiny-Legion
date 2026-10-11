@@ -25,6 +25,11 @@ function harness() {
     if (b.cookie) headers.Cookie = b.cookie;
     if (b.token) headers['X-Game-Session'] = b.token;
     if (b.owner) headers['oai-authenticated-user-id'] = b.owner;
+    if (b.email) headers['oai-authenticated-user-email'] = b.email;
+    if (b.name) {
+      headers['oai-authenticated-user-full-name'] = encodeURIComponent(b.name);
+      headers['oai-authenticated-user-full-name-encoding'] = 'percent-encoded-utf-8';
+    }
     const response = await handleGameRequest(new Request(`https://game.test/api/game/${path}`, { method: 'POST', headers, body: JSON.stringify(body) }), { DB: db }, { now });
     const setCookie = response.headers.get('Set-Cookie');
     if (setCookie) b.cookie = setCookie.split(';')[0];
@@ -60,6 +65,28 @@ test('guest uses secret cookie and session; import and forged balances cannot en
   const saved = await h.call(device2, 'session/start');
   assert.equal(saved.account.gold, 600); assert.equal(saved.account.highestCleared, 0);
   assert.equal((await h.command(guest, 'settle')).error, 'session_replaced');
+});
+
+test('account login requires Sites identity and reopens that account across browsers', async () => {
+  const h = harness(), b = h.browser();
+  assert.equal((await h.call(b, 'session/start', { identity: 'account' })).error, 'login_required');
+  b.owner = 'signed-in-user';
+  b.email = 'player@test.invalid'; b.name = '숲속 친구';
+  const account = await h.call(b, 'session/start', { identity: 'account', email: 'forged@test.invalid' });
+  assert.equal(account.identity.kind, 'account');
+  assert.equal(account.identity.email, b.email);
+  assert.equal(account.identity.displayName, b.name);
+  assert.equal((await h.command(b, 'settle')).identity.email, b.email);
+  h.seed({ gold: 1250 });
+  const guest = await h.call(b, 'session/start', { identity: 'guest' });
+  assert.equal(guest.identity.kind, 'guest');
+  assert.equal(guest.identity.email, undefined);
+  assert.equal(guest.account.gold, 600);
+  const reopened = await h.call(b, 'session/start', { identity: 'account' });
+  assert.equal(reopened.account.gold, 1250);
+  const anotherDevice = h.browser(); anotherDevice.owner = b.owner;
+  assert.equal((await h.call(anotherDevice, 'session/start', { identity: 'account' })).account.gold, 1250);
+  assert.equal((await h.command(b, 'settle')).error, 'session_replaced');
 });
 
 test('anonymous sessions stay distinct; claiming same request twice returns one atomic reward receipt', async () => {

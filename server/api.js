@@ -6,8 +6,16 @@ const COOKIE = '__Host-tiny-legion-guest';
 const opaque = () => Array.from(crypto.getRandomValues(new Uint8Array(32)), byte => byte.toString(16).padStart(2, '0')).join('');
 export const hash = async value => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value))), b => b.toString(16).padStart(2, '0')).join('');
 const json = (data, status = 200, headers = {}) => Response.json(data, { status, headers: { 'Cache-Control': 'no-store', ...headers } });
-const identity = row => ({ kind: row.owner_id ? 'account' : 'guest', canLink: !row.owner_id });
-const envelope = (row, account, now, extra = {}) => ({ account, revision: row.version, serverNow: now, identity: identity(row), ...extra });
+function identity(row, request) {
+  if (!row.owner_id) return { kind: 'guest', canLink: true };
+  const email = request.headers.get('oai-authenticated-user-email') || null;
+  let displayName = request.headers.get('oai-authenticated-user-full-name') || null;
+  if (displayName && request.headers.get('oai-authenticated-user-full-name-encoding') === 'percent-encoded-utf-8') {
+    try { displayName = decodeURIComponent(displayName); } catch { displayName = null; }
+  }
+  return { kind: 'account', canLink: false, provider: 'ChatGPT', email, displayName: displayName || email };
+}
+const envelope = (row, account, now, request, extra = {}) => ({ account, revision: row.version, serverNow: now, identity: identity(row, request), ...extra });
 const get = (db, query, ...values) => db.prepare(query).bind(...values).first();
 async function boundedBody(request) {
   const limit = 524288;
@@ -68,7 +76,7 @@ async function startSession(db, request, ownerId, body, now) {
     } catch (error) { if (String(error).includes('UNIQUE')) throw new GameError('state_changed', 409); throw error; }
   }
   const headers = !row.owner_id ? { 'Set-Cookie': `${COOKIE}=${secret}; Path=/; Secure; HttpOnly; SameSite=Lax; Max-Age=31536000` } : {};
-  return json(envelope(row, a, now, { session: token, returnIncome, created }), 200, headers);
+  return json(envelope(row, a, now, request, { session: token, returnIncome, created }), 200, headers);
 }
 
 async function mutate(db, request, ownerId, body, now, resume = false) {
@@ -82,7 +90,7 @@ async function mutate(db, request, ownerId, body, now, resume = false) {
       if (receipt) {
         if (receipt.payload_hash !== payloadHash) throw new GameError('request_id_reused', 409);
         const current = await activeRow(db, request, ownerId);
-        return json(envelope(current, JSON.parse(current.account_json), now, JSON.parse(receipt.receipt_json)));
+        return json(envelope(current, JSON.parse(current.account_json), now, request, JSON.parse(receipt.receipt_json)));
       }
     }
     const income = resume ? collectReturnIncome(a, now) : accrue(a, now);
@@ -101,7 +109,7 @@ async function mutate(db, request, ownerId, body, now, resume = false) {
     try { results = await db.batch(statements); }
     catch (error) { if (String(error).includes('UNIQUE') && attempt < 3) continue; throw error; }
     if (!results[0].meta.changes) continue;
-    return json(envelope({ ...row, version: row.version + 1 }, a, now, resume ? { ...receiptData, session: request.headers.get('X-Game-Session') } : receiptData));
+    return json(envelope({ ...row, version: row.version + 1 }, a, now, request, resume ? { ...receiptData, session: request.headers.get('X-Game-Session') } : receiptData));
   }
   throw new GameError('state_changed', 409);
 }
@@ -109,14 +117,14 @@ async function mutate(db, request, ownerId, body, now, resume = false) {
 async function link(db, request, ownerId, now) {
   if (!ownerId) throw new GameError('login_required', 401);
   const row = await activeRow(db, request, ownerId);
-  if (row.owner_id === ownerId) return json(envelope(row, JSON.parse(row.account_json), now));
+  if (row.owner_id === ownerId) return json(envelope(row, JSON.parse(row.account_json), now, request));
   if (await get(db, 'SELECT account_id FROM game_accounts WHERE owner_id = ?', ownerId)) throw new GameError('account_exists', 409);
   try {
     const update = await db.prepare('UPDATE game_accounts SET owner_id = ?, guest_hash = NULL, version = version + 1, updated_at = ? WHERE account_id = ? AND owner_id IS NULL AND session_hash = ? AND version = ?')
       .bind(ownerId, now, row.account_id, row.session_hash, row.version).run();
     if (!update.meta.changes) throw new GameError('state_changed', 409);
   } catch (error) { if (String(error).includes('UNIQUE')) throw new GameError('account_exists', 409); throw error; }
-  return json(envelope({ ...row, owner_id: ownerId, version: row.version + 1 }, JSON.parse(row.account_json), now), 200,
+  return json(envelope({ ...row, owner_id: ownerId, version: row.version + 1 }, JSON.parse(row.account_json), now, request), 200,
     { 'Set-Cookie': `${COOKIE}=; Path=/; Secure; HttpOnly; SameSite=Lax; Max-Age=0` });
 }
 

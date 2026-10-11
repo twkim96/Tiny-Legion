@@ -928,6 +928,51 @@ body {
   font-weight: 600;
   box-shadow: 0 3px 0 #4d623b;
 }
+a.primary-button,
+a.secondary-button {
+  text-decoration: none;
+}
+a.secondary-button {
+  display: inline-block;
+  color: #34382e;
+}
+.account-entry {
+  display: grid;
+  gap: 14px;
+  width: min(300px, 100%);
+}
+.account-entry h1 {
+  margin: 0 0 16px;
+  font-size: 30px;
+}
+.account-entry p {
+  margin: 0;
+  color: #aeb9a7;
+  font-size: 12px;
+}
+.account-entry .primary-button,
+.account-entry .secondary-button {
+  font-size: 15px;
+  padding: 14px 20px;
+}
+.account-entry .secondary-button {
+  color: #34382e;
+}
+.settings-account {
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.account-identity {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+  overflow-wrap: anywhere;
+}
+.account-identity span {
+  font-size: 12px;
+  color: #707966;
+}
 .primary-button:hover {
   background: #5c7047;
 }
