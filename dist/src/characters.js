@@ -1,3 +1,4 @@
+import { effect } from './effects.js';
 // Character identity, base stats and native mechanics have one home.
 export const ATTRIBUTES = [
   { id: "wild", name: "야생", symbol: "♧", color: "#72b54b", ink: "#3f852e", colorName: "초록색" },
@@ -50,7 +51,7 @@ export const UNITS = [
     specialties: ["wild"],
     hp: 155,
     attack: 38,
-    castleDamageBonus: 4, // +400% when this unit hits the enemy castle.
+    effects: { castleDamage: effect("castleDamage", { bonus: 4 }) },
     range: 48,
     speed: 115,
     cost: 270,
@@ -98,7 +99,7 @@ export const UNITS = [
     attackWindup: 0.34,
     attackRecovery: 0.28,
     projectile: { kind: "water", speed: 480 },
-    splashRadius: 105,
+    effects: { areaAttack: effect("areaAttack", { radius: 105 }) },
     description: "가까이 모인 적에게 뜨거운 물을 퍼부어요.",
     color: "#df8669",
   },
@@ -109,9 +110,12 @@ export const UNITS = [
     name: "구름",
     role: "support",
     specialties: ["spirit"],
-    slow: { factor: 0.75, duration: 2 },
-    suppressRegen: { factor: 0.5, duration: 3 },
-    shieldAura: { bonus: 1, range: 230 },
+    effects: {
+      slow: effect("slow", { factor: .75, duration: 2 }),
+      healingSuppression: effect("healingSuppression", { factor: .5, duration: 3, scope: "regeneration" }),
+      shieldDamageAura: effect("shieldDamageAura", { bonus: 1, range: 230 }),
+      healing: effect("healing", { amount: 28, range: 230 }),
+    },
     hp: 235,
     attack: 23,
     range: 300,
@@ -122,8 +126,6 @@ export const UNITS = [
     attackWindup: 0.3,
     attackRecovery: 0.24,
     projectile: { kind: "bolt", speed: 1000 },
-    heal: 28,
-    healRange: 230,
     description:
       "가까운 동료를 회복하고 방어막 공격을 도와요. 번개는 적을 늦추고 재생을 억제해요.",
     color: "#c4cf9e",
@@ -183,7 +185,7 @@ export const UNITS = [
     attackWindup: 0.28,
     attackRecovery: 0.24,
     projectile: { kind: "seed", speed: 580 },
-    splashRadius: 78,
+    effects: { areaAttack: effect("areaAttack", { radius: 78 }) },
     description: "작은 폭탄을 통통 던져 모인 적을 함께 맞혀요.",
     color: "#e8c858",
   },
@@ -204,8 +206,7 @@ export const UNITS = [
     attackWindup: 0.3,
     attackRecovery: 0.24,
     projectile: { kind: "bolt", speed: 900 },
-    heal: 24,
-    healRange: 190,
+    effects: { healing: effect("healing", { amount: 24, range: 190 }) },
     description: "반짝이는 물방울을 나누어 가까운 동료를 보살펴요.",
     color: "#78aebe",
   },
@@ -246,7 +247,7 @@ export const UNITS = [
     attackWindup: 0.34,
     attackRecovery: 0.28,
     projectile: { kind: "water", speed: 460 },
-    splashRadius: 92,
+    effects: { areaAttack: effect("areaAttack", { radius: 92 }) },
     description: "별가루 물약을 터뜨려 한곳에 모인 적을 공격해요.",
     color: "#9874a9",
   },
@@ -266,7 +267,7 @@ export const UNITS = [
     attackInterval: 1.28,
     attackWindup: 0.26,
     attackRecovery: 0.23,
-    splashRadius: 65,
+    effects: { areaAttack: effect("areaAttack", { radius: 65 }) },
     description: "잎사귀 방패로 버티며 나무 창을 크게 휘둘러 모인 적을 함께 공격해요.",
     color: "#ac9169",
   },
@@ -306,7 +307,7 @@ export const UNITS = [
     attackWindup: 0.34,
     attackRecovery: 0.28,
     projectile: { kind: "bolt", speed: 720 },
-    slow: { factor: 0.9, duration: 0.8 },
+    effects: { slow: effect("slow", { factor: .9, duration: .8 }) },
     description: "별빛 물결을 보내 먼 적의 걸음을 잠시 늦춰요.",
     color: "#7194b5",
   },
@@ -326,7 +327,7 @@ export const UNITS = [
     attackInterval: 1.62,
     attackWindup: 0.36,
     attackRecovery: 0.3,
-    shieldAura: { bonus: 0.25, range: 140 },
+    effects: { shieldDamageAura: effect("shieldDamageAura", { bonus: .25, range: 140 }) },
     description: "태엽 등껍질의 힘으로 가까운 동료의 방어막 공격을 도와요.",
     color: "#7e9b78",
   },
@@ -411,7 +412,7 @@ export const ENEMIES = [
     hp: 330, attack: 42, range: 285, speed: 24,
     attackInterval: 1.8, attackWindup: 0.34, attackRecovery: 0.26,
     projectile: { kind: "seed", speed: 610 },
-    poison: { ratio: .04, duration: 3, interval: 1 },
+    effects: { poison: effect("poison", { ratio: .04, duration: 3, interval: 1 }) },
     color: "#986849",
   },
   {
@@ -422,7 +423,7 @@ export const ENEMIES = [
       "그을린 털 위에 낡은 판금과 고글을 두른 두더지예요. 얇은 방어막은 모든 공격으로 깎을 수 있어요.",
     attribute: "machine",
     role: "melee",
-    shield: { hpRatio: 0.4 },
+    effects: { shield: effect("shield", { hpRatio: .4 }) },
     hp: 230,
     attack: 26,
     range: 42,
@@ -440,7 +441,7 @@ export const ENEMIES = [
       "햇볕에 그을린 여우가 바랜 그림자 망토를 걸쳤어요. 어둠을 빠르게 날리며 조금씩 재생해요.",
     attribute: "shadow",
     role: "ranged",
-    regeneration: { hpRatio: 0.02, interval: 2 },
+    effects: { regeneration: effect("regeneration", { hpRatio: .02, interval: 2 }) },
     hp: 125,
     attack: 17,
     range: 215,
@@ -457,7 +458,7 @@ export const ENEMIES = [
 ENEMIES.push({
   ...ENEMIES.find(enemy => enemy.id === "mushroom"),
   id: "spirit-rabbit", artId: "mushroom", name: "빛샘 토끼", attribute: "spirit",
-  regeneration: { hpRatio: .025, interval: 2 },
+  effects: { regeneration: effect("regeneration", { hpRatio: .025, interval: 2 }) },
   description: "빛의 물결을 보내고 정령의 힘으로 상처를 회복해요.",
 });
 
@@ -475,33 +476,32 @@ for (const [id, artId, name, attribute, hp, attack, sizeScale] of [
 }
 
 export const COMMON_ABILITIES = [
-  { id: "hp", name: "체력", max: 10, step: "체력 +1%", effect: "hp", amount: .01 },
-  { id: "attack", name: "공격력", max: 10, step: "공격력 +1%", effect: "attack", amount: .01 },
-  { id: "counter", name: "속성 숙련", max: 10, step: "유효 속성 보너스 +1%p", effect: "counter", amount: .01 },
+  { id: "hp", name: "체력", max: 10, changes: [{ op: "multiply", path: "hp", amount: .01 }] },
+  { id: "attack", name: "공격력", max: 10, changes: [{ op: "multiply", path: "attack", amount: .01 }] },
+  { id: "counter", name: "속성 숙련", max: 10, changes: [{ op: "counter", amount: .01 }] },
 ];
 export const OPTIONAL_ABILITIES = {
-  move: { id: "move", name: "가벼운 발걸음", max: 5, step: "이동속도 +2%", effect: "move", amount: .02 },
-  range: { id: "range", name: "긴 사거리", max: 5, step: "사거리 +4", effect: "range", amount: 4 },
+  move: { id: "move", name: "가벼운 발걸음", max: 5, changes: [{ op: "multiply", path: "speed", amount: .02 }] },
+  range: { id: "range", name: "긴 사거리", max: 5, changes: [{ op: "add", path: "range", amount: 4 }] },
 };
 export const MOVEMENT_ROLES = ["fast", "warrior"];
-// Range is explicitly assigned, with eligibility guards for future balance edits.
 export const RANGE_UNIT_IDS = ["whale"];
 export const SIGNATURE_ABILITIES = {
-  sheep: { name: "독에 강한 양털", step: "중독 면역", effect: "poisonImmune" },
-  rabbit: { name: "성 파괴", step: "적 성 추가 피해 +50%p", effect: "castle", amount: .5 },
-  squirrel: { name: "빠른 씨앗", step: "공격 간격 −0.1초", effect: "interval", amount: .1 },
-  fox: { name: "등불의 온기", step: "2초마다 최대 체력 1% 회복", effect: "regen" },
-  chick: { name: "큰 폭탄", step: "폭발 범위 +24", effect: "splash", amount: 24 },
-  deer: { name: "잎사귀 갑옷", step: "최대 체력 15%의 방어막", effect: "shield", amount: .15 },
-  teapot: { name: "끓는 물", step: "방어막 추가 피해 +100%", effect: "shieldDamage", amount: 1 },
-  hedgehog: { name: "밀폐 갑옷", step: "중독 면역", effect: "poisonImmune" },
-  owl: { name: "빠른 태엽", step: "공격 간격 −0.1초", effect: "interval", amount: .1 },
-  turtle: { name: "튼튼한 등껍질", step: "중독 면역", effect: "poisonImmune" },
-  cloud: { name: "차가운 번개", step: "둔화 시간 +1초", effect: "slowDuration", amount: 1 },
-  otter: { name: "넉넉한 물방울", step: "회복량 +20%", effect: "heal", amount: .2 },
-  "mushroom-witch": { name: "독버섯 물약", step: "3초간 초당 공격력 8%의 중독 피해", effect: "poison" },
-  penguin: { name: "얼음 발자국", step: "공격 시 2초간 이동속도 20% 감소", effect: "slow" },
-  whale: { name: "넓은 물결", step: "공격 범위 +45", effect: "splash", amount: 45 },
+  sheep: { name: "독에 강한 양털", changes: [{ op: "effect", value: effect("immunity", { effect: "poison" }) }] },
+  rabbit: { name: "성 파괴", changes: [{ op: "add", path: "effects.castleDamage.bonus", amount: .5 }] },
+  squirrel: { name: "빠른 씨앗", changes: [{ op: "add", path: "attackInterval", amount: -.1, min: .2 }] },
+  fox: { name: "등불의 온기", changes: [{ op: "effect", value: effect("regeneration", { hpRatio: .01, interval: 2 }) }] },
+  chick: { name: "큰 폭탄", changes: [{ op: "add", path: "effects.areaAttack.radius", amount: 24 }] },
+  deer: { name: "잎사귀 갑옷", changes: [{ op: "effect", value: effect("shield", { hpRatio: .15 }) }] },
+  teapot: { name: "끓는 물", changes: [{ op: "effect", value: effect("shieldDamage", { bonus: 1 }) }] },
+  hedgehog: { name: "밀폐 갑옷", changes: [{ op: "effect", value: effect("immunity", { effect: "poison" }) }] },
+  owl: { name: "빠른 태엽", changes: [{ op: "add", path: "attackInterval", amount: -.1, min: .2 }] },
+  turtle: { name: "튼튼한 등껍질", changes: [{ op: "effect", value: effect("immunity", { effect: "poison" }) }] },
+  cloud: { name: "차가운 번개", changes: [{ op: "add", path: "effects.slow.duration", amount: 1 }] },
+  otter: { name: "넉넉한 물방울", changes: [{ op: "multiply", path: "effects.healing.amount", amount: .2 }] },
+  "mushroom-witch": { name: "독버섯 물약", changes: [{ op: "effect", value: effect("poison", { ratio: .08, duration: 3, interval: 1 }) }] },
+  penguin: { name: "얼음 발자국", changes: [{ op: "effect", value: effect("slow", { factor: .8, duration: 2 }) }] },
+  whale: { name: "넓은 물결", changes: [{ op: "effect", value: effect("areaAttack", { radius: 45 }) }] },
 };
 export const EXTRA_ATTRIBUTES = {
   sheep: "machine", rabbit: "machine", squirrel: "machine", fox: "shadow", chick: "machine", deer: "spirit",
@@ -517,6 +517,7 @@ function freezeDefinition(value) {
 freezeDefinition(ATTRIBUTES);
 freezeDefinition(NEUTRAL_ATTRIBUTE);
 freezeDefinition(ROLE_SPECIALIZATION);
+for (const definition of [...UNITS, ...ENEMIES]) definition.effects ??= {};
 freezeDefinition(UNITS);
 freezeDefinition(ENEMIES);
 freezeDefinition(SIGNATURE_ABILITIES);

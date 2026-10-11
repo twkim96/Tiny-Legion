@@ -18,7 +18,7 @@ const unit = id=>UNITS.find(u=>u.id===id);
 function runFor(state,seconds){const end=state.time+seconds;while(state.time<end-1e-8&&!state.finished)stepBattle(state,1/30);}
 function duel(playerId, abilities={}, enemyId='beetle', attribute='wild') {
   const state=createBattle({mode:'challenge',stageId:1,sequence:[],abilities});
-  state._spawnSchedule=[{id:enemyId,time:0,x:540,overrides:{attribute,shield:false,regeneration:false}}];
+  state._spawnSchedule=[{id:enemyId,time:0,x:540,overrides:{attribute,effects:{shield:false,regeneration:false}}}];
   stepBattle(state,1/30);
   state.gold=1000;
   assert.equal(summonUnit(state,playerId),true);
@@ -52,7 +52,7 @@ test('one-time upgrades are more expensive, use the unit mark type, and cannot r
   assert.equal(upgradeUnitAbility(a,'sheep','signature'),true);
   assert.equal(a.marks.wild,before-special.marks);
   assert.equal(a.marks.machine,1000);
-  assert.equal(companionStats(a,'sheep').poisonImmune,true);
+  assert.equal(companionStats(a,'sheep').effects.immunity.effect,'poison');
   const saved=JSON.stringify(a);
   assert.equal(upgradeUnitAbility(a,'sheep','signature'),false);
   assert.equal(JSON.stringify(a),saved);
@@ -156,11 +156,11 @@ test('poison causes timed non-stacking damage and the purchased immunity blocks 
     while(player.hp===before&&state.time<5)stepBattle(state,1/30);
     const afterHit=player.hp;
     assert.ok(afterHit<before);
-    assert.equal(!!player.poison,signature===0);
+    assert.equal(!!player.statusEffects.poison,signature===0);
     enemy.attackTimer=100;enemy.action=null;
     runFor(state,3.2);
     outcomes.push(afterHit-player.hp);
-    assert.equal(player.poison,null);
+    assert.equal(player.statusEffects.poison,undefined);
   }
   assert.ok(Math.abs(outcomes[0]-3.6)<1e-6);
   assert.equal(outcomes[1],0);
@@ -170,12 +170,12 @@ test('released witch poison survives caster death and deals its three timed tick
   while(!state.projectiles.length&&state.time<5)stepBattle(state,1/30);
   player.dead=true;player.hp=0;player.deathTimer=.32;
   while(enemy.hp===10000&&state.time<5)stepBattle(state,1/30);
-  assert.ok(enemy.poison);
+  assert.ok(enemy.statusEffects.poison);
   const afterHit=enemy.hp;
   player.attackTimer=100;player.action=null;
   runFor(state,3.2);
   assert.ok(Math.abs(afterHit-enemy.hp-36*.08*3)<1e-6);
-  assert.equal(enemy.poison,null);
+  assert.equal(enemy.statusEffects.poison,undefined);
 });
 
 test('signature shield and support heal use the upgraded combat definition including equipped HP',()=>{
@@ -201,9 +201,9 @@ test('repeated poison applications refresh duration but do not stack tick damage
     impacts.push(...state.events.filter(event=>event.type==='impact'&&event.team==='player'&&event.hit));
   }
   assert.ok(impacts.length>=2);
-  assert.ok(enemy.poison);
-  assert.ok(Math.abs(enemy.poison.damage-player.attack*.08)<1e-8);
-  assert.ok(enemy.poison.remaining<=3);
+  assert.ok(enemy.statusEffects.poison);
+  assert.ok(Math.abs(enemy.statusEffects.poison.damage-player.attack*.08)<1e-8);
+  assert.ok(enemy.statusEffects.poison.remaining<=3);
 });
 
 test('only the three core abilities are common; movement and range follow unit eligibility', () => {

@@ -120,7 +120,7 @@ test('legacy account gems migrate into plain slots once without changing old pro
 test('gem elemental lines add real damage against a non-specialty enemy and remain in launched shots',()=>{
  function play(withOption){
   const b=createBattle({mode:'challenge',sequence:[],modifiers:{attributeBonuses:{machine:{attack:withOption?.1:0}}}});
-  b._spawnSchedule=[{time:0,id:'beetle',x:540,overrides:{attribute:'machine',shield:false,regeneration:false}}];
+  b._spawnSchedule=[{time:0,id:'beetle',x:540,overrides:{attribute:'machine',effects:{shield:false,regeneration:false}}}];
   stepBattle(b,1/30);b.gold=1000;summonUnit(b,'squirrel');
   const player=b.units.find(u=>u.team==='player'),enemy=b.units.find(u=>u.team==='enemy');
   player.x=500;player.speed=0;enemy.x=540;enemy.speed=0;enemy.attackTimer=100;enemy.hp=enemy.maxHp=10000;

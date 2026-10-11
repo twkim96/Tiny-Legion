@@ -57,7 +57,8 @@
 ## 코드와 검증
 
 - `dist/src/characters.js`: 공통/선택 강화와 동료별 고유 능력·추가 특화 정의.
-- `dist/src/abilities.js`: 재료·비용·단계 정규화·고정 증가 적용.
+- `dist/src/abilities.js`: 재료·비용·단계 정규화와 선언된 `changes` 적용.
+- `dist/src/effects.js`, `combat-effects.js`: [공통 효과 정의·설명·전투 처리](characters.md#전투-효과).
 - `dist/src/character-stats.js`: 레벨·보석·전투 능력치 계산.
 - `dist/src/account.js`: `upgradeUnitAbility`, `companionStats`, 중복 모집 지급·전투력.
 - `dist/src/save-compat.js`: 이전 조각을 징표로 변환하는 임시 호환 처리. 제거 방침은 [개발 안내](../development/local.md#테스트-저장-호환-코드)를 따릅니다.

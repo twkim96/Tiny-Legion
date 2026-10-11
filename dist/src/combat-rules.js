@@ -1,3 +1,4 @@
+import { effectOf } from './effects.js';
 import {
   ATTRIBUTE_BONUS_CAP,
   ROLE_SPECIALIZATION,
@@ -23,7 +24,7 @@ export function resolveDamage(target, rawDamage, source = {}) {
   if (target.team === "player" && source.team === "enemy")
     damage /= 1 + specializationBonus(target, source, "effectiveHp");
   const shieldMultiplier =
-    1 + boundedBonus(source.shieldDamageBonus, SHIELD_BONUS_CAP);
+    1 + boundedBonus(effectOf(source, "shieldDamage")?.bonus, SHIELD_BONUS_CAP);
   const shield = Math.max(0, target.shield ?? 0);
   const absorbedBase = Math.min(damage, shield / shieldMultiplier);
   return {

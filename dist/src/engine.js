@@ -1,7 +1,9 @@
 import { STAGES, STARTER_UNIT_IDS } from "./data.js";
 import { UNITS, getUnit, getEnemy, getCharacter } from "./characters.js";
-import { characterStats, combineStatMultipliers, combatStat, advanceStatEffects, regenerationFactor } from "./character-stats.js";
-import { resolveDamage, specializationBonus } from "./combat-rules.js";
+import { characterStats, combineStatMultipliers } from "./character-stats.js";
+import { effect, effectOf, EFFECT_OVERRIDE_KEYS } from "./effects.js";
+import { COMBAT_TIMING, CANNON, applyEffect, initializeEffects, combatStat, advanceEffects, tickPeriodicEffects, queueHealing, applyHitEffects, attackSource, supportTarget } from "./combat-effects.js";
+import { resolveDamage } from "./combat-rules.js";
 import { earlyGuideEncounter, onboardingEncounter } from "./onboarding.js";
 import { normalizeAbilities } from "./abilities.js";
 export { UNIT_LEVEL_GROWTH } from "./abilities.js";
@@ -12,10 +14,10 @@ const PLAYER_CASTLE_X = 80;
 const ENEMY_CASTLE_X = 1120;
 const PLAYER_SPAWN_X = 122;
 const MAX_ACTIVE_UNITS = 80;
-const FIXED_STEP = 1 / 30;
+const FIXED_STEP = COMBAT_TIMING.step;
 const GOLD_PER_SECOND = 35;
-const HIT_STUN = 0.18;
-const STUN_COOLDOWN = 0.65;
+const HIT_STUN = COMBAT_TIMING.hitStun;
+const STUN_COOLDOWN = COMBAT_TIMING.stunCooldown;
 const DEFAULT_SEQUENCE = STARTER_UNIT_IDS;
 const STAGE_BY_ID = new Map(STAGES.map((stage) => [stage.id, stage]));
 
@@ -65,7 +67,7 @@ function makeSpawnSchedule(stage) {
           time: waveTime + interval * index,
           id: enemy.id,
           overrides: Object.fromEntries(
-            ["attribute", "shield", "regeneration", "statMultipliers"]
+            EFFECT_OVERRIDE_KEYS
               .filter((key) => key in group)
               .map((key) => [key, group[key]]),
           ),
@@ -98,7 +100,7 @@ function makeUnit(state, definition, team, x, level = 1) {
     multipliers: team === "enemy" ? state._enemyModifiers : {},
   });
   const maxHp = definition.hp;
-  return {
+  return initializeEffects({
     uid: `${team === "player" ? "p" : "e"}${state._nextUid++}`,
     id: definition.id,
     team,
@@ -106,8 +108,6 @@ function makeUnit(state, definition, team, x, level = 1) {
     definition,
     boss: definition.boss === true,
     sizeScale: definition.sizeScale ?? 1,
-    poisonImmune: definition.poisonImmune === true,
-    poison: null,
     role: definition.role,
     attribute: definition.attribute,
     specialties: [...(definition.specialties ?? [])],
@@ -116,27 +116,12 @@ function makeUnit(state, definition, team, x, level = 1) {
     attributeBonuses: definition.attributeBonuses
       ? structuredClone(definition.attributeBonuses)
       : undefined,
-    shield: Math.round(
-      maxHp * (definition.shield?.hpRatio ?? 0),
-    ),
-    maxShield: Math.round(
-      maxHp * (definition.shield?.hpRatio ?? 0),
-    ),
-    regeneration: definition.regeneration
-      ? { ...definition.regeneration }
-      : null,
-    regenTimer: definition.regeneration?.interval ?? 0,
-    slowRemaining: 0,
-    slowFactor: 1,
-    regenSuppressionRemaining: 0,
-    regenSuppressionFactor: 1,
     x: clamp(x, WORLD_MIN, WORLD_MAX),
     hp: maxHp,
     maxHp,
     attack: definition.attack,
     range: definition.range,
     speed: definition.speed,
-    statEffects: [],
     attackTimer: 0,
     attackInterval: definition.attackInterval,
     hitFlash: 0,
@@ -148,7 +133,7 @@ function makeUnit(state, definition, team, x, level = 1) {
     hitStunDuration: HIT_STUN,
     hitDirection: team === "player" ? -1 : 1,
     stunCooldown: 0,
-  };
+  }, definition);
 }
 
 function setFinished(state, won) {
@@ -252,11 +237,7 @@ export function createBattle(options = {}) {
     _levels: levels && typeof levels === "object" ? { ...levels } : {},
     _abilities: Object.fromEntries(UNITS.map((u) => [u.id, normalizeAbilities(u.id, abilities?.[u.id])])),
     _modifiers: {
-      hp: Math.max(0, finiteNumber(modifiers.hp, 1)),
-      attack: Math.max(0, finiteNumber(modifiers.attack, 1)),
-      speed: Math.max(0, finiteNumber(modifiers.speed, 1)),
-      range: Math.max(0, finiteNumber(modifiers.range, 1)),
-      attackInterval: Math.max(0, finiteNumber(modifiers.attackInterval, 1)),
+      ...combineStatMultipliers(modifiers),
       goldIncome: Math.max(1, finiteNumber(modifiers.goldIncome, 1)),
       killGold: Math.max(0, finiteNumber(modifiers.killGold, 0)),
       attributeBonuses: structuredClone(modifiers.attributeBonuses ?? {}),
@@ -357,7 +338,7 @@ function spawnDueEnemies(state) {
     if (!definition) continue;
     const enemy = makeUnit(
       state,
-      { ...definition, ...scheduled.overrides },
+      { ...definition, ...scheduled.overrides, effects: { ...(definition.effects ?? {}), ...(scheduled.overrides?.effects ?? {}) } },
       "enemy",
       scheduled.x,
     );
@@ -485,7 +466,7 @@ function impact(state, shot, units, batch) {
       batch.enemyCastle +=
         damage *
         (team === "player"
-          ? 1 + Math.max(0, finiteNumber(shot.source?.castleDamageBonus, 0))
+          ? 1 + Math.max(0, finiteNumber(effectOf(shot.source, "castleDamage")?.bonus, 0))
           : 1);
       hit = true;
     }
@@ -507,53 +488,13 @@ function advanceProjectiles(state, dt, units, batch) {
   );
 }
 
-function chooseSupportTarget(unit, units, definition) {
-  if (!definition.heal || !definition.healRange) return null;
-  return (
-    units
-      .filter(
-        (candidate) =>
-          candidate.team === unit.team &&
-          !candidate.dead &&
-          candidate.hp < candidate.maxHp &&
-          Math.abs(candidate.x - unit.x) <= definition.healRange,
-      )
-      .sort(
-        (a, b) =>
-          a.hp / a.maxHp - b.hp / b.maxHp ||
-          Math.abs(a.x - unit.x) - Math.abs(b.x - unit.x) ||
-          a.uid.localeCompare(b.uid),
-      )[0] ?? null
-  );
-}
-
 function resolveAttacks(state, dt) {
   const units = activeUnits(state);
   const batch = damageBatch();
-  for (const unit of units) {
-    const poison = unit.poison;
-    if (!poison || unit.poisonImmune) { unit.poison = null; continue; }
-    const activeTime = Math.min(dt, poison.remaining);
-    poison.remaining -= activeTime;
-    poison.tickRemaining -= activeTime;
-    while (poison.tickRemaining <= 1e-9) {
-      addDamage(batch, unit, poison.damage, poison.direction, "poison", poison.source);
-      poison.tickRemaining += poison.interval;
-    }
-    if (poison.remaining <= 1e-9) unit.poison = null;
-  }
-  for (const unit of units) {
-    if (!unit.regeneration) continue;
-    unit.regenTimer = (unit.regenTimer ?? unit.regeneration.interval) - dt;
-    if (unit.regenTimer <= 1e-9) {
-      unit.regenTimer += Math.max(FIXED_STEP, unit.regeneration.interval);
-      const amount =
-        unit.maxHp *
-        unit.regeneration.hpRatio *
-        regenerationFactor(unit);
-      batch.healing.set(unit.uid, amount);
-    }
-  }
+  for (const unit of units) tickPeriodicEffects(unit, dt, {
+    damage: (amount, direction, source) => addDamage(batch, unit, amount, direction, "poison", source),
+    heal: spec => queueHealing(batch, unit, spec),
+  });
   // Existing shots land in this step; newly released shots start at time zero.
   advanceProjectiles(state, dt, units, batch);
 
@@ -603,33 +544,8 @@ function resolveAttacks(state, dt) {
       target,
       damage: combatStat(unit, "attack"),
       // Capture combat effects at release: projectiles survive their source.
-      source: {
-        team: unit.team,
-        castleDamageBonus: definition.castleDamageBonus ?? 0,
-        role: unit.role,
-        attribute: unit.attribute,
-        specialties: [...(unit.specialties ?? [])],
-        attributeBonuses: unit.attributeBonuses,
-        specialtyUpgradeBonus: unit.specialtyUpgradeBonus,
-        gemAttributeBonuses: unit.gemAttributeBonuses,
-        poison: definition.poison,
-        slow: definition.slow,
-        suppressRegen: definition.suppressRegen,
-        shieldDamageBonus:
-          (definition.shieldDamageBonus ?? 0) +
-          Math.max(
-            0,
-            ...units
-              .filter((ally) => ally.team === unit.team && !ally.dead)
-              .map((ally) => {
-                const aura = (ally.definition ?? getUnit(ally.id))?.shieldAura;
-                return aura && Math.abs(ally.x - unit.x) <= aura.range
-                  ? aura.bonus
-                  : 0;
-              }),
-          ),
-      },
-      splashRadius: definition.splashRadius ?? 0,
+      source: attackSource(unit, units),
+      splashRadius: effectOf(unit, "areaAttack")?.radius ?? 0,
       kind,
     };
     emit(state, {
@@ -663,15 +579,9 @@ function resolveAttacks(state, dt) {
         splashRadius: 0,
       });
     }
-    if (unit.team === "player") {
-      const supportTarget = chooseSupportTarget(unit, units, definition);
-      if (supportTarget) {
-        batch.healing.set(
-          supportTarget.uid,
-          (batch.healing.get(supportTarget.uid) ?? 0) + definition.heal,
-        );
-      }
-    }
+    const healing = effectOf(unit, "healing");
+    const ally = supportTarget(unit, units, healing);
+    if (ally) queueHealing(batch, ally, healing);
   }
   applyDamage(state, units, batch);
 }
@@ -687,53 +597,16 @@ function applyDamage(state, units, batch) {
       unit.shield = Math.max(0, (unit.shield ?? 0) - resolved.shieldDamage);
       shieldDamage += resolved.shieldDamage;
       damage += resolved.hpDamage;
-      if (resolved.hpDamage > 0 && entry.source.poison && !unit.poisonImmune) {
-        const spec = entry.source.poison;
-        const tickDamage = entry.amount * Math.max(0, spec.ratio ?? 0);
-        const previous = unit.poison;
-        const interval = Math.max(FIXED_STEP, spec.interval ?? 1);
-        const strongest = !previous || tickDamage >= previous.damage;
-        unit.poison = {
-          remaining: Math.max(previous?.remaining ?? 0, Math.max(0, spec.duration ?? 0)),
-          tickRemaining: previous?.tickRemaining ?? interval,
-          interval: strongest ? interval : previous.interval,
-          damage: Math.max(previous?.damage ?? 0, tickDamage),
-          direction: strongest ? hit.direction : previous.direction,
-          source: strongest ? { ...entry.source, poison: undefined } : previous.source,
-        };
-      }
-      const durationMultiplier =
-        1 + specializationBonus(entry.source, unit, "duration");
-      if (entry.source.slow) {
-        unit.slowFactor = Math.min(
-          unit.slowRemaining > 0 ? unit.slowFactor : 1,
-          entry.source.slow.factor,
-        );
-        unit.slowRemaining = Math.max(
-          unit.slowRemaining ?? 0,
-          entry.source.slow.duration * durationMultiplier,
-        );
-      }
-      if (entry.source.suppressRegen) {
-        unit.regenSuppressionFactor = Math.min(
-          unit.regenSuppressionRemaining > 0 ? unit.regenSuppressionFactor : 1,
-          entry.source.suppressRegen.factor,
-        );
-        unit.regenSuppressionRemaining = Math.max(
-          unit.regenSuppressionRemaining ?? 0,
-          entry.source.suppressRegen.duration * durationMultiplier,
-        );
-      }
+      applyHitEffects(unit, entry.source, { hpDamage: resolved.hpDamage, damage: entry.amount, direction: hit.direction });
     }
     const healing = batch.healing.get(unit.uid) ?? 0;
     if (!damage && !shieldDamage && !healing) continue;
     unit.hp = clamp(unit.hp - damage + healing, 0, unit.maxHp);
     if (damage > 0 || shieldDamage > 0) {
-      unit.hitFlash = 0.18;
+      unit.hitFlash = COMBAT_TIMING.hitFlash;
       unit.hitDirection = hit.direction;
       if (damage > 0 && unit.hp > 0 && (unit.stunCooldown ?? 0) <= 1e-9) {
-        unit.hitStunDuration = damage >= unit.maxHp * 0.2 ? 0.24 : HIT_STUN;
-        unit.hitStun = unit.hitStunDuration;
+        applyEffect(unit, effect("hitStun", { duration: damage >= unit.maxHp * COMBAT_TIMING.heavyHitRatio ? COMBAT_TIMING.heavyHitStun : HIT_STUN }));
         unit.stunCooldown = STUN_COOLDOWN;
         unit.moving = false;
       }
@@ -751,7 +624,7 @@ function applyDamage(state, units, batch) {
       unit.dead = true;
       unit.moving = false;
       unit.action = null;
-      unit.deathTimer = 0.32;
+      unit.deathTimer = COMBAT_TIMING.death;
       if(unit.team === "enemy" && state._modifiers.killGold > 0) {
         const amount = 18 * state._modifiers.killGold;
         state.gold = Math.min(state.maxGold,state.gold+amount);
@@ -798,9 +671,9 @@ export function fireCannon(state) {
   const enemies = activeUnits(state).filter((unit) => unit.team === "enemy");
   const batch = damageBatch();
   for (const enemy of enemies)
-    addDamage(batch, enemy, 110, 1, "cannon", { team: "player" });
+    addDamage(batch, enemy, CANNON.damage, 1, "cannon", { team: "player" });
   applyDamage(state, enemies, batch);
-  for (const enemy of enemies) enemy.x = Math.min(1110, enemy.x + 75);
+  for (const enemy of enemies) applyEffect(enemy, CANNON.knockback, { direction: 1, maxX: ENEMY_CASTLE_X - 10 });
   return true;
 }
 
@@ -813,12 +686,7 @@ function advanceTimers(state, dt) {
       unit.deathTimer = Math.max(0, (unit.deathTimer ?? 0) - dt);
       continue;
     }
-    advanceStatEffects(unit, dt);
-    unit.slowRemaining = Math.max(0, (unit.slowRemaining ?? 0) - dt);
-    unit.regenSuppressionRemaining = Math.max(
-      0,
-      (unit.regenSuppressionRemaining ?? 0) - dt,
-    );
+    advanceEffects(unit, dt);
     unit.attackTimer = Math.max(0, unit.attackTimer - dt);
     unit.hitFlash = Math.max(0, (unit.hitFlash ?? 0) - dt);
     unit.attackFlash = Math.max(0, (unit.attackFlash ?? 0) - dt);

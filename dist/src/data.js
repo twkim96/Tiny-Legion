@@ -472,8 +472,7 @@ for (const stage of firstRegion) {
   stage.regionName = "초원";
   for (const wave of stage.waves) for (const group of wave.enemies) {
     delete group.attribute;
-    group.shield = false;
-    group.regeneration = false;
+    group.effects = { ...(group.effects ?? {}), shield: false, regeneration: false };
   }
 }
 for (const source of firstRegion) {
@@ -494,8 +493,7 @@ for (const source of firstRegion) {
     if (group.id === "grove-boar") { group.id = "workshop-boar"; group.count = 1; }
     if (source.id === 10 && !getEnemy(group.id).boss) group.count = Math.ceil(group.count * 0.5);
     delete group.attribute;
-    delete group.shield;
-    delete group.regeneration;
+    delete group.effects;
     if (group.id === "beetle" && index % 2 === 0) group.id = "clock-beetle";
     if (group.id === "mushroom") {
       if (source.id >= 4) group.id = source.id >= 6 && index % 2 === 0 ? "shadow-mushroom" : "spirit-rabbit";

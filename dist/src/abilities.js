@@ -1,3 +1,4 @@
+import { applyChanges, changesText } from './effects.js';
 import { getUnit, ROLE_SPECIALIZATION, SIGNATURE_ABILITIES as signature, EXTRA_ATTRIBUTES as extraAttributes, COMMON_ABILITIES as basic, OPTIONAL_ABILITIES as optional, MOVEMENT_ROLES, RANGE_UNIT_IDS } from "./characters.js";
 export { UNIT_LEVEL_GROWTH } from "./characters.js";
 
@@ -18,8 +19,9 @@ export function unitAbilities(unitOrId) {
     ...(MOVEMENT_ROLES.includes(unit.role) ? [optional.move] : []),
     ...(RANGE_UNIT_IDS.includes(unit.id) && unit.rarity === "legendary" && unit.role === "ranged" && unit.cost >= 900 && unit.cooldown >= 6 ? [optional.range] : []),
   ];
-  return [...basic, ...options, ...(signature[unit.id] ? [{ id: "signature", max: 1, ...signature[unit.id] }] : []),
-    ...(extraAttributes[unit.id] ? [{ id: "extra", name: "새로운 특화", max: 1, effect: "attribute", attribute: extraAttributes[unit.id], unlock: 10 }] : [])];
+  const core = basic.map(ability => ability.id === "counter" ? { ...ability, changes: ability.changes.map(change => ({ ...change, kinds: Object.keys(ROLE_SPECIALIZATION[unit.role] ?? {}) })) } : ability);
+  return [...core, ...options, ...(signature[unit.id] ? [{ id: "signature", max: 1, ...signature[unit.id] }] : []),
+    ...(extraAttributes[unit.id] ? [{ id: "extra", name: "새로운 특화", max: 1, changes: [{ op: "specialty", attribute: extraAttributes[unit.id] }], attribute: extraAttributes[unit.id], unlock: 10 }] : [])];
 }
 export function normalizeAbilities(id, raw = {}) {
   return Object.fromEntries(unitAbilities(id).map((ability) => {
@@ -33,31 +35,13 @@ export function abilityCost(ability, rank = 0) {
     ? { marks: 24, gold: 3000 }
     : { marks: 1 + rank, gold: 120 + rank * 80 };
 }
-// All effects are derived from fixed base values; repeated upgrades do not compound.
+export const abilityText = (ability, rank = 1) => changesText(ability.changes, rank);
+// Every upgrade is declarative; fixed steps are applied once to a detached base.
 export function applyUnitAbilities(unit, raw = {}) {
   const ranks = normalizeAbilities(unit.id, raw);
   const result = structuredClone(unit);
-  result.hp *= 1 + ranks.hp * .01;
-  result.attack *= 1 + ranks.attack * .01;
-  result.speed *= 1 + (ranks.move ?? 0) * .02;
-  result.range += (ranks.range ?? 0) * 4;
-  result.specialtyUpgradeBonus = Object.fromEntries(
-    Object.keys(ROLE_SPECIALIZATION[unit.role] ?? {}).map((kind) => [kind, ranks.counter * .01]),
-  );
-  if (ranks.extra) result.specialties = [...new Set([...result.specialties, extraAttributes[unit.id]])];
-  if (ranks.signature) {
-    const { effect, amount } = signature[unit.id];
-    if (effect === "poisonImmune") result.poisonImmune = true;
-    if (effect === "castle") result.castleDamageBonus = (result.castleDamageBonus ?? 0) + amount;
-    if (effect === "interval") result.attackInterval = Math.max(.2, result.attackInterval - amount);
-    if (effect === "regen") result.regeneration = { hpRatio: .01, interval: 2 };
-    if (effect === "splash") result.splashRadius = (result.splashRadius ?? 0) + amount;
-    if (effect === "shield") result.shield = { hpRatio: amount };
-    if (effect === "shieldDamage") result.shieldDamageBonus = (result.shieldDamageBonus ?? 0) + amount;
-    if (effect === "slowDuration") result.slow = { ...result.slow, duration: result.slow.duration + amount };
-    if (effect === "heal") result.heal *= 1 + amount;
-    if (effect === "poison") result.poison = { ratio: .08, duration: 3, interval: 1 };
-    if (effect === "slow") result.slow = { factor: .8, duration: 2 };
+  for (const ability of unitAbilities(unit)) {
+    if (ranks[ability.id]) applyChanges(result, ability.changes, ranks[ability.id]);
   }
   return result;
 }

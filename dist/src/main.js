@@ -1,5 +1,6 @@
 import { enemyCombatStats } from "./character-stats.js";
 import { UNITS, ENEMIES, ATTRIBUTES, NEUTRAL_ATTRIBUTE, ROLE_SPECIALIZATION, getEnemy } from "./characters.js";
+import { effectLines } from "./effects.js";
 import {
   STAGES,
   BALANCE_VERSION,
@@ -119,52 +120,12 @@ function unitSpecialtyText(unit, rich = false) {
   return `${attributes}${effects.length ? ` · ${effects.join(" · ")}` : ""} · 다른 속성 페널티 없음`;
 }
 function unitAbilityLines(unit) {
-  const lines = [];
-  if (unit.poisonImmune) lines.push("중독 면역");
-  if (unit.poison) lines.push(`중독 · ${unit.poison.duration}초간 초당 공격력 ${percent(unit.poison.ratio)} 피해`);
-  if (unit.heal) lines.push(`회복량 ${Number(unit.heal.toFixed(1))} · 범위 ${unit.healRange}`);
-  if (unit.regeneration) lines.push(`${unit.regeneration.interval}초마다 체력 ${percent(unit.regeneration.hpRatio)} 회복`);
-  if (unit.shield) lines.push(`방어막 · 최대 체력의 ${percent(unit.shield.hpRatio)}`);
-  if (unit.splashRadius) lines.push(`광역 공격 범위 ${unit.splashRadius}`);
-  if (unit.castleDamageBonus > 0) lines.push(`적 성 추가 피해 +${percent(unit.castleDamageBonus)}`);
-  if (Number.isFinite(unit.shieldDamageBonus) && unit.shieldDamageBonus > 0)
-    lines.push(
-      `방어막 추가 피해 +${percent(unit.shieldDamageBonus)} (방어막에만 적용)`,
-    );
-  if (unit.slow && typeof unit.slow === "object")
-    lines.push(`둔화 · ${unit.slow.factor}배 · ${unit.slow.duration}초`);
-  if (unit.suppressRegen && typeof unit.suppressRegen === "object")
-    lines.push(
-      `회복 억제 · ${unit.suppressRegen.factor}배 · ${unit.suppressRegen.duration}초`,
-    );
-  if (unit.shieldAura && typeof unit.shieldAura === "object")
-    lines.push(
-      `방어막 오라 · 방어막 피해 +${percent(unit.shieldAura.bonus)} (방어막에만 적용) · 범위 ${unit.shieldAura.range}`,
-    );
-  return lines;
+  return effectLines(unit);
 }
-function enemyGimmicks(enemy, group = {}) {
-  const shield =
-    group.shield === false ? null : (group.shield ?? enemy?.shield);
-  const regeneration =
-    group.regeneration === false
-      ? null
-      : (group.regeneration ?? enemy?.regeneration);
-  const lines = [];
-  if (enemy?.boss) lines.push("거대 적");
-  if (enemy?.splashRadius > 0) lines.push(`광역 공격 범위 ${enemy.splashRadius}`);
-  if (enemy?.poison) lines.push(`중독 · ${enemy.poison.duration}초간 초당 공격력 ${percent(enemy.poison.ratio)} 피해`);
-  if (shield && Number.isFinite(shield.hpRatio))
-    lines.push(`방어막 · 최대 체력의 ${percent(shield.hpRatio)}`);
-  if (
-    regeneration &&
-    Number.isFinite(regeneration.hpRatio) &&
-    Number.isFinite(regeneration.interval)
-  )
-    lines.push(
-      `재생 ${percent(regeneration.hpRatio)} / ${regeneration.interval}초`,
-    );
-  return { shield, regeneration, lines };
+function enemyGimmicks(enemy) {
+  return {
+    lines: [...(enemy?.boss ? ["거대 적"] : []), ...effectLines(enemy)],
+  };
 }
 function getStageComposition(stage) {
   const totals = new Map(

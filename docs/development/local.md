@@ -16,7 +16,8 @@ npm run dev
 |---|---|
 | `dist/index.html`, `dist/style.css` | 화면과 반응형 스타일 |
 | `dist/src/characters.js` | 아군·적 원본 정의·속성·고유 효과·강화 배정 |
-| `dist/src/character-stats.js` | 공통 능력치 스냅샷·배율·시간제 효과 |
+| `dist/src/character-stats.js` | 공통 능력치 스냅샷·배율 |
+| `dist/src/effects.js`, `dist/src/combat-effects.js` | 효과 용어·수치 검증·강화/설명·공통 적용/만료·주기 처리 |
 | `dist/src/data.js` | 스테이지·웨이브·모집/성장 데이터; 캐릭터 정의 재수출 |
 | `dist/src/engine.js` | 화면과 독립된 결정적 전투 계산 |
 | `dist/src/onboarding.js` | 신규 0스테이지·1-1·1-2 성 공략과 방치 편성 전투 구성 |

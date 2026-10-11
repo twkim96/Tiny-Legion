@@ -1,6 +1,7 @@
 import { spriteSvg } from "./art.js";
 import { ENEMIES, UNITS, getCharacter, getEnemy } from "./characters.js";
 import { sampleUnitPose, battlefieldLayout } from "./combat-visuals.js";
+import { statusMarks } from "./combat-effects.js";
 const INK = "#4b5140";
 const MAX_FX = 96;
 const FX_LIFETIME = {
@@ -619,13 +620,7 @@ export class Renderer {
     c.restore();
   }
   drawStatusMarks(c, unit, x, y, size) {
-    const marks = [];
-    if (!unit.dead && unit.regeneration)
-      marks.push({ kind: "regen", color: "#8da574" });
-    if (unit.slowRemaining > 0) marks.push({ kind: "slow", color: "#78a9b7" });
-    if (unit.regenSuppressionRemaining > 0)
-      marks.push({ kind: "suppressed", color: "#bb8b81" });
-    if (unit.poison?.remaining > 0) marks.push({ kind: "poison", color: "#7b9a45" });
+    const marks = statusMarks(unit);
     if (!marks.length) return;
     const radius = Math.max(3, size * 0.095);
     const startX = x + size * 0.34;
@@ -635,7 +630,7 @@ export class Renderer {
       oval(c, markX, markY, radius, radius, "#f8f6e8", mark.color, 1.2);
       if (mark.kind === "poison") {
         oval(c, markX, markY, radius * .45, radius * .55, mark.color);
-      } else if (mark.kind === "regen") {
+      } else if (mark.kind === "regeneration") {
         line(
           c,
           markX - radius * 0.45,

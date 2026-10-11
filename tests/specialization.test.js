@@ -1,3 +1,5 @@
+import { applyEffect, remainingEffect } from '../dist/src/combat-effects.js';
+import { effect } from '../dist/src/effects.js';
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createBattle, summonUnit, stepBattle } from "../dist/src/engine.js";
@@ -87,11 +89,11 @@ test("shield absorbs ordinary damage and boosted overflow never amplifies HP dam
   assert.deepEqual(plain, { shieldDamage: 50, hpDamage: 50 });
   const boosted = resolveDamage(target, 100, {
     team: "player",
-    shieldDamageBonus: 1,
+    effects: { shieldDamage: effect("shieldDamage", {bonus:1}) },
   });
   assert.deepEqual(boosted, { shieldDamage: 50, hpDamage: 75 });
   assert.deepEqual(
-    resolveDamage({ ...target, shield: 0 }, 100, { shieldDamageBonus: 1 }),
+    resolveDamage({ ...target, shield: 0 }, 100, { effects: { shieldDamage: effect("shieldDamage", {bonus:1}) } }),
     { shieldDamage: 0, hpDamage: 100 },
   );
 });
@@ -137,8 +139,8 @@ test("support specialty extends control, including projectiles whose caster has 
     ally.dead = true;
     ally.deathTimer = 0.32;
     while (state.projectiles.length) stepBattle(state, tick);
-    remaining.push(enemy.slowRemaining);
-    assert.ok(enemy.regenSuppressionRemaining > 0);
+    remaining.push(remainingEffect(enemy, "slow"));
+    assert.ok(remainingEffect(enemy, "healingSuppression") > 0);
     const x = enemy.x;
     enemy.speed = 30;
     enemy.attackTimer = 1000;
@@ -155,23 +157,22 @@ test("regeneration is capped at max HP, suppression lowers recovery and expires"
   const { state, ally, enemy } = duel("squirrel", "spirit-rabbit");
   ally.attackTimer = 1000;
   enemy.hp = 50;
-  enemy.regenTimer = tick;
+  enemy.periodicTimers.regeneration = tick;
   stepBattle(state, tick);
   const fullRecovery = enemy.hp - 50;
   assert.ok(fullRecovery > 0);
   enemy.hp = 50;
-  enemy.regenTimer = tick;
-  enemy.regenSuppressionRemaining = 1;
-  enemy.regenSuppressionFactor = 0.5;
+  enemy.periodicTimers.regeneration = tick;
+  applyEffect(enemy, effect("healingSuppression", { factor: .5, duration: 1, scope: "regeneration" }));
   stepBattle(state, tick);
   near(enemy.hp - 50, fullRecovery * 0.5);
-  enemy.regenSuppressionRemaining = tick;
-  enemy.regenTimer = tick;
+  enemy.statusEffects["healingSuppression:regeneration"].remaining = tick;
+  enemy.periodicTimers.regeneration = tick;
   enemy.hp = 50;
   stepBattle(state, tick);
   near(enemy.hp - 50, fullRecovery);
   enemy.hp = enemy.maxHp - 1;
-  enemy.regenTimer = tick;
+  enemy.periodicTimers.regeneration = tick;
   stepBattle(state, tick);
   assert.equal(enemy.hp, enemy.maxHp);
 });
@@ -214,7 +215,7 @@ test("idle survival can succeed with a live shield threat and stages contain all
 test("regeneration remains beatable by ordinary burst and dead enemies never regenerate", () => {
   const { state, ally, enemy } = duel("squirrel", "spirit-rabbit");
   enemy.hp = 1;
-  enemy.regenTimer = tick;
+  enemy.periodicTimers.regeneration = tick;
   ally.attack = enemy.maxHp + 1;
   attackOnce(state, ally);
   assert.equal(enemy.dead, true);
@@ -284,8 +285,8 @@ test("first region teaches wild counters and second region introduces metal befo
   for (const stage of STAGES.filter((stage) => stage.region === 1)) {
     for (const wave of stage.waves) for (const group of wave.enemies) {
       assert.equal(group.attribute ?? definitions.get(group.id).attribute, "wild");
-      assert.equal(group.shield, false);
-      assert.equal(group.regeneration, false);
+      assert.equal(group.effects.shield, false);
+      assert.equal(group.effects.regeneration, false);
     }
   }
   const entry = createBattle({ mode: "challenge", stageId: 11, sequence: [] });
@@ -294,5 +295,5 @@ test("first region teaches wild counters and second region introduces metal befo
   assert.ok(entry.units.some((unit) => unit.attribute === "machine"));
   const opening = createBattle({ mode: "challenge", stageId: 1, sequence: [] });
   stepBattle(opening, 16);
-  assert.ok(opening.units.filter((unit) => unit.team === "enemy").every((unit) => unit.attribute === "wild" && !unit.regeneration));
+  assert.ok(opening.units.filter((unit) => unit.team === "enemy").every((unit) => unit.attribute === "wild" && !unit.effects.regeneration));
 });

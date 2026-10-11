@@ -1,10 +1,11 @@
 import { getUnit, ATTRIBUTES, ROLE_SPECIALIZATION } from "./characters.js";
 import { companionStats, levelCost, growthUnlocked, ownsUnit, gemPresetForMode, effectiveUnitLevel, sharedLevel, unitLevelRefund } from "./account.js";
-import { unitAbilities, normalizeAbilities, abilityCost, markTypeFor, markName } from "./abilities.js";
+import { unitAbilities, normalizeAbilities, abilityCost, abilityText, markTypeFor, markName } from "./abilities.js";
 import { specializationBonus } from "./combat-rules.js";
 import { gemByUid, gemDefinition, gemDescription, gemOptionText } from "./gems.js";
 import { portrait, icon } from "./art.js";
 import { rarityBadge } from "./recruitment-ui.js";
+import { STAT_NAMES } from "./effects.js";
 
 const fmt = (value) => Number(value).toLocaleString("ko-KR", { maximumFractionDigits: 2 });
 const attribute = (id) => {
@@ -12,15 +13,13 @@ const attribute = (id) => {
   return `<strong class="attribute-label" style="color:${item?.ink ?? "#757b6a"}">${item?.name ?? "무속성"}특화</strong>`;
 };
 export function abilityDescription(ability) {
-  return ability.effect === "attribute" ? `${attribute(ability.attribute)} 추가` : ability.step;
+  return ability.attribute ? `${attribute(ability.attribute)} 추가` : abilityText(ability);
 }
 export function appliedAbilityLines(unit, ranks) {
-  return unitAbilities(unit).filter((a) => ranks[a.id] > 0).map((a) =>
-    a.max === 1 ? abilityDescription(a) :
-      a.effect === "range" ? `사거리 +${ranks[a.id] * a.amount}` :
-        a.effect === "counter" ? `유효 속성 보너스 +${ranks[a.id]}%p` :
-          `${a.effect === "hp" ? "체력" : a.effect === "attack" ? "공격력" : "이동속도"} +${fmt(ranks[a.id] * a.amount * 100)}%`,
-  );
+  return unitAbilities(unit)
+    .filter((ability) => ranks[ability.id] > 0)
+    .map((ability) => ability.attribute ? abilityDescription(ability) : abilityText(ability, ranks[ability.id]))
+    .filter(Boolean);
 }
 export function companionPanel(account, id, nativeEffects = [], mode = "idle") {
   const unit = getUnit(id);
@@ -43,8 +42,8 @@ export function companionPanel(account, id, nativeEffects = [], mode = "idle") {
     ...(account.special[id] ? [`이전 특별강화 +${account.special[id]}레벨`] : []),
     ...((account.gemPresets?.[gemPresetForMode(account,mode)] ?? []).map(uid=>gemByUid(account,uid)).filter(Boolean).map(item=>`${gemDefinition(item.type).name} Lv. ${item.level} · ${gemDescription(item)}${item.options.length ? " · "+item.options.map(gemOptionText).join(" · ") : ""}`)),
   ];
-  const pairs = [["체력", stats.hp], ["공격력", stats.attack], ["초당 공격력", stats.attack / stats.attackInterval],
-    ["사거리", stats.range], ["이동속도", stats.speed], ["공격 간격", `${fmt(stats.attackInterval)}초`],
+  const pairs = [[STAT_NAMES.hp, stats.hp], [STAT_NAMES.attack, stats.attack], ["초당 공격력", stats.attack / stats.attackInterval],
+    [STAT_NAMES.range, stats.range], [STAT_NAMES.speed, stats.speed], [STAT_NAMES.attackInterval, `${fmt(stats.attackInterval)}초`],
     ["소환 골드", stats.cost], ["소환 대기", `${fmt(stats.cooldown)}초`]];
   return `<div class="companion-detail"><section class="companion-summary" id="companion-summary" tabindex="0" aria-label="동료 상세 스펙과 적용 효과"><div class="companion-heading"><div class="companion-portrait">${portrait(id)}</div><div>${rarityBadge(unit)}<h3>${unit.name}</h3><span>${levelLabel}</span><p>${unit.description}</p></div></div><div class="stat-list">${pairs.map(([label, value]) => `<div class="stat-item">${label}<strong>${typeof value === "number" ? fmt(value) : value}</strong></div>`).join("")}</div><div class="companion-specialties">${stats.specialties.map(attribute).join(" · ")}<p>${bonuses.join(" · ")}</p>${nativeEffects.length ? `<p>${nativeEffects.join("<br>")}</p>` : ""}</div><h4>적용 효과</h4>${effects.length ? `<ul class="companion-effects">${effects.map((effect) => `<li>${effect}</li>`).join("")}</ul>` : '<p class="settings-note">아직 강화한 특수능력이 없어요.</p>'}<button class="primary-button" id="companion-level" ${!growthUnlocked(account) || effectiveLevel >= 100 || account.gold < levelPrice ? "disabled" : ""}>레벨 ${effectiveLevel >= 100 ? "완료" : `올리기 ${icon("acorn")}${fmt(levelPrice)}`}</button></section><section class="companion-upgrades"><div class="companion-upgrade-header"><h4>특수능력</h4><span>${markName(mark)} ${fmt(account.marks?.[mark] ?? 0)}</span></div><div class="ability-list" id="companion-abilities" tabindex="0" role="region" aria-label="특수능력 강화 목록">${unitAbilities(unit).map((ability) => {
     const rank = ranks[ability.id], cost = abilityCost(ability, rank);

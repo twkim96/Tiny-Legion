@@ -103,14 +103,14 @@ test("every fifth and tenth stage fields a large boss that can be defeated norma
 });
 
 test("wave definitions stay within the supported interface and region one remains all wild", () => {
-  const supported = new Set(["id", "count", "interval", "x", "attribute", "shield", "regeneration"]);
+  const supported = new Set(["id", "count", "interval", "x", "attribute", "effects", "statMultipliers"]);
   for (const stage of STAGES) for (const wave of stage.waves) for (const group of wave.enemies) {
     assert.ok(enemyById.has(group.id), `unknown enemy ${group.id}`);
     for (const key of Object.keys(group)) assert.ok(supported.has(key), `unsupported ${key}`);
     if (stage.region === 1) {
       assert.equal(group.attribute ?? enemyById.get(group.id).attribute, "wild");
-      assert.equal(group.shield, false);
-      assert.equal(group.regeneration, false);
+      assert.equal(group.effects.shield, false);
+      assert.equal(group.effects.regeneration, false);
     }
   }
 });

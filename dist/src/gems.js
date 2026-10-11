@@ -1,3 +1,4 @@
+import { STAT_NAMES } from './effects.js';
 import { restoreLegacyGems } from "./save-compat.js";
 // Account-owned instances; all effects returned here are detached snapshots.
 export const GEM_TYPES = [
@@ -11,9 +12,9 @@ export const GEM_TYPES = [
 ];
 export const GEM_BANNERS = [{ id: 'treasure', name: '숲의 보물', description: '햇살·주머니·도토리·발자국을 같은 확률로 만납니다.', types: ['income', 'capacity', 'harvest', 'bounty'] }];
 export const GEM_OPTIONS = [
-  { id: 'attack', name: '공격력', min: .01, max: .03 },
-  { id: 'hp', name: '체력', min: .01, max: .03 },
-  { id: 'speed', name: '이동속도', min: .01, max: .03 },
+  { id: 'attack', name: STAT_NAMES.attack, min: .01, max: .03 },
+  { id: 'hp', name: STAT_NAMES.hp, min: .01, max: .03 },
+  { id: 'speed', name: STAT_NAMES.speed, min: .01, max: .03 },
   { id: 'wildAttack', name: '야생 상대 공격력', min: .05, max: .10 },
   { id: 'machineAttack', name: '기계 상대 공격력', min: .05, max: .10 },
   { id: 'spiritAttack', name: '정령 상대 공격력', min: .05, max: .10 },

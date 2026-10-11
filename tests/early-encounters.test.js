@@ -154,7 +154,7 @@ test("wall tutorial loses without rabbit and wins naturally at the real cannon c
 
 test("castle specialist bonus applies only to player unit hits on the enemy castle", () => {
   assert.equal(UNITS.find((unit) => unit.id === "rabbit").name, "속공 토끼");
-  assert.equal(UNITS.find((unit) => unit.id === "rabbit").castleDamageBonus, 4);
+  assert.equal(UNITS.find((unit) => unit.id === "rabbit").effects.castleDamage.bonus, 4);
   assert.equal(BALANCE_VERSION, "ninety-seconds-8");
 
   const state = createBattle({ mode: "challenge", stageId: 1, sequence: [] });
@@ -184,12 +184,9 @@ test("castle specialist bonus applies only to player unit hits on the enemy cast
     maxHp: beetle.hp,
     shield: 0,
     maxShield: 0,
-    regeneration: null,
-    regenTimer: 0,
-    slowRemaining: 0,
-    slowFactor: 1,
-    regenSuppressionRemaining: 0,
-    regenSuppressionFactor: 1,
+    effects: {},
+    statusEffects: {},
+    periodicTimers: {},
     attackTimer: 1000,
     action: null,
     hitFlash: 0,

@@ -12,16 +12,16 @@ test('registry definitions and nested mechanics cannot be changed by callers; co
   assert.strictEqual(getCharacter('mushroom', 'enemy'), ENEMIES.find(u => u.id === 'mushroom'));
   assert.equal(getEnemy('missing'), null);
   assert.throws(() => { getEnemy('mushroom').attribute = 'spirit'; }, TypeError);
-  assert.throws(() => { getEnemy('spirit-rabbit').regeneration.hpRatio = 1; }, TypeError);
+  assert.throws(() => { getEnemy('spirit-rabbit').effects.regeneration.hpRatio = 1; }, TypeError);
   const snapshot = enemyCombatStats('spirit-rabbit');
-  snapshot.regeneration.hpRatio = 1;
-  assert.equal(getEnemy('spirit-rabbit').regeneration.hpRatio, .025);
+  snapshot.effects.regeneration.hpRatio = 1;
+  assert.equal(getEnemy('spirit-rabbit').effects.regeneration.hpRatio, .025);
 });
 
 test('wild rabbit identity matches its portrait and opening encounters, while the later spirit variant owns regeneration', () => {
   const rabbit = getEnemy('mushroom');
   assert.equal(rabbit.attribute, 'wild');
-  assert.equal(rabbit.regeneration, undefined);
+  assert.equal(rabbit.effects.regeneration, undefined);
   assert.match(portrait(rabbit.id), /stroke="#3f852e"/);
   for (const stage of STAGES.slice(0, 13)) {
     for (const wave of stage.waves) for (const group of wave.enemies) {
@@ -35,13 +35,13 @@ test('wild rabbit identity matches its portrait and opening encounters, while th
   state._spawnSchedule = [{ id: 'spirit-rabbit', time: 0, x: 1080, overrides: {} }];
   stepBattle(state, tick);
   assert.equal(state.units[0].attribute, getEnemy('spirit-rabbit').attribute);
-  assert.deepEqual(state.units[0].regeneration, getEnemy('spirit-rabbit').regeneration);
+  assert.deepEqual(state.units[0].effects.regeneration, getEnemy('spirit-rabbit').effects.regeneration);
 });
 
 test('enemy spawn combines stage, battle and per-group multipliers without changing its identity or base definition', () => {
   const before = structuredClone(getEnemy('clock-beetle'));
   const state = createBattle({ mode: 'challenge', stageId: 1, sequence: [], enemyModifiers: { hp: 2, attack: .5, speed: .8 } });
-  state._spawnSchedule = [{ id: 'clock-beetle', time: 0, x: 1080, overrides: { statMultipliers: { hp: 1.5, attack: 3 }, regeneration: false } }];
+  state._spawnSchedule = [{ id: 'clock-beetle', time: 0, x: 1080, overrides: { statMultipliers: { hp: 1.5, attack: 3 }, effects: { regeneration: false } } }];
   stepBattle(state, tick);
   const enemy = state.units[0], base = getEnemy('clock-beetle');
   const expected = enemyCombatStats(base.id, state._enemyModifiers, state._spawnSchedule[0].overrides);
@@ -50,9 +50,9 @@ test('enemy spawn combines stage, battle and per-group multipliers without chang
   assert.equal(enemy.maxHp, Math.round(base.hp * 3));
   assert.equal(enemy.attack, Math.max(1, Math.round(base.attack * STAGES[0].enemyAttack * .5 * 3)));
   assert.equal(enemy.speed, base.speed * .8);
-  assert.equal(enemy.maxShield, Math.round(enemy.maxHp * base.shield.hpRatio));
+  assert.equal(enemy.maxShield, Math.round(enemy.maxHp * base.effects.shield.hpRatio));
   assert.equal(enemy.attribute, base.attribute);
-  assert.equal(enemy.regeneration, null);
+  assert.equal(enemy.effects.regeneration, false);
   assert.notEqual(enemy.definition, base);
   assert.deepEqual(getEnemy('clock-beetle'), before);
 });
@@ -67,19 +67,19 @@ test('ally spawn and detail use the same level, ability and equipment calculatio
   const unit = state.units[0];
   for (const key of ['attack','speed','range','attackInterval']) assert.equal(unit[key], expected[key]);
   assert.equal(unit.maxHp, expected.hp);
-  assert.equal(unit.shield, Math.round(expected.hp * expected.shield.hpRatio));
+  assert.equal(unit.shield, Math.round(expected.hp * expected.effects.shield.hpRatio));
   assert.deepEqual(unit.gemAttributeBonuses, expected.gemAttributeBonuses);
   assert.equal(characterStats('missing'), null);
 });
 
 test('timed buffs and debuffs refresh by ID, combine with slow, expire and leave spawn stats intact for either team', () => {
   for (const team of ['player','enemy']) {
-    const unit = {team, attack:100, speed:50, range:60, attackInterval:1, slowRemaining:1, slowFactor:.5};
+    const unit = {team, attack:100, speed:50, range:60, attackInterval:1, statusEffects:{slow:{type:'slow',remaining:1,factor:.5}}};
     assert.equal(applyStatEffect(unit,{id:'rage',stat:'attack',multiplier:1.2,duration:2}), true);
     assert.equal(applyStatEffect(unit,{id:'weakness',stat:'attack',multiplier:.5,duration:1}), true);
     assert.equal(combatStat(unit,'attack'), 60);
     applyStatEffect(unit,{id:'rage',stat:'attack',multiplier:1.5,duration:2});
-    assert.equal(unit.statEffects.length, 2);
+    assert.equal(Object.keys(unit.statusEffects).filter(key=>key.startsWith("stat:")).length, 2);
     assert.equal(combatStat(unit,'attack'), 75);
     applyStatEffect(unit,{id:'boots',stat:'speed',multiplier:2,duration:2});
     assert.equal(combatStat(unit,'speed'), 50);
