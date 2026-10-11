@@ -1,10 +1,7 @@
+import { enemyCombatStats } from "./character-stats.js";
+import { UNITS, ENEMIES, ATTRIBUTES, NEUTRAL_ATTRIBUTE, ROLE_SPECIALIZATION, getEnemy } from "./characters.js";
 import {
-  UNITS,
-  ENEMIES,
   STAGES,
-  ATTRIBUTES,
-  NEUTRAL_ATTRIBUTE,
-  ROLE_SPECIALIZATION,
   BALANCE_VERSION,
   RARITIES,
   stageLabel,
@@ -177,10 +174,10 @@ function getStageComposition(stage) {
   let totalCount = 0;
   for (const wave of stage.waves ?? []) {
     for (const group of wave.enemies ?? []) {
-      const enemy = ENEMIES.find((item) => item.id === group.id);
+      const enemy = enemyCombatStats(group.id, {}, group);
       const count = Number.isFinite(group.count) ? Math.max(0, group.count) : 1;
       if (!count) continue;
-      const attributeId = group.attribute ?? enemy?.attribute;
+      const attributeId = enemy?.attribute;
       if (attributeById[attributeId])
         totals.set(attributeId, (totals.get(attributeId) ?? 0) + count);
       else unclassified += count;
@@ -228,13 +225,13 @@ function stageIntelMarkup(stage) {
     .map((phase, phaseIndex) => {
       const summary = new Map();
       for (const group of phase) {
-        const enemy = ENEMIES.find((item) => item.id === group.id);
+        const enemy = enemyCombatStats(group.id, {}, group);
         if (!enemy) continue;
         const count = Number.isFinite(group.count)
           ? Math.max(0, group.count)
           : 1;
-        const attribute = group.attribute ?? enemy.attribute;
-        const gimmicks = enemyGimmicks(enemy, group).lines;
+        const attribute = enemy.attribute;
+        const gimmicks = enemyGimmicks(enemy).lines;
         const key = `${enemy.id}|${attribute}|${gimmicks.join("|")}`;
         const current = summary.get(key) ?? {
           name: enemy.name,
@@ -1457,7 +1454,7 @@ function renderCollection() {
     );
 }
 function renderCodexDetail(id, enemy) {
-  const u = enemy ? ENEMIES.find((u) => u.id === id) : companionStats(account, id, mode),
+  const u = enemy ? getEnemy(id) : companionStats(account, id, mode),
     scale = 1,
     gimmicks = enemyGimmicks(u),
     detailLines = enemy

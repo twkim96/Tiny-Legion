@@ -1,7 +1,9 @@
-import { ENEMIES, STAGES, UNITS } from "./data.js";
+import { STAGES, STARTER_UNIT_IDS } from "./data.js";
+import { UNITS, getUnit, getEnemy, getCharacter } from "./characters.js";
+import { characterStats, combineStatMultipliers, combatStat, advanceStatEffects, regenerationFactor } from "./character-stats.js";
 import { resolveDamage, specializationBonus } from "./combat-rules.js";
 import { earlyGuideEncounter, onboardingEncounter } from "./onboarding.js";
-import { applyUnitAbilities, normalizeAbilities, UNIT_LEVEL_GROWTH } from "./abilities.js";
+import { normalizeAbilities } from "./abilities.js";
 export { UNIT_LEVEL_GROWTH } from "./abilities.js";
 
 const WORLD_MIN = 0;
@@ -14,9 +16,7 @@ const FIXED_STEP = 1 / 30;
 const GOLD_PER_SECOND = 35;
 const HIT_STUN = 0.18;
 const STUN_COOLDOWN = 0.65;
-const DEFAULT_SEQUENCE = ["sheep", "rabbit", "squirrel", "teapot", "cloud"];
-const UNIT_BY_ID = new Map(UNITS.map((unit) => [unit.id, unit]));
-const ENEMY_BY_ID = new Map(ENEMIES.map((enemy) => [enemy.id, enemy]));
+const DEFAULT_SEQUENCE = STARTER_UNIT_IDS;
 const STAGE_BY_ID = new Map(STAGES.map((stage) => [stage.id, stage]));
 
 function finiteNumber(value, fallback) {
@@ -47,7 +47,7 @@ function makeSpawnSchedule(stage) {
   for (const wave of stage.waves ?? []) {
     const waveTime = Math.max(0, finiteNumber(wave.time, 0));
     for (const group of wave.enemies ?? []) {
-      const enemy = ENEMY_BY_ID.get(group.id);
+      const enemy = getEnemy(group.id);
       if (!enemy) continue;
       const count = clamp(
         Math.floor(finiteNumber(group.count, 1)),
@@ -65,7 +65,7 @@ function makeSpawnSchedule(stage) {
           time: waveTime + interval * index,
           id: enemy.id,
           overrides: Object.fromEntries(
-            ["attribute", "shield", "regeneration"]
+            ["attribute", "shield", "regeneration", "statMultipliers"]
               .filter((key) => key in group)
               .map((key) => [key, group[key]]),
           ),
@@ -92,10 +92,12 @@ function getLevel(levels, id) {
 }
 
 function makeUnit(state, definition, team, x, level = 1) {
-  if (team === "player") definition = applyUnitAbilities(definition, state._abilities[definition.id]);
-  const multiplier = 1 + (level - 1) * UNIT_LEVEL_GROWTH;
-  const enemyMultiplier = team === "enemy" ? state._enemyAttackMultiplier : 1;
-  const maxHp = Math.round(definition.hp * multiplier * (team === "player" ? state._modifiers.hp : 1));
+  definition = characterStats(definition, {
+    team, level, abilities: state._abilities[definition.id],
+    modifiers: team === "player" ? state._modifiers : {},
+    multipliers: team === "enemy" ? state._enemyModifiers : {},
+  });
+  const maxHp = definition.hp;
   return {
     uid: `${team === "player" ? "p" : "e"}${state._nextUid++}`,
     id: definition.id,
@@ -131,17 +133,10 @@ function makeUnit(state, definition, team, x, level = 1) {
     x: clamp(x, WORLD_MIN, WORLD_MAX),
     hp: maxHp,
     maxHp,
-    attack: Math.max(
-      1,
-      Math.round(
-        definition.attack *
-          (team === "enemy"
-            ? enemyMultiplier
-            : multiplier * state._modifiers.attack),
-      ),
-    ),
+    attack: definition.attack,
     range: definition.range,
-    speed: definition.speed * (team === "player" ? state._modifiers.speed : 1),
+    speed: definition.speed,
+    statEffects: [],
     attackTimer: 0,
     attackInterval: definition.attackInterval,
     hitFlash: 0,
@@ -198,6 +193,7 @@ export function createBattle(options = {}) {
     sequence = DEFAULT_SEQUENCE,
     duration,
     modifiers = {},
+    enemyModifiers = {},
     ownedUnits = null,
     onboardingPhase = null,
     earlyGuidePhase = null,
@@ -242,7 +238,7 @@ export function createBattle(options = {}) {
     finished: false,
     result: null,
     events: [],
-    _enemyAttackMultiplier: Math.max(0, finiteNumber(stage.enemyAttack, 1)),
+    _enemyModifiers: combineStatMultipliers(stage.enemyModifiers, enemyModifiers, { attack: stage.enemyAttack }),
     _baseReward: stage.baseReward,
     _spawnSchedule: makeSpawnSchedule(
       battleMode === "speedrun" && stage.speedrunWaves
@@ -256,9 +252,11 @@ export function createBattle(options = {}) {
     _levels: levels && typeof levels === "object" ? { ...levels } : {},
     _abilities: Object.fromEntries(UNITS.map((u) => [u.id, normalizeAbilities(u.id, abilities?.[u.id])])),
     _modifiers: {
-      hp: Math.max(1, finiteNumber(modifiers.hp, 1)),
-      attack: Math.max(1, finiteNumber(modifiers.attack, 1)),
-      speed: Math.max(1, finiteNumber(modifiers.speed, 1)),
+      hp: Math.max(0, finiteNumber(modifiers.hp, 1)),
+      attack: Math.max(0, finiteNumber(modifiers.attack, 1)),
+      speed: Math.max(0, finiteNumber(modifiers.speed, 1)),
+      range: Math.max(0, finiteNumber(modifiers.range, 1)),
+      attackInterval: Math.max(0, finiteNumber(modifiers.attackInterval, 1)),
       goldIncome: Math.max(1, finiteNumber(modifiers.goldIncome, 1)),
       killGold: Math.max(0, finiteNumber(modifiers.killGold, 0)),
       attributeBonuses: structuredClone(modifiers.attributeBonuses ?? {}),
@@ -270,7 +268,7 @@ export function createBattle(options = {}) {
 
 export function summonUnit(state, unitId) {
   if (!state || state.finished) return false;
-  const definition = UNIT_BY_ID.get(unitId);
+  const definition = getUnit(unitId);
   if (!definition || (state._ownedUnits && !state._ownedUnits.has(unitId)))
     return false;
   if (state.gold < definition.cost) return false;
@@ -311,7 +309,7 @@ function runIdleQueue(state) {
   // A single queue traversal per tick prevents cooldown-only queues from looping.
   while (visited < length) {
     const unitId = state.sequence[state.sequenceIndex];
-    const definition = UNIT_BY_ID.get(unitId);
+    const definition = getUnit(unitId);
     if (!definition || (state._ownedUnits && !state._ownedUnits.has(unitId))) {
       advanceSequence(state);
       visited += 1;
@@ -355,7 +353,7 @@ function spawnDueEnemies(state) {
     if (scheduled.time > state.time + 1e-9) break;
     state._spawnIndex += 1;
     if (activeUnitCount(state) >= MAX_ACTIVE_UNITS) continue;
-    const definition = ENEMY_BY_ID.get(scheduled.id);
+    const definition = getEnemy(scheduled.id);
     if (!definition) continue;
     const enemy = makeUnit(
       state,
@@ -406,11 +404,11 @@ function moveUnits(state, dt) {
       target.kind === "unit" ? positions.get(target.uid) : target.x;
     const delta = targetX - unit.x;
     if (delta) unit.facing = Math.sign(delta);
-    const remaining = Math.abs(delta) - unit.range;
+    const remaining = Math.abs(delta) - combatStat(unit, "range");
     if (remaining <= 0) continue;
     const movement = Math.min(
       remaining,
-      unit.speed * (unit.slowRemaining > 0 ? unit.slowFactor : 1) * dt,
+      combatStat(unit, "speed") * dt,
     );
     unit.x = clamp(unit.x + Math.sign(delta) * movement, WORLD_MIN, WORLD_MAX);
     unit.moving = movement > 0;
@@ -552,7 +550,7 @@ function resolveAttacks(state, dt) {
       const amount =
         unit.maxHp *
         unit.regeneration.hpRatio *
-        (unit.regenSuppressionRemaining > 0 ? unit.regenSuppressionFactor : 1);
+        regenerationFactor(unit);
       batch.healing.set(unit.uid, amount);
     }
   }
@@ -561,19 +559,16 @@ function resolveAttacks(state, dt) {
 
   for (const unit of units) {
     if (unit.hitStun > 0) continue;
-    const definition = unit.definition ?? (
-      unit.team === "player"
-        ? UNIT_BY_ID.get(unit.id)
-        : ENEMY_BY_ID.get(unit.id));
+    const definition = unit.definition ?? getCharacter(unit.id, unit.team);
     if (!definition) continue;
     if (unit.action?.phase === "recovery") continue;
     if (!unit.action) {
       if (unit.attackTimer > 1e-9) continue;
       const target = findTarget(unit, units, state);
-      if (!target || Math.abs(target.x - unit.x) > unit.range + 1e-9) continue;
+      if (!target || Math.abs(target.x - unit.x) > combatStat(unit, "range") + 1e-9) continue;
       unit.facing = Math.sign(target.x - unit.x) || unit.facing;
       unit.moving = false;
-      unit.attackTimer = unit.attackInterval;
+      unit.attackTimer = combatStat(unit, "attackInterval");
       unit.action = {
         phase: "windup",
         elapsed: 0,
@@ -606,7 +601,7 @@ function resolveAttacks(state, dt) {
       startX: unit.x,
       targetX: target.x,
       target,
-      damage: unit.attack,
+      damage: combatStat(unit, "attack"),
       // Capture combat effects at release: projectiles survive their source.
       source: {
         team: unit.team,
@@ -627,7 +622,7 @@ function resolveAttacks(state, dt) {
             ...units
               .filter((ally) => ally.team === unit.team && !ally.dead)
               .map((ally) => {
-                const aura = (ally.definition ?? UNIT_BY_ID.get(ally.id))?.shieldAura;
+                const aura = (ally.definition ?? getUnit(ally.id))?.shieldAura;
                 return aura && Math.abs(ally.x - unit.x) <= aura.range
                   ? aura.bonus
                   : 0;
@@ -656,7 +651,7 @@ function resolveAttacks(state, dt) {
           0.6,
         ),
       });
-    } else if (Math.abs(target.x - unit.x) <= unit.range + 1e-9) {
+    } else if (Math.abs(target.x - unit.x) <= combatStat(unit, "range") + 1e-9) {
       impact(state, shot, units, batch);
     } else {
       emit(state, {
@@ -818,6 +813,7 @@ function advanceTimers(state, dt) {
       unit.deathTimer = Math.max(0, (unit.deathTimer ?? 0) - dt);
       continue;
     }
+    advanceStatEffects(unit, dt);
     unit.slowRemaining = Math.max(0, (unit.slowRemaining ?? 0) - dt);
     unit.regenSuppressionRemaining = Math.max(
       0,

@@ -497,6 +497,14 @@ export const CHARACTER_ART = {
   ),
 };
 
+// The regenerating spirit rabbit has crystal ear ornaments, distinct from the wild rabbit.
+{
+  const base = CHARACTER_ART.mushroom;
+  const paint = (accent = PALETTES.spirit.accent, outline = PALETTES.spirit.ink) =>
+    base.bodyForAttribute(accent, outline) + `<g stroke="${outline}">${p('M34 16 41 5l8 11-7 12Zm46 0 8-12 8 12-8 12Z', '#d8f4ef')}${c(70, 79, 5, accent)}</g>`;
+  CHARACTER_ART["spirit-rabbit"] = { family: base.family, body: paint(), bodyForAttribute: paint };
+}
+
 // Bosses keep their species' movement silhouette and wear distinct large armor.
 for (const [id, baseId, equipment] of [
   ['grove-bear', 'bear', (a) => p('M37 25 33 10l13 9 8-16 10 13 13-13 7 16 13-9-3 16Z', a.accent) + p('M14 65 28 59l14 11-8 20-18-4Z', '#bda078')],

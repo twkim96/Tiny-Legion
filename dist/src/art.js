@@ -1,5 +1,9 @@
 import { CHARACTER_ART } from "./character-art.js";
-import { ATTRIBUTES, ENEMIES, NEUTRAL_ATTRIBUTE } from "./data.js";
+import {
+  ATTRIBUTES,
+  NEUTRAL_ATTRIBUTE,
+  getEnemy,
+} from "./characters.js";
 
 const iconPaths = {
   menu: '<path d="M4 6h16M4 12h16M4 18h16" stroke-width="2.2"/>',
@@ -58,13 +62,12 @@ export function icon(name, cls = "") {
 }
 
 const stroke = "#35372e";
-const ENEMY_DEFINITIONS = new Map(ENEMIES.map((enemy) => [enemy.id, enemy]));
 const ATTRIBUTE_COLORS = new Map(
   ATTRIBUTES.filter(({ color }) => color).map(({ id, color }) => [id, color]),
 );
 ATTRIBUTE_COLORS.set(NEUTRAL_ATTRIBUTE.id, NEUTRAL_ATTRIBUTE.color);
 function bodyFor(id, attribute) {
-  const enemy = ENEMY_DEFINITIONS.get(id);
+  const enemy = getEnemy(id);
   const art = CHARACTER_ART[id] || CHARACTER_ART[enemy?.artId] || CHARACTER_ART.sheep;
   if (!art.bodyForAttribute || !enemy) return art.body;
   const attributeId = attribute ?? enemy.attribute ?? NEUTRAL_ATTRIBUTE.id;

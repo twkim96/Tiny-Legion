@@ -56,7 +56,9 @@
 
 ## 코드와 검증
 
-- `dist/src/abilities.js`: 옵션·재료·비용·단계 정규화·고정 증가·현재 전투 수치.
+- `dist/src/characters.js`: 공통/선택 강화와 동료별 고유 능력·추가 특화 정의.
+- `dist/src/abilities.js`: 재료·비용·단계 정규화·고정 증가 적용.
+- `dist/src/character-stats.js`: 레벨·보석·전투 능력치 계산.
 - `dist/src/account.js`: `upgradeUnitAbility`, `companionStats`, 중복 모집 지급·전투력.
 - `dist/src/save-compat.js`: 이전 조각을 징표로 변환하는 임시 호환 처리. 제거 방침은 [개발 안내](../development/local.md#테스트-저장-호환-코드)를 따릅니다.
 - `dist/src/companion-ui.js`, `main.js`: 상세 구성·구매·레벨·초기화·목록 복귀.

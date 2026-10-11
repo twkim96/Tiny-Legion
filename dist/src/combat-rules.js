@@ -2,7 +2,7 @@ import {
   ATTRIBUTE_BONUS_CAP,
   ROLE_SPECIALIZATION,
   SHIELD_BONUS_CAP,
-} from "./data.js";
+} from "./characters.js";
 
 const boundedBonus = (value, cap) =>
   Math.min(cap, Math.max(0, Number(value) || 0));

@@ -1,5 +1,7 @@
-import { UNITS, STAGES, RARITIES, bannerById, bannerPool, bannerRarities, stageLabel } from "./data.js";
-import { MARK_TYPES, DUPLICATE_MARKS, markTypeFor, unitAbilities, normalizeAbilities, abilityCost, unitCombatStats } from "./abilities.js";
+import { UNITS, getUnit } from "./characters.js";
+import { unitCombatStats } from "./character-stats.js";
+import { STAGES, RARITIES, bannerById, bannerPool, bannerRarities, stageLabel } from "./data.js";
+import { MARK_TYPES, DUPLICATE_MARKS, markTypeFor, unitAbilities, normalizeAbilities, abilityCost } from "./abilities.js";
 import { initialGemState, normalizeGemState, gemEffects, drawGem } from "./gems.js";
 import { legacyStarterSave, restoreLegacyProgress } from "./save-compat.js";
 export const SAVE_KEY = "tiny-legion.save.v1";
@@ -278,7 +280,7 @@ export function growthUnlocked(a) {
 }
 export function recruitEarlyRabbit(a) {
   if (isOnboarding(a) || a.earlyGuide?.phase !== "rabbit-recruit") return null;
-  const unit = UNITS.find((u) => u.id === "rabbit");
+  const unit = getUnit("rabbit");
   const isNew = !ownsUnit(a, "rabbit");
   a.owned.rabbit = true;
   a.earlyGuide.phase = "wall-retry";
@@ -366,7 +368,7 @@ export function enhanceUnit(a, id) {
   return true;
 }
 export function upgradeUnitAbility(a, id, abilityId) {
-  const unit = UNITS.find((u) => u.id === id);
+  const unit = getUnit(id);
   const ability = unitAbilities(unit).find((item) => item.id === abilityId);
   if (!unit || !ability || !growthUnlocked(a) || !ownsUnit(a, id) || a.highestCleared < (ability.unlock ?? 0)) return false;
   const ranks = normalizeAbilities(id, a.abilities?.[id]);
@@ -380,7 +382,7 @@ export function upgradeUnitAbility(a, id, abilityId) {
   return true;
 }
 export function companionStats(a, id, mode = "idle") {
-  const unit = UNITS.find((u) => u.id === id);
+  const unit = getUnit(id);
   return unit ? unitCombatStats(unit, effectiveUnitLevel(a, id) + (a.special?.[id] ?? 0), gemModifiers(a, mode), a.abilities?.[id]) : null;
 }
 export function unitLevelRefund(a, id) {
@@ -624,7 +626,7 @@ export function advanceOnboardingBattle(a, won) {
 }
 export function recruitOnboardingCompanion(a) {
   if (a?.onboarding?.phase !== "recruit" || ownsUnit(a, "squirrel")) return null;
-  const unit = UNITS.find((entry) => entry.id === "squirrel");
+  const unit = getUnit("squirrel");
   if (!unit) return null;
   a.owned.squirrel = true;
   a.onboarding.phase = "retry-battle";

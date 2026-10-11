@@ -20,7 +20,7 @@ const FIRST = {
   duration: 60,
   waves: [
     { time: 0.6, enemies: [{ id: "beetle", count: 1, x: 1080 }] },
-    { time: 8, enemies: [{ id: "mushroom", count: 4, interval: 4, x: 1080, attribute: "wild", regeneration: false }] },
+    { time: 8, enemies: [{ id: "mushroom", count: 4, interval: 4, x: 1080 }] },
   ],
 };
 export function onboardingEncounter(phase) {

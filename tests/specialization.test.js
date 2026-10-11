@@ -152,7 +152,7 @@ test("support specialty extends control, including projectiles whose caster has 
 });
 
 test("regeneration is capped at max HP, suppression lowers recovery and expires", () => {
-  const { state, ally, enemy } = duel("squirrel", "mushroom");
+  const { state, ally, enemy } = duel("squirrel", "spirit-rabbit");
   ally.attackTimer = 1000;
   enemy.hp = 50;
   enemy.regenTimer = tick;
@@ -212,7 +212,7 @@ test("idle survival can succeed with a live shield threat and stages contain all
 });
 
 test("regeneration remains beatable by ordinary burst and dead enemies never regenerate", () => {
-  const { state, ally, enemy } = duel("squirrel", "mushroom");
+  const { state, ally, enemy } = duel("squirrel", "spirit-rabbit");
   enemy.hp = 1;
   enemy.regenTimer = tick;
   ally.attack = enemy.maxHp + 1;

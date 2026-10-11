@@ -15,7 +15,9 @@ npm run dev
 | 위치 | 역할 |
 |---|---|
 | `dist/index.html`, `dist/style.css` | 화면과 반응형 스타일 |
-| `dist/src/data.js` | 동료·적·스테이지·웨이브 데이터 |
+| `dist/src/characters.js` | 아군·적 원본 정의·속성·고유 효과·강화 배정 |
+| `dist/src/character-stats.js` | 공통 능력치 스냅샷·배율·시간제 효과 |
+| `dist/src/data.js` | 스테이지·웨이브·모집/성장 데이터; 캐릭터 정의 재수출 |
 | `dist/src/engine.js` | 화면과 독립된 결정적 전투 계산 |
 | `dist/src/onboarding.js` | 신규 0스테이지·1-1·1-2 성 공략과 방치 편성 전투 구성 |
 | `dist/src/account.js` | 성장·재화·진행·기록·저장 |
@@ -28,6 +30,8 @@ npm run dev
 | `dist/src/recruitment-ui.js` | 동료 모집·확률·카드 공개 연출 |
 | `dist/src/main.js` | UI·입력·전투/계정 연결 |
 | `tests/` | Node 기본 테스트 러너로 검증하는 동작 |
+
+캐릭터를 추가·변경할 때는 [캐릭터 관리 계약](../SPEC/characters.md)을 따릅니다. 도감이나 엔진에 별도 속성/스탯 정의를 넣지 않습니다.
 
 `dist/`는 생성 폴더가 아닌 실제 소스입니다. 다른 소스에서 재생성하는 빌드 작업은 없습니다.
 

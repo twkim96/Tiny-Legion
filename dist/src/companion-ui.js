@@ -1,4 +1,4 @@
-import { UNITS, ATTRIBUTES, ROLE_SPECIALIZATION } from "./data.js";
+import { getUnit, ATTRIBUTES, ROLE_SPECIALIZATION } from "./characters.js";
 import { companionStats, levelCost, growthUnlocked, ownsUnit, gemPresetForMode, effectiveUnitLevel, sharedLevel, unitLevelRefund } from "./account.js";
 import { unitAbilities, normalizeAbilities, abilityCost, markTypeFor, markName } from "./abilities.js";
 import { specializationBonus } from "./combat-rules.js";
@@ -23,7 +23,7 @@ export function appliedAbilityLines(unit, ranks) {
   );
 }
 export function companionPanel(account, id, nativeEffects = [], mode = "idle") {
-  const unit = UNITS.find((u) => u.id === id);
+  const unit = getUnit(id);
   if (!unit || !ownsUnit(account, id)) return "";
   const stats = companionStats(account, id, mode);
   const personalLevel = account.levels?.[id] ?? 1;

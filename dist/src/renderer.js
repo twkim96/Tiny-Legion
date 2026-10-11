@@ -1,5 +1,5 @@
 import { spriteSvg } from "./art.js";
-import { ENEMIES, UNITS } from "./data.js";
+import { ENEMIES, UNITS, getCharacter, getEnemy } from "./characters.js";
 import { sampleUnitPose, battlefieldLayout } from "./combat-visuals.js";
 const INK = "#4b5140";
 const MAX_FX = 96;
@@ -14,23 +14,12 @@ const FX_LIFETIME = {
   spawn: 0.38,
   burst: 0.72,
 };
-const ATTACK_KIND = {
-  sheep: "melee",
-  rabbit: "melee",
-  squirrel: "seed",
-  teapot: "water",
-  cloud: "bolt",
-  beetle: "melee",
-  mushroom: "spore",
-  boar: "melee",
-};
 const SPRITES = {};
 const SPRITE_IDS = new Set(
   [...UNITS, ...ENEMIES]
     .flatMap((definition) => [definition.id, definition.artId])
     .filter(Boolean),
 );
-const ENEMY_IDS = new Set(ENEMIES.map(({ id }) => id));
 for (const id of SPRITE_IDS) {
   const im = new Image();
   im.src =
@@ -38,7 +27,7 @@ for (const id of SPRITE_IDS) {
   SPRITES[id] = im;
 }
 function enemySprite(id, attribute) {
-  if (!ENEMY_IDS.has(id) || attribute == null) return SPRITES[id];
+  if (!getEnemy(id) || attribute == null) return SPRITES[id];
   const cacheKey = `${id}::${attribute}`;
   if (!SPRITES[cacheKey]) {
     const im = new Image();
@@ -48,6 +37,12 @@ function enemySprite(id, attribute) {
     SPRITES[cacheKey] = im;
   }
   return SPRITES[cacheKey];
+}
+function characterAttackKind(id, team) {
+  const definition = getCharacter(id, team);
+  return definition
+    ? definition.projectile?.kind ?? "melee"
+    : undefined;
 }
 function path(ctx, coords, fill, stroke = null, line = 1) {
   ctx.beginPath();
@@ -528,7 +523,7 @@ export class Renderer {
     }
   }
   drawWindupAccent(c, unit, size) {
-    const kind = unit.action?.kind ?? ATTACK_KIND[unit.id];
+    const kind = unit.action?.kind ?? characterAttackKind(unit.id, unit.team);
     const color = unit.team === "enemy" ? "#c59a79" : "#a8b987";
     c.save();
     c.globalAlpha = 0.76;
@@ -834,7 +829,7 @@ export class Renderer {
     c.globalAlpha =
       fade * (fx.type === "impact" && fx.hit === false ? 0.62 : 1);
     if (fx.type === "attack") {
-      if ((fx.kind ?? ATTACK_KIND[fx.id]) === "melee") {
+      if ((fx.kind ?? characterAttackKind(fx.id, fx.team)) === "melee") {
         c.translate(x, y);
         c.scale(dir, 1);
         c.strokeStyle = pale;
@@ -1015,7 +1010,8 @@ export class Renderer {
       .sort((a, b) => a.x - b.x);
     const baseSize = Math.min(82, h * 0.29, w * 0.078);
     for (const u of units) {
-      const artId = u.artId ?? u.id;
+      const definition = getCharacter(u.id, u.team);
+      const artId = u.artId ?? definition?.artId ?? u.id;
       const enemyVariant =
         u.team === "enemy"
           ? (enemySprite(u.id, u.attribute) ?? enemySprite(artId, u.attribute))
