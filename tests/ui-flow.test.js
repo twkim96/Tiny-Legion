@@ -9,6 +9,7 @@ import { modalLayout, messagePanel } from '../dist/src/modal-ui.js';
 import { companionStats, upgradeUnitAbility, gemPresetForMode, advancedContentUnlocked, collectReturnIncome, effectiveUnitLevel, baseLevelRoster, sharedLevel } from '../dist/src/account.js';
 import { companionPanel } from '../dist/src/companion-ui.js';
 import {drawGem,gemByUid,gemDefinition,gemDescription,gemOptionText,gemUpgradeCost,gemTransferCost,gemUpgradeMaterials,upgradeGem,transferGem,equipGem,GEM_BANNERS,GEM_OPTIONS} from '../dist/src/gems.js';
+import { moveSequenceItem } from '../dist/src/sequence-ui.js';
 import {gemPage,gemDetail,gemCard} from '../dist/src/gem-ui.js';
 
 const source = fs.readFileSync(new URL('../dist/src/main.js', import.meta.url), 'utf8');
@@ -40,11 +41,11 @@ function harness(names) {
   const calls = [];
   const context = {
     $, account, calls, STAGES, stageLabel, currentMission, recordMissionBattle, claimMission, accrue, recordIdle, isOnboarding, recruitOnboardingCompanion, growthUnlocked, sequenceUnlocked, sequenceForMode, setSequence, playableSequence, growUnit, refundUnitLevels, unitLevelRefund, levelCost, recruitEarlyRabbit, applyGuideSequence, canUseUnit, ownsUnit, UNITS,
-    modalLayout, messagePanel, modalKind:null, modalRender:null, lastFocused:null, hideTooltip(){},
+    bindSequenceDrag(){}, moveSequenceItem, modalHistory:[], modalLayout, messagePanel, modalKind:null, modalRender:null, lastFocused:null, hideTooltip(){},
     readyBattle(){calls.push("ready");}, openCodex(){},
     gemViewPreset:0, drawGem,gemByUid,gemDefinition,gemDescription,gemOptionText,gemUpgradeCost,gemTransferCost,gemUpgradeMaterials,upgradeGem,transferGem,equipGem,GEM_BANNERS,GEM_OPTIONS,gemPage,gemDetail,gemCard,
     companionStats, upgradeUnitAbility, gemPresetForMode, advancedContentUnlocked, collectReturnIncome, effectiveUnitLevel, baseLevelRoster, sharedLevel, companionPanel, unitAbilityLines:()=>[],
-    renderGrowth(){calls.push('growth-screen');}, renderRecruit(){calls.push('recruit-screen');},
+    renderGems(){calls.push('gems-screen');}, renderGrowth(){calls.push('growth-screen');}, renderRecruit(){calls.push('recruit-screen');},
     sequenceDraftIndex:0, sequenceDraftGem:0, sequenceDraftChoices:null, pendingReturnIncome:null, sequenceDraft:null, sequenceDraftMode:"idle", sequenceDrafts:null, names:Object.fromEntries(UNITS.map(u=>[u.id,u.name])), portrait:id=>`[${id}]`, rarityBadge:()=>"",
     mode: 'idle', stageId: 1, idleResultStage: null, resultHandled: false, restartAt: 0,
     battle: {result: {won:true, survival:120, hpRatio:1, reward:80}, finished:true, time:120, events:[]},
@@ -64,7 +65,7 @@ function harness(names) {
     revealRecruit(root, results, actions){context.revealed = results; context.revealActions=actions; return ()=>{};},
   };
   vm.createContext(context);
-  vm.runInContext([...new Set(['firstIdleMissionPending', 'levelBasisMarkup', ...names])].map(functionSource).join('\n'), context);
+  vm.runInContext([...new Set(['firstIdleMissionPending', 'levelBasisMarkup', 'rememberModalPosition', 'displayModalFrame', 'backModal', 'returnModal', ...names])].map(functionSource).join('\n'), context);
   return context;
 }
 test('idle result dialog leaves simulation and automatic restart running', () => {
@@ -579,4 +580,89 @@ test('growth list shows the five purchased-level leaders and shared level above 
   assert.equal([...basis.matchAll(/data-companion=/g)].length,5);
   assert.ok(!basis.includes(`data-companion="${ids[5]}"`));
   assert.equal(effectiveUnitLevel(c.account,ids[5]),6);
+});
+
+test('modal back restores each depth, scroll and root opener without repeating actions', () => {
+  const c = harness(['openModal', 'closeModal']);
+  c.account.earlyGuide.phase = 'complete';
+  let opened = 0, renders = 0;
+  c.document.activeElement = {focus(){opened++;}};
+  const list = () => { c.$('modal-content').innerHTML = 'list'; renders++; };
+  c.openModal('동료', 'growth', list);
+  c.$('modal-content').scrollTop = 123;
+  c.document.activeElement = {id:'selected-companion'};
+  c.openModal('양 방패', 'companion', () => {c.$('modal-content').innerHTML = 'detail';});
+  c.$('companion-abilities').scrollTop = 94;
+  c.openModal('초기화', 'refund', () => {c.$('modal-content').innerHTML = 'confirmation';});
+  assert.equal(c.modalHistory.length, 3);
+  assert.equal(c.$('back-modal').hidden, false);
+  assert.equal(c.backModal(), true);
+  assert.equal(c.modalKind, 'companion');
+  assert.equal(c.$('companion-abilities').scrollTop, 94);
+  c.returnModal('동료', 'growth', list);
+  assert.equal(c.modalHistory.length, 1);
+  assert.equal(c.$('modal-content').scrollTop, 123);
+  assert.equal(c.$('back-modal').hidden, true);
+  assert.equal(c.backModal(), false);
+  assert.equal(renders, 2);
+  c.closeModal();
+  assert.equal(c.modalHistory.length, 0);
+  assert.equal(opened, 1);
+  c.openModal('설정', 'settings', () => {});
+  assert.equal(c.modalHistory.length, 1);
+});
+test('same-kind details and sibling replacement preserve only the actual parent', () => {
+  const c = harness(['openModal', 'closeModal']);
+  c.openModal('도감', 'codex', () => {c.$('modal-content').innerHTML='collection';});
+  c.openModal('도감', 'codex', () => {c.$('modal-content').innerHTML='sheep';});
+  c.openModal('도감', 'codex', () => {c.$('modal-content').innerHTML='squirrel';}, {navigation:'replace'});
+  assert.equal(c.modalHistory.length, 2);
+  c.backModal();
+  assert.equal(c.$('modal-content').innerHTML, 'collection');
+  c.openModal('모집', 'onboarding', () => {});
+  assert.equal(c.modalHistory.length, 1);
+  assert.equal(c.$('back-modal').hidden, true);
+  assert.equal(c.backModal(), false);
+  c.closeModal();
+  assert.equal(c.$('modal-backdrop').hidden, false);
+  c.closeModal(true);
+  assert.equal(c.modalHistory.length, 0);
+});
+test('back from a lineup picker preserves the content, preset and unsaved draft', () => {
+  const c = harness(['openModal', 'openSequence', 'renderSequence']);
+  c.account.earlyGuide.phase = 'complete';
+  c.account.owned.rabbit = true;
+  c.openSequence('challenge');
+  c.$('modal-content:data-lineup-index:3').onclick();
+  c.sequenceDraft[0] = 'rabbit';
+  c.$('modal-content:data-replace:0').onclick();
+  assert.equal(c.modalKind,'sequence-pick');
+  c.backModal();
+  assert.equal(c.modalKind,'sequence');
+  assert.equal(c.sequenceDraftMode,'challenge');
+  assert.equal(c.sequenceDraftIndex,3);
+  assert.equal(c.sequenceDraft[0],'rabbit');
+  assert.equal(c.account.activeLineup.challenge,0);
+});
+
+test('gem transfer prunes consumed donor screens and back cannot charge again', () => {
+  const c = harness(['openModal','closeModal','renderGems','showGemTransfer','openGemDetail','renderGemDetail','settleProduction']);
+  c.account.earlyGuide.phase='complete'; c.account.highestCleared=11; c.account.gold=5000;
+  c.account.gemItems=[{uid:'donor',type:'income',level:3,options:[]},{uid:'target',type:'harvest',level:1,options:[]}];
+  c.openModal('보석','gems',c.renderGems);
+  c.openGemDetail('donor'); c.showGemTransfer('donor');
+  c.$('modal-content:data-gem-target:target').onclick();
+  assert.equal(c.modalHistory.length,4);
+  c.$('gem-transfer-cancel').onclick();
+  assert.equal(c.modalHistory.length,3);
+  assert.equal(c.$('modal-title').textContent,'전승 대상');
+  c.$('modal-content:data-gem-target:target').onclick();
+  c.$('gem-transfer-confirm').onclick();
+  assert.equal(c.modalHistory.length,2);
+  const balance=c.account.gold;
+  assert.equal(gemByUid(c.account,'donor'),null);
+  c.backModal();
+  assert.equal(c.modalHistory.length,1);
+  assert.equal(c.account.gold,balance);
+  assert.equal(c.backModal(),false);
 });

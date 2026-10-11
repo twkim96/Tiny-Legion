@@ -20,6 +20,7 @@ npm run dev
 | `dist/src/onboarding.js` | 신규 0스테이지·1-1·1-2 성 공략과 방치 편성 전투 구성 |
 | `dist/src/account.js` | 성장·재화·진행·기록·저장 |
 | `dist/src/character-art.js`, `dist/src/art.js`, `dist/src/renderer.js` | 계열별 캐릭터 SVG·아이콘과 Canvas 렌더링 |
+| `dist/src/sequence-ui.js` | 순서 끼워넣기·마우스/터치 포인터 입력 |
 | `dist/src/modal-ui.js` | 종류별 모달 크기 선택과 공통 안내·확인 본문 |
 | `dist/src/gems.js`, `dist/src/gem-ui.js` | 보석 개체·장착·강화·전승·페이지 |
 | `dist/src/abilities.js`, `dist/src/companion-ui.js` | 동료 특수능력·상세 성장 |
