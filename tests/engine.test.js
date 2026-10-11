@@ -413,6 +413,30 @@ test("a single-target projectile cannot redirect to another unit after its targe
   );
 });
 
+test("deer melee hits clustered enemies once, with each target's attribute applied independently", () => {
+  const { state, ally, enemy } = isolatedFight("deer");
+  ally.speed = 0;
+  enemy.hp = enemy.maxHp = 1000;
+  const nearby = { ...enemy, uid: "e-near", x: enemy.x + 40, attribute: "wild" };
+  const distant = { ...enemy, uid: "e-far", x: enemy.x + 90 };
+  const friendly = { ...ally, uid: "p-near", x: enemy.x + 20, attackTimer: 1000, action: null };
+  state.units.push(nearby, distant, friendly);
+  const friendlyHp = friendly.hp;
+  stepBattle(state, FIXED_STEP);
+  assert.equal(enemy.hp, 1000);
+  assert.equal(nearby.hp, 1000);
+  releaseAttack(state, ally);
+  assert.equal(enemy.hp, 1000 - ally.attack);
+  assert.ok(Math.abs(nearby.hp - (1000 - ally.attack * 1.2)) < 1e-8);
+  assert.equal(distant.hp, 1000);
+  assert.equal(friendly.hp, friendlyHp);
+  assert.equal(state.projectiles.length, 0);
+  assert.equal(state.events.filter(event => event.type === "impact" && event.hit).length, 1);
+  const hp = [enemy.hp, nearby.hp];
+  stepBattle(state, FIXED_STEP);
+  assert.deepEqual([enemy.hp, nearby.hp], hp);
+});
+
 test("water splashes around its landing point even if the original target has died", () => {
   const { state, ally, enemy } = isolatedFight("teapot", "beetle", 150);
   const nearby = { ...enemy, uid: "e-near", x: enemy.x + 50 };

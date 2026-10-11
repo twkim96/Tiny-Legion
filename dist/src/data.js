@@ -1,5 +1,5 @@
 // Initial tuning, subject to play acceptance. Bonuses of the same kind add.
-export const BALANCE_VERSION = "ninety-seconds-6";
+export const BALANCE_VERSION = "ninety-seconds-7";
 export const ATTRIBUTES = [
   { id: "wild", name: "야생", symbol: "♧", color: "#72b54b", ink: "#3f852e", colorName: "초록색" },
   { id: "machine", name: "기계", symbol: "⚙", color: "#a8b5c5", ink: "#667487", colorName: "은색" },
@@ -271,7 +271,7 @@ export const UNITS = [
     role: "warrior",
     specialties: ["wild"],
     hp: 315,
-    attack: 37,
+    attack: 33,
     range: 54,
     speed: 55,
     cost: 700,
@@ -279,7 +279,8 @@ export const UNITS = [
     attackInterval: 1.28,
     attackWindup: 0.26,
     attackRecovery: 0.23,
-    description: "잎사귀 방패와 나무 창으로 숲을 수호해요.",
+    splashRadius: 65,
+    description: "잎사귀 방패로 버티며 나무 창을 크게 휘둘러 모인 적을 함께 공격해요.",
     color: "#ac9169",
   },
   {

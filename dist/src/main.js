@@ -155,6 +155,7 @@ function enemyGimmicks(enemy, group = {}) {
       : (group.regeneration ?? enemy?.regeneration);
   const lines = [];
   if (enemy?.boss) lines.push("거대 적");
+  if (enemy?.splashRadius > 0) lines.push(`광역 공격 범위 ${enemy.splashRadius}`);
   if (enemy?.poison) lines.push(`중독 · ${enemy.poison.duration}초간 초당 공격력 ${percent(enemy.poison.ratio)} 피해`);
   if (shield && Number.isFinite(shield.hpRatio))
     lines.push(`방어막 · 최대 체력의 ${percent(shield.hpRatio)}`);
@@ -1455,73 +1456,6 @@ function renderCollection() {
           openCodex(b.dataset.codex, b.dataset.enemy === "true")),
     );
 }
-function enemyCounterText(enemy) {
-  const counters = [];
-  if (enemy.attribute) {
-    const specialists = UNITS.filter(
-      (unit) =>
-        Array.isArray(unit.specialties) &&
-        unit.specialties.includes(enemy.attribute),
-    );
-    const attackers = specialists
-      .filter((unit) =>
-        Number.isFinite(ROLE_SPECIALIZATION?.[unit.role]?.attack),
-      )
-      .map(
-        (unit) =>
-          `${unit.name} +${percent(ROLE_SPECIALIZATION[unit.role].attack)} 공격`,
-      );
-    const defenders = specialists
-      .filter((unit) =>
-        Number.isFinite(ROLE_SPECIALIZATION?.[unit.role]?.effectiveHp),
-      )
-      .map(
-        (unit) =>
-          `${unit.name} +${percent(ROLE_SPECIALIZATION[unit.role].effectiveHp)} 유효 체력`,
-      );
-    const supporters = specialists
-      .filter((unit) =>
-        Number.isFinite(ROLE_SPECIALIZATION?.[unit.role]?.duration),
-      )
-      .map(
-        (unit) =>
-          `${unit.name} +${percent(ROLE_SPECIALIZATION[unit.role].duration)} 지속시간`,
-      );
-    counters.push(
-      `속성 대응 · ${[...attackers, ...defenders, ...supporters].join(" · ") || "속성 특화 동료 없음"}`,
-    );
-  }
-  if (enemy.shield && enemy.shield !== false) {
-    const shieldUnits = UNITS.flatMap((unit) => {
-      const options = [];
-      if (Number.isFinite(unit.shieldDamageBonus) && unit.shieldDamageBonus > 0)
-        options.push(
-          `${unit.name} +${percent(unit.shieldDamageBonus)} 방어막 피해`,
-        );
-      if (
-        unit.shieldAura &&
-        Number.isFinite(unit.shieldAura.bonus) &&
-        unit.shieldAura.bonus > 0
-      )
-        options.push(
-          `${unit.name} 방어막 피해 오라 +${percent(unit.shieldAura.bonus)} (범위 ${unit.shieldAura.range})`,
-        );
-      return options;
-    });
-    counters.push(
-      `방어막 대응 · ${shieldUnits.length ? shieldUnits.join(" · ") : "방어막 피해 증가 동료 없음"}`,
-    );
-  }
-  if (enemy.regeneration && enemy.regeneration !== false) {
-    const suppressionUnits = UNITS.filter(
-      (unit) => unit.suppressRegen && typeof unit.suppressRegen === "object",
-    );
-    counters.push(
-      `회복 대응 · ${suppressionUnits.length ? suppressionUnits.map((unit) => unit.name).join(" · ") : "회복 억제 동료 없음"}`,
-    );
-  }
-  return counters;
-}
 function renderCodexDetail(id, enemy) {
   const u = enemy ? ENEMIES.find((u) => u.id === id) : companionStats(account, id, mode),
     scale = 1,
@@ -1530,11 +1464,10 @@ function renderCodexDetail(id, enemy) {
       ? [
           u.attribute ? `속성 · ${attributeName(u.attribute)}` : "",
           ...gimmicks.lines,
-          ...enemyCounterText(u),
         ].filter(Boolean)
       : [unitSpecialtyText(u, true), ...unitAbilityLines(u)];
   $("modal-content").innerHTML =
-    `<div class="codex-layout"><div class="codex-art ${!enemy && !ownsUnit(account, id) ? "unowned" : ""}">${portrait(id)}</div><div class="codex-info">${enemy ? "" : rarityBadge(u)}<h3>${u.name}</h3>${!enemy ? `<span class="collection-state">${ownsUnit(account, id) ? `보유 · Lv. ${effectiveUnitLevel(account, id)}` : "미보유 · 모집에서 획득"} · ${u.theme || "숲"}</span>` : ""}<span class="role-label">${roles[u.role]}</span><p>${u.description || "전투 특성을 살펴보세요."}</p>${detailLines.length ? `<p class="settings-note"><strong>${enemy ? "속성과 대응" : "속성 특성"}</strong><br>${detailLines.join("<br>")}</p>` : ""}<div class="stat-list">${[
+    `<div class="codex-layout"><div class="codex-art ${!enemy && !ownsUnit(account, id) ? "unowned" : ""}">${portrait(id)}</div><div class="codex-info">${enemy ? "" : rarityBadge(u)}<h3>${u.name}</h3>${!enemy ? `<span class="collection-state">${ownsUnit(account, id) ? `보유 · Lv. ${effectiveUnitLevel(account, id)}` : "미보유 · 모집에서 획득"} · ${u.theme || "숲"}</span>` : ""}<span class="role-label">${roles[u.role]}</span><p>${u.description || "전투 특성을 살펴보세요."}</p>${detailLines.length ? `<p class="settings-note"><strong>${enemy ? "속성과 특성" : "속성 특성"}</strong><br>${detailLines.join("<br>")}</p>` : ""}<div class="stat-list">${[
       ["체력", Math.round(u.hp * scale)],
       ["공격력", Math.round(u.attack * scale)],
       ["사거리", u.range],
