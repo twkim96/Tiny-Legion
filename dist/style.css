@@ -3456,3 +3456,11 @@ html:fullscreen .game {
 .modal-backdrop[data-layout="notice"] .modal-content { padding: 14px 16px; }
 .modal-backdrop[data-layout="notice"] .modal-message { gap: 12px; }
 .modal-backdrop[data-layout="notice"] .modal-message > p { font-size: 12px; }
+
+.sequence-presets { display: flex; gap: 8px; margin-bottom: 16px; }
+.sequence-presets > button { flex: 1; border: 1px solid #c7cbb3; border-radius: 8px; padding: 9px 16px; font-size: 12px; color: #687658; background: #f4f3e6; }
+.sequence-presets > button[aria-pressed="true"] { color: #fff; background: #6b8056; border-color: #6b8056; font-weight: 700; }
+@media (max-height: 560px) and (orientation: landscape) {
+  .sequence-presets { margin-bottom: 10px; gap: 6px; }
+  .sequence-presets > button { padding: 7px 12px; }
+}

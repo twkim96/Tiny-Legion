@@ -12,6 +12,12 @@
 - 일반 레벨·특별강화와 보석은 속성에 관계없는 기본 능력치를 올립니다. 역할별 속성 특화와 기믹 대응은 [전투](battle.md)의 계약을 따릅니다. 현재 특별강화는 특화 배율을 추가로 높이지 않습니다.
 - 신규 계정은 1-2 방치 편성 미션을 마친 뒤 일반 레벨업·특별강화·일반 모집을 사용 가능하고, 1-3 완료 뒤 속공·보석을 엽니다. 원본 기획의 진행도 기반 성장 해금 확대와 상위 10명 동기화는 [확장 설계](expansion.md)의 미구현 방향입니다.
 
+## 콘텐츠별 편성
+
+- 방치·도전·속공의 10칸 소환 편성을 각각 저장합니다. 방치의 기존 `sequence` 필드를 유지하고 수동 콘텐츠는 `sequencePresets.challenge`, `sequencePresets.speedrun`에 저장합니다. 한 콘텐츠의 변경은 다른 콘텐츠의 동료·빈 칸·중복·순서에 영향을 주지 않습니다.
+- 기존 버전 1 저장에 수동 콘텐츠 편성이 없으면 기존 공유 편성을 각각 복사합니다. 첫 방치 안내에서 토끼를 제거한 신규 튜토리얼 저장은 도전 편성에 보유한 속공 토끼를 다시 넣습니다. 방치 편성과 이미 분리해 저장한 도전 편성은 유지합니다. 각 편성은 소유하지 않은 동료·알 수 없는 ID를 빈 칸으로 바꾸고 10칸으로 맞추며 전부 비었으면 양 방패를 첫 칸에 둡니다. 2-1에서 잠긴 동료의 보유·원래 위치는 보존합니다.
+- 첫 씨앗 다람쥐와 속공 토끼 확정 모집은 세 콘텐츠의 초기 편성에 반영합니다. 이후 방치 안내의 토끼 제거·적용은 방치 편성만 수정하며 도전·속공 편성을 수정해도 방치 안내 단계를 완료하지 않습니다. 편성 적용은 해금·유효 동료·비어 있지 않은 편성을 확인한 뒤 선택한 콘텐츠에만 저장합니다.
+
 ## 미션
 
 - 첫 방치 안내 종료 뒤 1-1 방치 승리를 한 번 안내하며 완료 보상은 도토리 120·다이아 10입니다. 수령 뒤 도전 1-2 미션을 제공합니다. 새 계정은 그 보상 수령 뒤 마지막 방치 튜토리얼인 1-2 방치 미션(도토리 160·다이아 10), 동료 레벨 올리기 미션(도토리 100·다이아 10)을 거쳐 도전 1-3부터 2-10까지 순서대로 진행합니다. 이후 방치 클리어 미션은 제공하지 않습니다. 도전 미션은 각 스테이지 기본 보상만큼의 도토리와 다이아 10을 추가로 지급합니다. 수치는 초기 조정값입니다.
@@ -67,7 +73,7 @@
 
 ## 코드와 기존 검증
 
-- `dist/src/account.js`: `newAccount`, `normalizeAccount`, `isOnboarding`, `advanceOnboardingBattle`, `recruitOnboardingCompanion`, `finishOnboarding`, `growUnit`, `enhanceUnit`, `unitLevelRefund`, `refundUnitLevels`, `combatPower`, `completeChallenge`, `currentMission`, `recordMissionBattle`, `claimMission`, `growthUnlocked`, `recruitEarlyRabbit`, `applyGuideSequence`, `recruitUnits`, `ownsUnit`, `recruitGem`, `loadAccount`, `saveAccount`.
+- `dist/src/account.js`: `newAccount`, `normalizeAccount`, `isOnboarding`, `advanceOnboardingBattle`, `recruitOnboardingCompanion`, `finishOnboarding`, `growUnit`, `enhanceUnit`, `unitLevelRefund`, `refundUnitLevels`, `combatPower`, `completeChallenge`, `currentMission`, `recordMissionBattle`, `claimMission`, `growthUnlocked`, `recruitEarlyRabbit`, `applyGuideSequence`, `sequenceForMode`, `setSequence`, `playableSequence`, `recruitUnits`, `ownsUnit`, `recruitGem`, `loadAccount`, `saveAccount`.
 - `dist/src/main.js`: `persist`, `renderGrowth`, `renderRecruit`, `renderSettings`.
 - `tests/account.test.js`: 첫 안내 단계 전환·재접속·확정 지급·1-1 보상 중복 방지, 환급·기록 무효화, 보석 모집, 손상 입력·짧은 순서 정규화. 미션 완료·수령 중복 방지·레거시 이주·스테이지별 결과창 설정 보존도 검증합니다. 파일 다이얼로그·저장 불가 안내·실기기 수명주기 검증은 자동 테스트와 별도입니다.
 

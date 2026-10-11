@@ -62,6 +62,10 @@ export function newAccount(now = Date.now()) {
       welcomeClaimed: false,
     },
     sequence: ["sheep", ...Array(9).fill(null)],
+    sequencePresets: {
+      challenge: ["sheep", ...Array(9).fill(null)],
+      speedrun: ["sheep", ...Array(9).fill(null)],
+    },
     onboarding: { phase: "intro" },
     earlyGuide: { phase: "wall-battle", legacy: false },
     highestCleared: 0,
@@ -204,7 +208,41 @@ export function normalizeAccount(raw, now = Date.now()) {
   if (["wall-retry", "idle-defense", "remove-rabbit", "idle-retry"].includes(a.earlyGuide.phase) && !ownsUnit(a, "rabbit")) {
     a.earlyGuide.phase = "rabbit-recruit";
   }
+  for (const mode of ["challenge", "speedrun"]) {
+    const saved = raw.sequencePresets?.[mode];
+    const preset = (Array.isArray(saved) && !isOnboarding(a) ? saved : a.sequence).slice(0, 10).map((id) => ownsUnit(a, id) ? id : null);
+    if (!preset.some(Boolean)) preset[0] = "sheep";
+    a.sequencePresets[mode] = [...preset, ...Array(10).fill(null)].slice(0, 10);
+  }
+  // Earlier tutorial saves removed the castle specialist from the shared lineup.
+  if (!Array.isArray(raw.sequencePresets?.challenge) && !a.earlyGuide.legacy &&
+      ["remove-rabbit", "idle-retry", "growth", "complete"].includes(a.earlyGuide.phase) && ownsUnit(a, "rabbit")) {
+    addToSequence(a.sequencePresets.challenge, "rabbit");
+  }
   return a;
+}
+function addToSequence(sequence, id) {
+  if (sequence.includes(id)) return;
+  const slot = sequence.indexOf(null);
+  sequence[slot < 0 ? 9 : slot] = id;
+}
+export function sequenceForMode(a, mode = "idle") {
+  return mode === "idle" ? a.sequence : a.sequencePresets?.[mode] ?? a.sequence;
+}
+export function setSequence(a, sequence, mode = "idle") {
+  if (!["idle", "challenge", "speedrun"].includes(mode) || !sequenceUnlocked(a) ||
+      !Array.isArray(sequence) || sequence.length !== 10 ||
+      !sequence.some(Boolean) || !sequence.every((id) => id === null || canUseUnit(a, id))) return false;
+  if (mode === "idle") {
+    if (a.earlyGuide?.phase === "idle-defense" && !sequence.includes("rabbit")) return false;
+    if (a.earlyGuide?.phase === "remove-rabbit" && sequence.includes("rabbit")) return false;
+    applyGuideSequence(a, sequence);
+    a.sequence = [...sequence];
+  } else {
+    a.sequencePresets ??= {};
+    a.sequencePresets[mode] = [...sequence];
+  }
+  return true;
 }
 export function sequenceUnlocked(a) {
   return !isOnboarding(a) && ["remove-rabbit", "idle-retry", "growth", "complete"].includes(a.earlyGuide?.phase ?? "complete");
@@ -218,10 +256,7 @@ export function recruitEarlyRabbit(a) {
   const isNew = !ownsUnit(a, "rabbit");
   a.owned.rabbit = true;
   a.earlyGuide.phase = "wall-retry";
-  if (!a.sequence.includes("rabbit")) {
-    const slot = a.sequence.indexOf(null);
-    a.sequence[slot < 0 ? 9 : slot] = "rabbit";
-  }
+  for (const mode of ["idle", "challenge", "speedrun"]) addToSequence(sequenceForMode(a, mode), "rabbit");
   return { unit, isNew, fragments: 0, guaranteed: true };
 }
 export function applyGuideSequence(a, sequence) {
@@ -490,6 +525,7 @@ export function recruitOnboardingCompanion(a) {
   a.owned.squirrel = true;
   a.onboarding.phase = "retry-battle";
   a.sequence = ["sheep", "squirrel", ...Array(8).fill(null)];
+  a.sequencePresets = { challenge: [...a.sequence], speedrun: [...a.sequence] };
   return { unit, isNew: true, fragments: 0, guaranteed: true };
 }
 export function finishOnboarding(a) {
@@ -604,8 +640,8 @@ export function canUseUnit(account, id) {
   return ownsUnit(account, id) && (account.highestCleared >= 10 || bannerPool("forest").some((unit) => unit.id === id));
 }
 
-export function playableSequence(account) {
-  const sequence = account.sequence.map((id) => canUseUnit(account, id) ? id : null);
+export function playableSequence(account, mode = "idle") {
+  const sequence = sequenceForMode(account, mode).map((id) => canUseUnit(account, id) ? id : null);
   if (!sequence.some(Boolean)) sequence[0] = "sheep";
   return sequence;
 }

@@ -6,6 +6,9 @@ import {
   recordIdle,
   claimSpeedrun,
   recordSpeedrun,
+  sequenceForMode,
+  setSequence,
+  playableSequence,
   refundUnitLevels,
   unitLevelRefund,
   levelCost,
@@ -231,6 +234,8 @@ test("onboarding battles, guaranteed companion and idle completion survive reloa
   assert.deepEqual(account.recruitment, recruitmentBefore);
   assert.deepEqual([account.gold, account.diamonds, account.tickets], balances);
   assert.deepEqual(account.sequence, ["sheep", "squirrel", ...Array(8).fill(null)]);
+  assert.deepEqual(account.sequencePresets.challenge, account.sequence);
+  assert.deepEqual(account.sequencePresets.speedrun, account.sequence);
   assert.equal(recruitOnboardingCompanion(account), null);
 
   let saved;
@@ -496,7 +501,7 @@ test("individual level refunds settle earned production and preserve other growt
   assert.equal(a.diamonds,before.diamonds+.5);
   assert.equal(a.levels.sheep,1);
   assert.equal(a.levels.squirrel,2);
-  for(const key of ["special","fragments","owned","sequence","highestCleared","daily","missions","earlyGuide"]) assert.deepEqual(a[key],before[key]);
+  for(const key of ["special","fragments","owned","sequence","sequencePresets","highestCleared","daily","missions","earlyGuide"]) assert.deepEqual(a[key],before[key]);
   assert.deepEqual(a.records,{});
   const after=JSON.stringify(a);
   for(const id of ["sheep","missing","rabbit",undefined]) assert.equal(refundUnitLevels(a,id,now+240000),0);
@@ -505,4 +510,52 @@ test("individual level refunds settle earned production and preserve other growt
   assert.equal(restored.levels.sheep,1);
   assert.equal(restored.levels.squirrel,2);
   assert.equal(restored.special.sheep,2);
+});
+
+
+test("idle, challenge and speedrun presets persist independently and only idle advances the defense lesson",()=>{
+  const a=completedAccount();
+  a.earlyGuide={phase:'remove-rabbit',legacy:false};
+  a.sequence=['sheep','squirrel','rabbit',...Array(7).fill(null)];
+  a.sequencePresets={challenge:[...a.sequence],speedrun:[...a.sequence]};
+  const clean=['sheep','squirrel',...Array(8).fill(null)];
+  assert.equal(setSequence(a,clean,'challenge'),true);
+  assert.equal(a.earlyGuide.phase,'remove-rabbit');
+  assert.ok(a.sequence.includes('rabbit'));
+  assert.equal(setSequence(a,clean,'idle'),true);
+  assert.equal(a.earlyGuide.phase,'idle-retry');
+  assert.ok(sequenceForMode(a,'speedrun').includes('rabbit'));
+  const loaded=normalizeAccount(JSON.parse(JSON.stringify(a)),now);
+  assert.deepEqual(loaded.sequence,clean);
+  assert.deepEqual(loaded.sequencePresets.challenge,clean);
+  assert.ok(loaded.sequencePresets.speedrun.includes('rabbit'));
+  assert.deepEqual(playableSequence(loaded,'idle'),clean);
+  assert.deepEqual(playableSequence(loaded,'speedrun'),loaded.sequencePresets.speedrun);
+  loaded.sequencePresets.challenge[0]='rabbit';
+  assert.equal(loaded.sequence[0],'sheep');
+  assert.equal(loaded.sequencePresets.speedrun[0],'sheep');
+  const snapshot=JSON.stringify(loaded);
+  assert.equal(setSequence(loaded,Array(10).fill(null),'idle'),false);
+  assert.equal(setSequence(loaded,['missing',...Array(9).fill(null)],'challenge'),false);
+  assert.equal(setSequence(loaded,clean,'unknown'),false);
+  assert.equal(JSON.stringify(loaded),snapshot);
+});
+test("shared legacy lineups migrate without aliasing, and tutorial rabbit returns only to challenge",()=>{
+  for(const tutorial of [false,true]) {
+    const raw=completedAccount();
+    delete raw.sequencePresets;
+    raw.earlyGuide={phase:tutorial?'growth':'complete',legacy:!tutorial};
+    raw.sequence=['sheep',null,'squirrel','sheep',...Array(6).fill(null)];
+    raw.records[1]={gold:100,diamonds:.1};
+    const a=normalizeAccount(raw,now);
+    assert.deepEqual(a.sequence,raw.sequence);
+    assert.deepEqual(a.sequencePresets.speedrun,raw.sequence);
+    assert.equal(a.sequencePresets.challenge.includes('rabbit'),tutorial);
+    assert.deepEqual(a.records,raw.records);
+    const migrated=normalizeAccount(JSON.parse(JSON.stringify(a)),now);
+    assert.deepEqual(migrated.sequencePresets,a.sequencePresets);
+    a.sequencePresets.speedrun[0]='rabbit';
+    assert.equal(a.sequence[0],'sheep');
+    assert.equal(a.sequencePresets.challenge[0],'sheep');
+  }
 });

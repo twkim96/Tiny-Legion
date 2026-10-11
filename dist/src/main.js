@@ -27,6 +27,8 @@ import {
   GEMS,
   canUseUnit,
   playableSequence,
+  sequenceForMode,
+  setSequence,
   resetAccount,
   loadAccount,
   saveAccount,
@@ -58,7 +60,6 @@ import {
   growthUnlocked,
   sequenceUnlocked,
   recruitEarlyRabbit,
-  applyGuideSequence,
 } from "./account.js";
 
 const $ = (id) => document.getElementById(id);
@@ -238,6 +239,8 @@ function stageIntelMarkup(stage) {
 }
 let { account, error: loadError } = loadAccount();
 let sequenceDraft = null;
+let sequenceDraftMode = "idle";
+let sequenceDrafts = null;
 let recruitCleanup = null;
 let recruitReceipt = null;
 let recruitBanner = "forest";
@@ -335,7 +338,7 @@ function createHand() {
 function handUnits() {
   const sequence = isOnboarding(account)
     ? [...new Set(account.sequence.filter(Boolean))]
-    : playableSequence(account);
+    : playableSequence(account, mode);
   return [...sequence.map((id) => canUseUnit(account, id) ? id : null), ...Array(10).fill(null)].slice(0, 10);
 }
 function currentStage() {
@@ -363,7 +366,7 @@ function startBattle() {
     mode,
     stageId,
     levels,
-    sequence: playableSequence(account),
+    sequence: playableSequence(account, mode),
     modifiers: gemModifiers(account),
     ownedUnits: UNITS.filter((u) => canUseUnit(account, u.id)).map((u) => u.id),
     onboardingPhase: isOnboarding(account) ? account.onboarding.phase : null,
@@ -374,7 +377,7 @@ function startBattle() {
     stageId,
     balanceVersion: BALANCE_VERSION,
     levels: { ...levels },
-    sequence: playableSequence(account),
+    sequence: playableSequence(account, mode),
     gem: account.equippedGem,
     dailyKey: account.daily.key,
   };
@@ -387,9 +390,11 @@ function startBattle() {
   $("battle-ready").hidden = true;
   $("battle-result").hidden = true;
   $("battle-result").innerHTML = "";
+  createHand();
   updateUi();
 }
 function readyBattle() {
+  createHand();
   battle = null;
   waiting = true;
   paused = false;
@@ -551,8 +556,7 @@ function renderMenu() {
       } else if (id === "daily") openModal("속공", "daily", renderDaily);
       else if (id === "gems") openModal("보석", "recruit", () => renderRecruit("gems"));
       else if (id === "sequence") {
-        sequenceDraft = [...account.sequence];
-        openModal("순서", "sequence", renderSequence);
+        openSequence();
       } else if (id === "settings") openModal("설정", "settings", renderSettings);
     };
   });
@@ -659,8 +663,7 @@ function showDefenseGuide() {
     });
     $("defense-edit").onclick = () => {
       closeIdleResult();
-      sequenceDraft = [...account.sequence];
-      openModal("순서", "sequence", renderSequence);
+      openSequence("idle");
     };
   });
 }
@@ -1063,10 +1066,17 @@ function showUnitRefund(id) {
   });
 }
 
+function openSequence(preset = mode) {
+  sequenceDraftMode = preset;
+  sequenceDrafts = Object.fromEntries(["idle", "challenge", "speedrun"].map((id) => [id, [...sequenceForMode(account, id)]]));
+  sequenceDraft = sequenceDrafts[preset];
+  openModal("순서", "sequence", renderSequence);
+}
 function renderSequence() {
-  sequenceDraft ??= [...account.sequence];
+  sequenceDrafts ??= Object.fromEntries(["idle", "challenge", "speedrun"].map((id) => [id, [...sequenceForMode(account, id)]]));
+  sequenceDraft ??= sequenceDrafts[sequenceDraftMode];
   $("modal-content").innerHTML =
-    `<div class="sequence-list">${sequenceDraft.map((id, i) => `<article class="sequence-slot"><span class="slot-index">${i + 1}</span>${id ? portrait(id) : '<div class="empty-sequence-art"></div>'}<strong>${names[id] || "빈 슬롯"}</strong>${id && !canUseUnit(account, id) ? "<small>2-1에서 사용</small>" : ""}<div class="sequence-arrows"><button data-move="${i}" data-direction="-1" aria-label="${names[id] || "빈 슬롯"} 앞으로" ${i === 0 ? "disabled" : ""}>${icon("up")}</button><button data-move="${i}" data-direction="1" aria-label="${names[id] || "빈 슬롯"} 뒤로" ${i === sequenceDraft.length - 1 ? "disabled" : ""}>${icon("down")}</button></div><button class="inspect-button secondary-button" data-replace="${i}" style="font-size:10px;padding:5px 8px;margin-top:7px">교체</button></article>`).join("")}</div><p class="sequence-hint">골드가 모이면 차례대로 소환합니다. 쿨타임 중인 동료는 건너뜁니다.</p><div class="modal-footer"><span class="hint">같은 동료를 여러 번 넣을 수 있습니다.</span><button class="primary-button" id="apply-sequence">적용</button></div>`;
+    `<div class="sequence-presets" role="group" aria-label="콘텐츠 편성">${[["idle", "방치"], ["challenge", "도전"], ["speedrun", "속공"]].map(([id, label]) => `<button data-sequence-preset="${id}" aria-pressed="${sequenceDraftMode === id}">${label}</button>`).join("")}</div><div class="sequence-list">${sequenceDraft.map((id, i) => `<article class="sequence-slot"><span class="slot-index">${i + 1}</span>${id ? portrait(id) : '<div class="empty-sequence-art"></div>'}<strong>${names[id] || "빈 슬롯"}</strong>${id && !canUseUnit(account, id) ? "<small>2-1에서 사용</small>" : ""}<div class="sequence-arrows"><button data-move="${i}" data-direction="-1" aria-label="${names[id] || "빈 슬롯"} 앞으로" ${i === 0 ? "disabled" : ""}>${icon("up")}</button><button data-move="${i}" data-direction="1" aria-label="${names[id] || "빈 슬롯"} 뒤로" ${i === sequenceDraft.length - 1 ? "disabled" : ""}>${icon("down")}</button></div><button class="inspect-button secondary-button" data-replace="${i}" style="font-size:10px;padding:5px 8px;margin-top:7px">교체</button></article>`).join("")}</div><p class="sequence-hint">${sequenceDraftMode === "idle" ? "골드가 모이면 차례대로 소환합니다. 쿨타임 중인 동료는 건너뜁니다." : "전투에서 사용할 소환 카드의 순서를 정합니다."}</p><div class="modal-footer"><span class="hint">같은 동료를 여러 번 넣을 수 있습니다.</span><button class="primary-button" id="apply-sequence">적용</button></div>`;
   $("modal-content")
     .querySelectorAll("[data-move]")
     .forEach(
@@ -1113,6 +1123,14 @@ function renderSequence() {
           });
         }),
     );
+  $("modal-content").querySelectorAll("[data-sequence-preset]").forEach((button) => {
+    button.onclick = () => {
+      sequenceDrafts[sequenceDraftMode] = sequenceDraft;
+      sequenceDraftMode = button.dataset.sequencePreset;
+      sequenceDraft = sequenceDrafts[sequenceDraftMode];
+      renderSequence();
+    };
+  });
   $("apply-sequence").onclick = () => {
     if (!sequenceDraft.every((id) => id === null || canUseUnit(account, id))) {
       toast("숲속 이외 동료는 2-1에서 사용할 수 있습니다.");
@@ -1122,21 +1140,20 @@ function renderSequence() {
       toast("동료를 한 명 이상 넣어 주세요.");
       return;
     }
-    if (account.earlyGuide?.phase === "idle-defense" && !sequenceDraft.includes("rabbit")) {
+    if (sequenceDraftMode === "idle" && account.earlyGuide?.phase === "idle-defense" && !sequenceDraft.includes("rabbit")) {
       toast("먼저 1-2 방치에서 현재 편성을 확인해 보세요.");
       return;
     }
-    if (account.earlyGuide?.phase === "remove-rabbit" && sequenceDraft.includes("rabbit")) {
+    if (sequenceDraftMode === "idle" && account.earlyGuide?.phase === "remove-rabbit" && sequenceDraft.includes("rabbit")) {
       toast("토끼 칸의 교체를 눌러 비운 뒤 적용하세요.");
       return;
     }
-    applyGuideSequence(account, sequenceDraft);
-    account.sequence = [...sequenceDraft];
+    if (!setSequence(account, sequenceDraft, sequenceDraftMode)) return;
     persist();
-    createHand();
-    startBattle();
+    if (sequenceDraftMode === mode) startBattle();
+    else updateUi();
     closeModal();
-    toast("소환 순서를 적용했습니다.");
+    toast(`${{ idle: "방치", challenge: "도전", speedrun: "속공" }[sequenceDraftMode]} 순서를 적용했습니다.`);
   };
 }
 function openCodex(id = null, enemy = false) {
@@ -1489,6 +1506,7 @@ function renderSettings() {
         account = fresh;
         recruitReceipt = null;
         sequenceDraft = null;
+        sequenceDrafts = null;
         codexRarity = "all";
         codexOwned = "all";
         storageWarning = false;
@@ -1520,6 +1538,7 @@ function renderSettings() {
         $("confirm-import").onclick = () => {
           recruitReceipt = null;
           sequenceDraft = null;
+          sequenceDrafts = null;
           closeIdleResult();
           account = imported;
           accrue(account);
@@ -1654,8 +1673,7 @@ $("start-battle").onclick = () => {
 };
 $("pause").onclick = setPaused;
 $("edit-sequence").onclick = () => {
-  sequenceDraft = [...account.sequence];
-  openModal("순서", "sequence", renderSequence);
+  openSequence();
 };
 $("challenge-start").onclick = () => startChallenge();
 $("guide-mission").onclick = actOnMission;

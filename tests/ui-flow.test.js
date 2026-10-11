@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
-import { newAccount, currentMission, recordMissionBattle, claimMission, accrue, recordIdle, isOnboarding, recruitOnboardingCompanion, growthUnlocked, sequenceUnlocked, growUnit, refundUnitLevels, unitLevelRefund, levelCost, recruitEarlyRabbit, applyGuideSequence, canUseUnit, ownsUnit } from '../dist/src/account.js';
+import { newAccount, currentMission, recordMissionBattle, claimMission, accrue, recordIdle, isOnboarding, recruitOnboardingCompanion, growthUnlocked, sequenceUnlocked, sequenceForMode, setSequence, playableSequence, growUnit, refundUnitLevels, unitLevelRefund, levelCost, recruitEarlyRabbit, applyGuideSequence, canUseUnit, ownsUnit } from '../dist/src/account.js';
 import { STAGES, UNITS, stageLabel } from '../dist/src/data.js';
 import { recruitPanel } from '../dist/src/recruitment-ui.js';
 import { modalLayout, messagePanel } from '../dist/src/modal-ui.js';
@@ -35,10 +35,10 @@ function harness(names) {
   account.highestCleared = 1;
   const calls = [];
   const context = {
-    $, account, calls, STAGES, stageLabel, currentMission, recordMissionBattle, claimMission, accrue, recordIdle, isOnboarding, recruitOnboardingCompanion, growthUnlocked, sequenceUnlocked, growUnit, refundUnitLevels, unitLevelRefund, levelCost, recruitEarlyRabbit, applyGuideSequence, canUseUnit, ownsUnit, UNITS,
+    $, account, calls, STAGES, stageLabel, currentMission, recordMissionBattle, claimMission, accrue, recordIdle, isOnboarding, recruitOnboardingCompanion, growthUnlocked, sequenceUnlocked, sequenceForMode, setSequence, playableSequence, growUnit, refundUnitLevels, unitLevelRefund, levelCost, recruitEarlyRabbit, applyGuideSequence, canUseUnit, ownsUnit, UNITS,
     modalLayout, messagePanel, modalKind:null, modalRender:null, lastFocused:null, hideTooltip(){},
     readyBattle(){calls.push("ready");}, openCodex(){},
-    sequenceDraft:null, names:Object.fromEntries(UNITS.map(u=>[u.id,u.name])), portrait:id=>`[${id}]`, rarityBadge:()=>"",
+    sequenceDraft:null, sequenceDraftMode:"idle", sequenceDrafts:null, names:Object.fromEntries(UNITS.map(u=>[u.id,u.name])), portrait:id=>`[${id}]`, rarityBadge:()=>"",
     mode: 'idle', stageId: 1, idleResultStage: null, resultHandled: false, restartAt: 0,
     battle: {result: {won:true, survival:120, hpRatio:1, reward:80}, finished:true, time:120, events:[]},
     battleSnapshot: {stageId:1, gem:null}, idleIncome:{gold:12,diamonds:.1},
@@ -141,11 +141,12 @@ test('second free banner action guarantees rabbit and retries the exact wall sta
   assert.equal(c.calls.filter(x=>x==='start').length,1);
 });
 test('defense lesson uses real replace, clear and apply actions without removing ownership', () => {
-  const c=harness(['openModal','showDefenseGuide','renderSequence']);
+  const c=harness(['openModal','openSequence','showDefenseGuide','renderSequence']);
   c.account.earlyGuide.phase='remove-rabbit';
   c.account.owned.squirrel=true;
   c.account.owned.rabbit=true;
   c.account.sequence=['sheep','squirrel','rabbit',...Array(7).fill(null)];
+  c.account.sequencePresets={challenge:[...c.account.sequence],speedrun:[...c.account.sequence]};
   c.closeIdleResult=()=>{};
   c.showDefenseGuide();
   assert.match(c.$('modal-content').innerHTML,/교체/);
@@ -159,6 +160,8 @@ test('defense lesson uses real replace, clear and apply actions without removing
   assert.equal(c.account.earlyGuide.phase,'idle-retry');
   assert.equal(c.account.sequence[2],null);
   assert.equal(c.account.owned.rabbit,true);
+  assert.ok(c.account.sequencePresets.challenge.includes('rabbit'));
+  assert.ok(c.account.sequencePresets.speedrun.includes('rabbit'));
   assert.ok(c.calls.includes('start'));
 });
 test('idle failure opens defense lesson while the automatic retry keeps running',()=>{
@@ -315,4 +318,35 @@ test('each companion has a refund action; cancel preserves growth and confirm re
   c.$('modal-content:data-refund:squirrel').onclick();
   c.$('confirm-refund').onclick();
   assert.equal(c.account.levels.squirrel,1);
+});
+
+
+test('content selector preserves separate drafts and applies only the selected preset',()=>{
+  const c=harness(['openModal','openSequence','renderSequence','handUnits']);
+  c.account.earlyGuide.phase='complete'; c.account.highestCleared=3;
+  c.account.owned.squirrel=true; c.account.owned.rabbit=true;
+  c.account.sequence=['sheep','squirrel',...Array(8).fill(null)];
+  c.account.sequencePresets={challenge:['sheep','rabbit',...Array(8).fill(null)],speedrun:['rabbit','squirrel',...Array(8).fill(null)]};
+  const idle=[...c.account.sequence];
+  const speedrun=[...c.account.sequencePresets.speedrun];
+  c.openSequence();
+  c.$('modal-content:data-sequence-preset:challenge').onclick();
+  c.$('modal-content:data-replace:1').onclick();
+  c.$('clear-sequence-slot').onclick();
+  c.$('modal-content:data-sequence-preset:idle').onclick();
+  assert.equal(c.sequenceDraft[1],'squirrel');
+  c.$('modal-content:data-sequence-preset:challenge').onclick();
+  assert.equal(c.sequenceDraft[1],null);
+  c.$('apply-sequence').onclick();
+  assert.deepEqual([...c.account.sequence],idle);
+  assert.deepEqual([...c.account.sequencePresets.speedrun],speedrun);
+  assert.equal(c.account.sequencePresets.challenge[1],null);
+  assert.ok(!c.calls.includes('start'));
+  assert.deepEqual([...c.handUnits()],idle);
+  c.mode='challenge';
+  assert.deepEqual([...c.handUnits()],['sheep',...Array(9).fill(null)]);
+  c.mode='speedrun';
+  assert.deepEqual([...c.handUnits()],speedrun);
+  c.openSequence();
+  assert.equal(c.sequenceDraftMode,'speedrun');
 });
