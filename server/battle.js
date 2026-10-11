@@ -1,6 +1,7 @@
 import { createBattle, stepBattle, summonUnit, fireCannon } from '../dist/src/engine.js';
 import { UNITS, STAGES, BALANCE_VERSION } from '../dist/src/data.js';
 import { onboardingEncounter } from '../dist/src/onboarding.js';
+import { SPEEDRUN_STAGES } from '../dist/src/speedrun.js';
 import * as account from '../dist/src/account.js';
 
 export class GameError extends Error {
@@ -13,7 +14,8 @@ export function startBattle(a, { mode, stageId }, now) {
     const encounter = onboardingEncounter(a.onboarding.phase);
     if (!encounter || mode !== 'challenge' || stageId !== encounter.id) throw new GameError('battle_locked');
   } else {
-    if (!STAGES.some(s => s.id === stageId)) throw new GameError('invalid_stage');
+    const stages = mode === 'speedrun' ? SPEEDRUN_STAGES : STAGES;
+    if (!stages.some(s => s.id === stageId)) throw new GameError('invalid_stage');
     const idleLimit = a.highestCleared + (a.highestCleared > 0 && a.highestCleared % 10 === 0 ? 1 : 0);
     if (mode === 'idle' && stageId > idleLimit) throw new GameError('battle_locked');
     if (mode === 'challenge') {

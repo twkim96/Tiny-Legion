@@ -2,6 +2,7 @@ import { spriteSvg } from "./art.js";
 import { ENEMIES, UNITS, getCharacter, getEnemy } from "./characters.js";
 import { sampleUnitPose, battlefieldLayout } from "./combat-visuals.js";
 import { statusMarks } from "./combat-effects.js";
+import { SPEEDRUN_SCENES } from "./speedrun.js";
 const INK = "#4b5140";
 const MAX_FX = 96;
 const FX_LIFETIME = {
@@ -256,6 +257,7 @@ export class Renderer {
     this.ctx = canvas.getContext("2d");
     this.fx = [];
     this.battleIdentity = null;
+    this.scene = null;
     this.bg = document.createElement("canvas");
     this.width = 0;
     this.height = 0;
@@ -279,12 +281,13 @@ export class Renderer {
     const c = this.bg.getContext("2d"),
       w = this.width,
       h = this.height;
+    const palette = SPEEDRUN_SCENES[this.scene];
     c.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
-    c.fillStyle = "#b6c7b0";
+    c.fillStyle = palette?.horizon ?? "#b6c7b0";
     c.fillRect(0, 0, w, h);
     const gradient = c.createLinearGradient(0, 0, 0, h);
-    gradient.addColorStop(0, "#728f8c");
-    gradient.addColorStop(1, "#b6c7b0");
+    gradient.addColorStop(0, palette?.sky ?? "#728f8c");
+    gradient.addColorStop(1, palette?.horizon ?? "#b6c7b0");
     c.fillStyle = gradient;
     c.fillRect(0, 0, w, h);
     oval(
@@ -330,7 +333,7 @@ export class Renderer {
         ["lineTo", 0, h],
         ["closePath"],
       ],
-      "#dae3c5",
+      palette?.far ?? "#dae3c5",
     );
     path(
       c,
@@ -359,7 +362,7 @@ export class Renderer {
         ["lineTo", 0, h],
         ["closePath"],
       ],
-      "#c9d6b0",
+      palette?.near ?? "#c9d6b0",
     );
     path(
       c,
@@ -401,8 +404,25 @@ export class Renderer {
     cloud(c, w * 0.19, h * 0.2, cs * 0.83);
     cloud(c, w * 0.47, h * 0.13, cs * 0.6);
     cloud(c, w * 0.85, h * 0.29, cs * 0.75);
-    windmill(c, w * 0.33, h * 0.43, cs * 0.57, 0);
-    windmill(c, w * 0.69, h * 0.45, cs * 0.38, 1);
+    if (!palette) {
+      windmill(c, w * 0.33, h * 0.43, cs * 0.57, 0);
+      windmill(c, w * 0.69, h * 0.45, cs * 0.38, 1);
+    } else if (palette.water) {
+      path(c, [["moveTo", w * .55, h * .5],
+        ["bezierCurveTo", w * .2, h * .52, w * .8, h * .6, w * .4, h * .71],
+        ["lineTo", w * .65, h * .71],
+        ["bezierCurveTo", w * .9, h * .6, w * .4, h * .52, w * .55, h * .5]], palette.water);
+    } else if (this.scene === "quarry") {
+      for (let i = 0; i < 7; i++) {
+        oval(c, w * (.08 + i * .14), h * (.6 - (i % 3) * .02),
+          cs * (22 + i % 3 * 10), cs * (12 + i % 3 * 6), "#8d939f");
+      }
+    } else if (this.scene === "moon") {
+      for (let i = 0; i < 24; i++) {
+        oval(c, w * ((i * .173 + .1) % 1), h * (.09 + (i % 5) * .065),
+          cs * 1.4, cs * 1.4, "#ebe8ce");
+      }
+    }
     path(
       c,
       [
@@ -421,7 +441,7 @@ export class Renderer {
         ["lineTo", 0, h],
         ["closePath"],
       ],
-      "#baca9c",
+      palette?.field ?? "#baca9c",
     );
     for (let i = 0; i < 9; i++) {
       bush(
@@ -441,7 +461,7 @@ export class Renderer {
         ["bezierCurveTo", w * 0.6, h * 0.82, w * 0.35, h * 0.87, 0, h * 0.86],
         ["closePath"],
       ],
-      "#ddd9b8",
+      palette?.road ?? "#ddd9b8",
     );
     path(
       c,
@@ -991,6 +1011,11 @@ export class Renderer {
       h = this.height;
     if (!w || !h) return;
     this.resetForBattle(battle);
+    const scene = battle?.scene ?? null;
+    if (this.scene !== scene) {
+      this.scene = scene;
+      this.drawBackground();
+    }
     c.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     c.drawImage(this.bg, 0, 0, w, h);
     const { ground, castleSize, playerX, enemyX } = battlefieldLayout(w, h);

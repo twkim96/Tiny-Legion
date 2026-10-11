@@ -6,7 +6,7 @@ import { COMBAT_TIMING, CANNON, applyEffect, initializeEffects, combatStat, adva
 import { resolveDamage } from "./combat-rules.js";
 import { earlyGuideEncounter, onboardingEncounter } from "./onboarding.js";
 import { normalizeAbilities } from "./abilities.js";
-import { SPEEDRUN_LIMIT_SECONDS } from "./speedrun.js";
+import { SPEEDRUN_LIMIT_SECONDS, SPEEDRUN_STAGES } from "./speedrun.js";
 export { UNIT_LEVEL_GROWTH } from "./abilities.js";
 
 const WORLD_MIN = 0;
@@ -21,6 +21,7 @@ const HIT_STUN = COMBAT_TIMING.hitStun;
 const STUN_COOLDOWN = COMBAT_TIMING.stunCooldown;
 const DEFAULT_SEQUENCE = STARTER_UNIT_IDS;
 const STAGE_BY_ID = new Map(STAGES.map((stage) => [stage.id, stage]));
+const SPEEDRUN_BY_ID = new Map(SPEEDRUN_STAGES.map((stage) => [stage.id, stage]));
 
 function finiteNumber(value, fallback) {
   const number = Number(value);
@@ -43,7 +44,7 @@ function activeUnitCount(state) {
   return state.units.reduce((count, unit) => count + (unit.dead ? 0 : 1), 0);
 }
 
-function makeSpawnSchedule(stage, { compressTail = false } = {}) {
+function makeSpawnSchedule(stage) {
   const schedule = [];
   let order = 0;
 
@@ -84,13 +85,6 @@ function makeSpawnSchedule(stage, { compressTail = false } = {}) {
   }
 
   schedule.sort((a, b) => a.time - b.time || a.order - b.order);
-  if (compressTail) {
-    const latest = Math.max(85, ...schedule.map((spawn) => spawn.time));
-    if (latest > 89) {
-      const scale = 4 / (latest - 85);
-      for (const spawn of schedule) if (spawn.time > 85) spawn.time = 85 + (spawn.time - 85) * scale;
-    }
-  }
   return schedule;
 }
 
@@ -199,7 +193,9 @@ export function createBattle(options = {}) {
     (battleMode !== "speedrun" && Number(stageId) === 2
       ? earlyGuideEncounter(earlyGuidePhase, battleMode)
       : null);
-  const stage = encounter ?? STAGE_BY_ID.get(Number(stageId)) ?? STAGES[0];
+  const stage = battleMode === "speedrun"
+    ? SPEEDRUN_BY_ID.get(Number(stageId)) ?? SPEEDRUN_STAGES[0]
+    : encounter ?? STAGE_BY_ID.get(Number(stageId)) ?? STAGES[0];
   const modeDuration = battleMode === "speedrun" ? SPEEDRUN_LIMIT_SECONDS : 90;
   const durationSeconds = clamp(
     finiteNumber(encounter?.duration ?? duration ?? modeDuration, modeDuration),
@@ -207,12 +203,12 @@ export function createBattle(options = {}) {
     90,
   );
   const stageEnemyHp = Math.max(1, finiteNumber(stage.enemyHp, 2000));
-  const enemyMaxHp =
-    battleMode === "speedrun" ? Math.round(stageEnemyHp * 0.65) : stageEnemyHp;
+  const enemyMaxHp = stageEnemyHp;
 
   const state = {
     mode: battleMode,
     stageId: stage.id,
+    scene: stage.scene ?? null,
     time: 0,
     duration: durationSeconds,
     gold: 220,
@@ -233,12 +229,7 @@ export function createBattle(options = {}) {
     events: [],
     _enemyModifiers: combineStatMultipliers(stage.enemyModifiers, enemyModifiers, { attack: stage.enemyAttack }),
     _baseReward: stage.baseReward,
-    _spawnSchedule: makeSpawnSchedule(
-      battleMode === "speedrun" && stage.speedrunWaves
-        ? { ...stage, waves: stage.speedrunWaves }
-        : stage,
-      { compressTail: battleMode === "speedrun" },
-    ),
+    _spawnSchedule: makeSpawnSchedule(stage),
     _spawnIndex: 0,
     _nextUid: 1,
     _nextProjectileUid: 1,

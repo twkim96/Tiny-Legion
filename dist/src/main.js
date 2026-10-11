@@ -520,6 +520,7 @@ function handUnits() {
   return [...sequence.map((id) => canUseUnit(account, id) ? id : null), ...Array(10).fill(null)].slice(0, 10);
 }
 function currentStage() {
+  if (mode === "speedrun") return SPEEDRUN_STAGES.find(stage => stage.id === stageId) ?? SPEEDRUN_STAGES[0];
   return onboardingEncounter(account.onboarding?.phase) ?? (stageId === 2 ? earlyGuideEncounter(account.earlyGuide?.phase, mode) : null) ?? STAGES[stageId - 1] ?? STAGES[0];
 }
 async function startBattle() {
@@ -1486,7 +1487,7 @@ function updateUi() {
   const layout = battlefieldLayout(renderer.width, renderer.height);
   const enemyMax =
     battle?.enemyMaxHp ??
-    Math.round(currentStage().enemyHp * (mode === "speedrun" ? 0.65 : 1));
+    currentStage().enemyHp;
   for (const [team, x, max, current] of [
     [
       "player",

@@ -397,7 +397,7 @@ test('speedrun daily list shows all stages with compact target, reward, record a
   const html=c.$('modal-content').innerHTML;
   assert.match(html,/class="speedrun-list"/);
   assert.match(html,/목표 60초 이내 · 최대 보석 조각 10개 · 90초 제한/);
-  assert.match(html,/1-1 · 첫 숲길/);
+  assert.match(html,/1-1 · 여울길/);
   assert.match(html,/보상 8개 · 기록 65/);
   assert.match(html,/data-speedrun-claim="1"/);
   assert.match(html,/2-1 · .*잠김/);
@@ -858,4 +858,16 @@ test('test login clears the password field and shows authentication errors in it
   assert.equal(c.$('test:#test-password').value,'');
   assert.match(c.$('test:#test-login-error').textContent,/비밀번호/);
   assert.equal(c.$('test:#submit-test-login').disabled,false);
+});
+
+
+test('speedrun stage information stays independent of the first-battle and rabbit guides',()=>{
+  const c=harness(['currentStage']);
+  c.mode='speedrun'; c.stageId=2;
+  c.account.onboarding.phase='first-battle';
+  c.account.earlyGuide.phase='rabbit-battle';
+  c.onboardingEncounter=()=>({name:'첫 전투'});
+  c.earlyGuideEncounter=()=>({name:'토끼 안내'});
+  assert.equal(c.currentStage().name, SPEEDRUN_STAGES[1].name);
+  assert.equal(c.currentStage().enemyHp, SPEEDRUN_STAGES[1].enemyHp);
 });

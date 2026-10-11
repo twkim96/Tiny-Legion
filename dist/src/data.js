@@ -1,7 +1,7 @@
 import { UNITS, getEnemy } from "./characters.js";
 export { UNITS, ENEMIES, ATTRIBUTES, NEUTRAL_ATTRIBUTE, ROLE_SPECIALIZATION, ATTRIBUTE_BONUS_CAP, SHIELD_BONUS_CAP, stageLabel } from "./characters.js";
 // Initial tuning, subject to play acceptance. Permanent equipment/specialty bonuses add.
-export const BALANCE_VERSION = "ninety-seconds-9";
+export const BALANCE_VERSION = "independent-speedrun-10";
 export const RARITIES = [
   { id: "common", name: "일반", color: "#7b8974", rate: 0.6 },
   { id: "rare", name: "희귀", color: "#6094a4", rate: 0.28 },
@@ -518,9 +518,7 @@ for (const source of firstRegion) {
 
 // Preserve opening threats and castle-push windows. Bring late reinforcements
 // into the shorter defense window without dropping groups or milestone bosses.
-// Speedrun keeps its original waves and 120-second limit.
 for (const stage of STAGES) {
-  stage.speedrunWaves = structuredClone(stage.waves);
   const lastSpawn = Math.max(...stage.waves.flatMap((wave) =>
     wave.enemies.map((group) => wave.time + ((group.count ?? 1) - 1) * (group.interval ?? 0)),
   ));

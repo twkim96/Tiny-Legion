@@ -12,8 +12,9 @@ import {
   speedrunStageRecord,
 } from "../dist/src/account.js";
 import { createBattle, fireCannon, stepBattle, summonUnit } from "../dist/src/engine.js";
-import { UNITS } from "../dist/src/data.js";
-import { SPEEDRUN_LIMIT_SECONDS, SPEEDRUN_MAX_REWARD, SPEEDRUN_TARGET_SECONDS, speedrunStageReward } from "../dist/src/speedrun.js";
+import { UNITS, STAGES } from "../dist/src/data.js";
+import { getEnemy } from "../dist/src/characters.js";
+import { SPEEDRUN_LIMIT_SECONDS, SPEEDRUN_MAX_REWARD, SPEEDRUN_TARGET_SECONDS, SPEEDRUN_STAGES, speedrunStageReward } from "../dist/src/speedrun.js";
 import { finishBattle, startBattle } from "../server/battle.js";
 
 const now = Date.UTC(2026, 9, 12, 3);
@@ -118,7 +119,9 @@ test("server replay awards partial reward once, then allows a target practice to
   const account = advancedAccount();
   const first = startBattle(account, { mode: "speedrun", stageId: 1 }, now);
   const delayed = play(first, {
-    delay: 40,
+    // The independent opening rush reaches an undefended castle before 40s.
+    // A 30s delayed response still survives and produces a genuine partial win.
+    delay: 30,
     unitOrder: ["teapot", "sheep", "rabbit", "fox", "squirrel", "owl", "chick", "mushroom-witch", "whale"],
   });
   assert.equal(delayed.state.result.won, true);
@@ -182,4 +185,46 @@ test("advanced content gates speedrun mutation, while unlocked speedrun stages i
   advanced.speedrunUnlocked = 13;
   assert.doesNotThrow(() => startBattle(advanced, { mode: "speedrun", stageId: 13 }, now));
   assert.throws(() => startBattle(advanced, { mode: "speedrun", stageId: 14 }, now), { message: "battle_locked" });
+});
+
+
+test("speedrun encounters use independent castles, waves, and known character definitions", () => {
+  for (const stage of SPEEDRUN_STAGES) {
+    const normal = STAGES.find(candidate => candidate.id === stage.id);
+    const sprint = createBattle({ mode: "speedrun", stageId: stage.id });
+    const challenge = createBattle({ mode: "challenge", stageId: stage.id });
+    const idle = createBattle({ mode: "idle", stageId: stage.id });
+    assert.notEqual(stage, normal);
+    assert.notEqual(stage.waves, normal.waves);
+    assert.notDeepEqual(sprint._spawnSchedule, challenge._spawnSchedule);
+    assert.equal(sprint.enemyMaxHp, stage.enemyHp);
+    assert.equal(challenge.enemyMaxHp, normal.enemyHp);
+    assert.deepEqual(idle._spawnSchedule, challenge._spawnSchedule);
+    assert.equal(sprint.scene, stage.scene);
+    assert.equal(challenge.scene, null);
+    const authored = stage.waves.flatMap(wave => wave.enemies.flatMap(group => {
+      assert.ok(getEnemy(group.id), group.id);
+      return Array.from({ length: group.count }, (_, index) => ({ id: group.id, time: wave.time + group.interval * index }));
+    })).sort((a, b) => a.time - b.time);
+    assert.deepEqual(sprint._spawnSchedule.map(({ id, time }) => ({ id, time })), authored);
+    assert.ok(authored.every(spawn => spawn.time < SPEEDRUN_LIMIT_SECONDS));
+    assert.ok(new Set(authored.map(spawn => spawn.id)).size >= 3);
+  }
+});
+
+test("the independent opening is approachable at content unlock; every encounter supports a real win", () => {
+  const entry = advancedAccount();
+  for (const id of Object.keys(entry.levels)) entry.levels[id] = 35;
+  const opening = play(startBattle(entry, { mode: "speedrun", stageId: 1 }, now), {
+    unitOrder: ["sheep", "squirrel", "rabbit"],
+  });
+  assert.equal(opening.state.result.won, true);
+  assert.ok(opening.state.result.time <= SPEEDRUN_TARGET_SECONDS);
+  const advanced = advancedAccount();
+  advanced.speedrunUnlocked = SPEEDRUN_STAGES.length;
+  for (const stage of SPEEDRUN_STAGES) {
+    const replay = play(startBattle(advanced, { mode: "speedrun", stageId: stage.id }, now));
+    assert.equal(replay.state.result.won, true, stage.name);
+    assert.ok(replay.state.result.time <= SPEEDRUN_LIMIT_SECONDS, stage.name);
+  }
 });

@@ -8,6 +8,7 @@ import {
   summonUnit,
 } from "../dist/src/engine.js";
 import { ENEMIES, STAGES, UNITS } from "../dist/src/data.js";
+import { SPEEDRUN_STAGES } from "../dist/src/speedrun.js";
 
 const FIXED_STEP = 1 / 30;
 
@@ -29,9 +30,9 @@ test("idle skips empty slots and summons a companion in the tenth slot", () => {
 
 test("opening waves enter from the enemy castle and walk left in every mode", () => {
   for (const mode of ["idle", "challenge", "speedrun"]) {
-    for (const stage of STAGES) {
+    for (const stage of mode === "speedrun" ? SPEEDRUN_STAGES : STAGES) {
       const state = createBattle({ mode, stageId: stage.id, sequence: [] });
-      const wave = (mode === "speedrun" ? stage.speedrunWaves : stage.waves)[0];
+      const wave = stage.waves[0];
       const openingDuration = Math.max(...wave.enemies.map((group) => ((group.count ?? 1) - 1) * (group.interval ?? 0)));
       assert.equal(state.time, 0);
       assert.equal(state.units.length, 0);

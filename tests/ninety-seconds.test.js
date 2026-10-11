@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { STAGES, ENEMIES } from '../dist/src/data.js';
+import { SPEEDRUN_STAGES } from '../dist/src/speedrun.js';
 import { createBattle, stepBattle, summonUnit, fireCannon, calculateIdleReward } from '../dist/src/engine.js';
 import { newAccount, gemModifiers } from '../dist/src/account.js';
 import { drawGem, equipGem } from '../dist/src/gems.js';
@@ -42,9 +43,9 @@ test('ordinary modes and speedrun cap at 90; speedrun preserves authored waves w
   }
   const speedrun = createBattle({ mode: 'speedrun', stageId: 1 });
   assert.equal(speedrun.duration, 90);
-  assert.ok(speedrun._spawnSchedule.some(spawn => spawn.time > 85));
+  assert.ok(speedrun._spawnSchedule.some(spawn => spawn.time > 60));
   assert.ok(speedrun._spawnSchedule.every(spawn => spawn.time <= 89));
-  for (const stage of STAGES) {
+  for (const stage of SPEEDRUN_STAGES) {
     const battle = createBattle({ mode: 'speedrun', stageId: stage.id });
     assert.equal(battle.duration, 90);
     assert.equal(battle._spawnSchedule.length, createBattle({ mode: 'speedrun', stageId: stage.id, duration: 120 })._spawnSchedule.length);
