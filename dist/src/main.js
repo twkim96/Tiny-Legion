@@ -318,21 +318,7 @@ function updateUi() {
   $("income-rate").innerHTML =
     `${fmt((record?.gold || 0) * 30)}<span class="muted"> / 시간</span>`;
   $("stage-number").textContent = mode === "speedrun" ? "일일" : `1-${stageId}`;
-  $("stage-name").textContent =
-    STAGES.find((stage) => stage.id === stageId)?.name || "초원";
-  const stageProgress =
-    mode === "idle"
-      ? battle
-        ? battle.time / battle.duration
-        : 0
-      : battle
-        ? 1 - battle.enemyHp / battle.enemyMaxHp
-        : 0;
-  $("stage-progress").value = Math.max(0, Math.min(100, stageProgress * 100));
-  $("stage-progress").setAttribute(
-    "aria-label",
-    mode === "idle" ? "방치 생존 진행" : "적 성 파괴 진행",
-  );
+  $("stage-name").textContent = "초원";
   $("current-mode").textContent = {
     idle: "방치",
     challenge: "도전",
