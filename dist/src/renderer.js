@@ -274,11 +274,11 @@ export class Renderer {
       w = this.width,
       h = this.height;
     c.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
-    c.fillStyle = "#eef1e1";
+    c.fillStyle = "#b6c7b0";
     c.fillRect(0, 0, w, h);
     const gradient = c.createLinearGradient(0, 0, 0, h);
-    gradient.addColorStop(0, "#f2f4e7");
-    gradient.addColorStop(1, "#e7edda");
+    gradient.addColorStop(0, "#728f8c");
+    gradient.addColorStop(1, "#b6c7b0");
     c.fillStyle = gradient;
     c.fillRect(0, 0, w, h);
     oval(

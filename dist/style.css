@@ -96,7 +96,7 @@ body {
   position: absolute;
   inset: 0 0 auto;
   height: 200px;
-  background: linear-gradient(180deg, #0e1b18b3, #0e1b1866 55%, #0e1b1800);
+  background: linear-gradient(180deg, #0e1b1847, #0e1b1818 55%, #0e1b1800);
   pointer-events: none;
   z-index: 0;
 }
@@ -604,12 +604,13 @@ body {
 }
 .unit-card .portrait {
   width: 100%;
-  height: calc(100% - 14px);
+  height: calc(100% - 24px);
   flex-shrink: 0;
   position: absolute;
   z-index: 1;
-  top: 0;
-  left: 0;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
 }
 .unit-card-text {
   display: flex;
@@ -2209,7 +2210,7 @@ html:fullscreen .game {
   }
   .unit-card .portrait {
     width: 100%;
-    height: calc(100% - 14px);
+    height: calc(100% - 24px);
   }
   .unit-card-text {
     gap: 3px;
@@ -2394,7 +2395,7 @@ html:fullscreen .game {
   }
   .unit-card .portrait {
     width: 100%;
-    height: calc(100% - 14px);
+    height: calc(100% - 24px);
   }
   .unit-card-text {
     flex-direction: column;
@@ -2494,7 +2495,7 @@ html:fullscreen .game {
     top: 66px;
   }
   .unit-card .portrait {
-    height: calc(100% - 14px);
+    height: calc(100% - 24px);
     width: 100%;
   }
   .skill-button {
