@@ -8,6 +8,7 @@ import { earlyGuideEncounter, onboardingEncounter } from "./onboarding.js";
 import { normalizeAbilities } from "./abilities.js";
 import { SPEEDRUN_LIMIT_SECONDS, SPEEDRUN_STAGES } from "./speedrun.js";
 import { WORLD_MIN, WORLD_MAX, PLAYER_CASTLE_X, ENEMY_CASTLE_X, PLAYER_SPAWN_X, ENEMY_SPAWN_X } from "./battlefield.js";
+import { idleFullReward, idleRewardFactor } from "./economy.js";
 export { UNIT_LEVEL_GROWTH } from "./abilities.js";
 
 const MAX_ACTIVE_UNITS = 80;
@@ -132,7 +133,7 @@ function setFinished(state, won) {
   const survival = Math.max(0, state.time);
   const reward =
     state.mode === "idle"
-      ? calculateIdleReward(state.stageId, survival, hpRatio)
+      ? calculateIdleReward(state.stageId, survival, hpRatio, state.duration)
       : won
         ? state._baseReward
         : 0;
@@ -145,18 +146,9 @@ function setFinished(state, won) {
   };
 }
 
-export function calculateIdleReward(stageId, survival, hpRatio) {
+export function calculateIdleReward(stageId, survival, hpRatio, duration = battleDuration(stageId)) {
   const stage = STAGE_BY_ID.get(Number(stageId)) ?? STAGES[0];
-  const period = battleDuration(stage.id);
-  const normalizedSurvival = clamp(finiteNumber(survival, 0), 0, period);
-  const normalizedHp = clamp(finiteNumber(hpRatio, 0), 0, 1);
-  const completionFactor = normalizedSurvival >= period ? 1 : 0.8;
-  const reward =
-    stage.baseReward * (period / 90) *
-    (normalizedSurvival / period) ** 2 *
-    (0.6 + 0.4 * normalizedHp) *
-    completionFactor;
-  return Math.round(reward);
+  return Math.round(idleFullReward(stage.id) * idleRewardFactor(survival, duration, hpRatio));
 }
 
 export function createBattle(options = {}) {

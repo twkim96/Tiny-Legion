@@ -8,6 +8,7 @@ import {
   summonUnit,
 } from "../dist/src/engine.js";
 import { ENEMIES, STAGES, UNITS, battleDuration } from "../dist/src/data.js";
+import { idleFullReward } from "../dist/src/economy.js";
 import { SPEEDRUN_STAGES } from "../dist/src/speedrun.js";
 
 const FIXED_STEP = 1 / 30;
@@ -238,11 +239,11 @@ test("idle survival completes with normalized raw HP and integer reward", () => 
   assert.equal(state.result.won, true);
   assert.ok(Math.abs(state.result.survival - 3) < 1e-9);
   assert.equal(state.result.hpRatio, 0.5);
-  assert.equal(state.result.reward, calculateIdleReward(1, 3, 0.5));
+  assert.equal(state.result.reward, calculateIdleReward(1, 3, 0.5, state.duration));
   assert.equal(Number.isInteger(state.result.reward), true);
   assert.equal(
     calculateIdleReward(1, battleDuration(1), 1),
-    Math.round(STAGES[0].baseReward * battleDuration(1) / 90),
+    Math.round(idleFullReward(1)),
   );
 });
 

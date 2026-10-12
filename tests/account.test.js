@@ -34,7 +34,7 @@ import {
   resetAccount,
   SAVE_KEY,
 } from "../dist/src/account.js";
-import { createBattle, summonUnit } from "../dist/src/engine.js";
+import { calculateIdleReward, createBattle, summonUnit } from "../dist/src/engine.js";
 import { STARTER_UNIT_IDS, STAGES, UNITS, battleDuration } from "../dist/src/data.js";
 const now = Date.UTC(2026, 9, 11, 3);
 test("account reset persists only a fresh intro account and preserves saves on write failure", () => {
@@ -123,35 +123,70 @@ test("a new record settles the old rate and freezes its verified gold bonus", ()
   a.records[1] = { gold: 100, diamonds: 0.125 };
   recordIdle(
     a,
-    { reward: 120, survival: 120, hpRatio: 1 },
+    { reward: 500, survival: 120, hpRatio: 1 },
     { stageId: 1, gem: "gold", duration: 120 },
     now + 120000,
   );
   assert.equal(a.gold, 700);
-  assert.equal(a.records[1].gold, 138);
+  assert.equal(a.records[1].gold, 575);
   assert.equal(a.records[1].productionSeconds, 120);
-  assert.equal(a.records[1].diamonds, 0.167);
+  assert.equal(a.records[1].diamonds, 0.025);
   a.gemItems = [{uid:"attack",type:"attack",level:1,options:[]}];
   a.gemEquipment = {attack:"attack"};
   accrue(a, now + 240000);
-  assert.equal(a.gold, 838);
+  assert.equal(a.gold, 1275);
 });
-test("idle records without a duration use the stage period and scale full-time diamonds", () => {
-  const a = newAccount(now);
+test("full idle totals ignore cycle length while accrual uses the saved duration", () => {
+  const hourlyIncome = [];
+  for (const duration of [40, 60, 90]) {
+    const a = newAccount(now);
+    recordIdle(
+      a,
+      { reward: 500, survival: duration, hpRatio: 1 },
+      { stageId: 1, duration },
+      now,
+    );
+    assert.equal(a.records[1].gold, 500);
+    assert.equal(a.records[1].productionSeconds, duration);
+    assert.equal(a.records[1].diamonds, 0.025);
+    hourlyIncome.push(accrue(a, now + 3600000));
+  }
+  assert.deepEqual(hourlyIncome.map((income) => income.gold), [45000, 30000, 20000]);
+  assert.deepEqual(hourlyIncome.map((income) => income.diamonds), [2.25, 1.5, 1]);
+});
+test("short failed idle cycles keep their full cycle duration in the accrual rate", () => {
+  const full = newAccount(now);
   recordIdle(
-    a,
-    { reward: 44, survival: 40, hpRatio: 1 },
-    { stageId: 1 },
+    full,
+    { reward: calculateIdleReward(1, 90, 1, 90), survival: 90, hpRatio: 1 },
+    { stageId: 1, duration: 90 },
     now,
   );
-  assert.equal(a.records[1].productionSeconds, battleDuration(1, "idle"));
-  assert.equal(a.records[1].diamonds, 0.056);
-  assert.ok(Math.abs(
-    (a.records[1].gold / a.records[1].productionSeconds) - STAGES[0].baseReward / 90,
-  ) < 0.02);
-  assert.ok(Math.abs(
-    (a.records[1].diamonds / a.records[1].productionSeconds) - 0.125 / 90,
-  ) < 0.00002);
+
+  const failed = newAccount(now);
+  recordIdle(
+    failed,
+    { reward: calculateIdleReward(1, 30, 0.9, 90), survival: 30, hpRatio: 0.9 },
+    { stageId: 1, duration: 90 },
+    now,
+  );
+  assert.equal(failed.records[1].productionSeconds, 90);
+  assert.ok(failed.records[1].gold / 90 < full.records[1].gold / 90);
+  assert.ok(failed.records[1].diamonds / 90 < full.records[1].diamonds / 90);
+  assert.ok(accrue(failed, now + 3600000).gold < accrue(full, now + 3600000).gold);
+});
+test("record normalization keeps old valid rewards and accepts the larger economy cap", () => {
+  const oldRecord = { gold: 400, diamonds: 0.4, productionSeconds: 120 };
+  const old = normalizeAccount({ ...newAccount(now), records: { 1: oldRecord } }, now);
+  assert.deepEqual(old.records[1], oldRecord);
+
+  const currentRecord = { gold: 500, diamonds: 0.025, productionSeconds: 40 };
+  const current = normalizeAccount({ ...newAccount(now), records: { 1: currentRecord } }, now);
+  assert.deepEqual(current.records[1], currentRecord);
+
+  const overCap = { ...currentRecord, gold: 2001 };
+  const rejected = normalizeAccount({ ...newAccount(now), records: { 1: overCap } }, now);
+  assert.equal(rejected.records[1], undefined);
 });
 test("level refund restores spent gold and invalidates production records", () => {
   const a = completedAccount();
@@ -542,6 +577,25 @@ test("individual level refunds settle earned production and preserve other growt
   assert.equal(restored.levels.sheep,1);
   assert.equal(restored.levels.squirrel,2);
   assert.equal(restored.special.sheep,2);
+});
+
+test("stored legacy level spending is refunded as recorded and oversized ledgers stay capped", () => {
+  const legacy = completedAccount();
+  legacy.levels.sheep = 4;
+  legacy.levelSpent.sheep = 400;
+  const restored = normalizeAccount(legacy, now);
+  assert.equal(restored.levelSpent.sheep, 400);
+  assert.equal(unitLevelRefund(restored, "sheep"), 400);
+  const balance = restored.gold;
+  assert.equal(refundUnitLevels(restored, "sheep", now), 400);
+  assert.equal(restored.gold, balance + 400);
+
+  const malicious = completedAccount();
+  malicious.levels.sheep = 2;
+  malicious.levelSpent.sheep = 1e12;
+  const capped = normalizeAccount(malicious, now);
+  assert.equal(capped.levelSpent.sheep, levelCost(1));
+  assert.equal(unitLevelRefund(capped, "sheep"), levelCost(1));
 });
 
 

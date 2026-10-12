@@ -1,4 +1,5 @@
 import { normalizeAudioSettings } from "./audio.js";
+import { idleFullReward, idleDiamondReward, levelUpgradeCost } from "./economy.js";
 import { UNITS, getUnit } from "./characters.js";
 import { unitCombatStats } from "./character-stats.js";
 import { STAGES, battleDuration, RARITIES, bannerById, bannerPool, bannerRarities, stageLabel } from "./data.js";
@@ -126,7 +127,7 @@ export function normalizeAccount(raw, now = Date.now()) {
       r &&
       Number.isFinite(r.gold) &&
       r.gold >= 0 &&
-      r.gold <= s.baseReward * 4 &&
+      r.gold <= Math.max(s.baseReward, idleFullReward(s.id)) * 4 &&
       Number.isFinite(r.diamonds) &&
       r.diamonds >= 0 &&
       r.diamonds <= 2
@@ -266,7 +267,7 @@ export function applyGuideSequence(a, sequence) {
   return true;
 }
 export function levelCost(level) {
-  return Math.floor(60 + level * 25 + level * level * 5);
+  return levelUpgradeCost(level);
 }
 function cumulativeLevelCost(level) {
   let spent = 0;
@@ -419,10 +420,7 @@ export function recordIdle(a, result, snapshot, now = Date.now()) {
   const r = {
     gold: Math.floor(result.reward * rateBonus),
     productionSeconds,
-    diamonds:
-      Math.round(
-        (0.1 + snapshot.stageId * 0.025) * (productionSeconds / 90) * (result.survival / productionSeconds) ** 2 * 1000,
-      ) / 1000,
+    diamonds: idleDiamondReward(snapshot.stageId, result.survival, productionSeconds, result.hpRatio),
     hpRatio: result.hpRatio,
     survival: result.survival,
     snapshot,

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { STAGES, ENEMIES, battleDuration } from '../dist/src/data.js';
 import { SPEEDRUN_STAGES } from '../dist/src/speedrun.js';
 import { createBattle, stepBattle, summonUnit, fireCannon, calculateIdleReward } from '../dist/src/engine.js';
+import { idleDiamondReward, idleFullReward } from '../dist/src/economy.js';
 import { newAccount, gemModifiers } from '../dist/src/account.js';
 import { drawGem, equipGem } from '../dist/src/gems.js';
 
@@ -62,19 +63,42 @@ test('ordinary battles use stage limits; speedrun stays at 90 seconds with autho
   }
 });
 
-test('full idle completion scales reward to its stage period and shorter failures have lower reward per second', () => {
+test('idle full rewards use stage growth independent of duration and shorter failures earn less per cycle', () => {
   for (const stage of STAGES) {
     const period = battleDuration(stage.id);
-    const full = calculateIdleReward(stage.id, period, 1);
-    assert.equal(full, Math.round(stage.baseReward * period / 90));
-    assert.equal(calculateIdleReward(stage.id, 120, 1), full);
+    const full = calculateIdleReward(stage.id, period, 1, period);
+    assert.equal(full, Math.round(idleFullReward(stage.id)));
+    for (const duration of [40, 60, 90]) {
+      assert.equal(calculateIdleReward(stage.id, duration, 1, duration), full);
+      assert.equal(
+        idleDiamondReward(stage.id, duration, duration, 1),
+        idleDiamondReward(stage.id, 90, 90, 1),
+      );
+    }
+    assert.equal(calculateIdleReward(stage.id, 120, 1, period), full);
     for (const seconds of [period / 6, period / 3, period / 2, period - 1]) {
-      assert.ok(calculateIdleReward(stage.id, seconds, 0) / seconds < full / period);
+      assert.ok(calculateIdleReward(stage.id, seconds, 0, period) / period < full / period);
     }
     const state = createBattle({ mode: 'idle', stageId: stage.id, sequence: [] });
     assert.ok(state._spawnSchedule.every(spawn => spawn.time < state.duration));
     const groups = stage.waves.flatMap(wave => wave.enemies);
     assert.equal(state._spawnSchedule.length, groups.reduce((count, group) => count + (group.count ?? 1), 0));
+  }
+});
+
+test('a full previous stage matches a full next stage at 90 percent HP after rounding', () => {
+  for (let index = 0; index < STAGES.length - 1; index++) {
+    const previous = STAGES[index];
+    const next = STAGES[index + 1];
+    const previousDuration = battleDuration(previous.id, 'idle');
+    const nextDuration = battleDuration(next.id, 'idle');
+    const previousGold = calculateIdleReward(previous.id, previousDuration, 1, previousDuration);
+    const nextGold = calculateIdleReward(next.id, nextDuration, 0.9, nextDuration);
+    assert.ok(Math.abs(previousGold - nextGold) <= 1, `stages ${previous.id}/${next.id} acorns`);
+
+    const previousDiamonds = idleDiamondReward(previous.id, previousDuration, previousDuration, 1);
+    const nextDiamonds = idleDiamondReward(next.id, nextDuration, nextDuration, 0.9);
+    assert.ok(Math.abs(previousDiamonds - nextDiamonds) <= 0.001, `stages ${previous.id}/${next.id} diamonds`);
   }
 });
 

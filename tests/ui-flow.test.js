@@ -505,6 +505,7 @@ test('companion cards open upgrade details; detail refund preserves other compan
   c.account.levels.squirrel=4;
   c.account.levelSpent.sheep=levelCost(1)+levelCost(2);
   c.account.levelSpent.squirrel=levelCost(1)+levelCost(2)+levelCost(3);
+  const sheepRefund=c.account.levelSpent.sheep, startingGold=c.account.gold;
   c.renderGrowth();
   assert.doesNotMatch(c.$('modal-content').innerHTML,/data-refund|data-inspect/);
   c.$('modal-content:data-companion:sheep').onclick();
@@ -514,12 +515,13 @@ test('companion cards open upgrade details; detail refund preserves other compan
   c.$('companion-refund').onclick();
   assert.match(c.$('modal-title').textContent,/양 방패/);
   assert.equal(c.$('modal-backdrop').dataset.layout,'message');
-  assert.match(c.$('modal-content').innerHTML,/도토리 220개/);
+  assert.ok(c.$('modal-content').innerHTML.includes(`도토리 ${sheepRefund}개`));
   c.$('cancel-refund').onclick();
   assert.equal(JSON.stringify(c.account),initial);
   c.$('companion-refund').onclick();
   c.$('confirm-refund').onclick();
   assert.equal(c.account.levels.sheep,1);
+  assert.equal(c.account.gold,startingGold+sheepRefund);
   assert.equal(c.account.levels.squirrel,4);
   assert.equal(c.$('modal-backdrop').dataset.kind,'companion');
   assert.ok(c.calls.includes('start'));
