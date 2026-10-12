@@ -42,6 +42,7 @@ export function startBattle(a, { mode, stageId }, now) {
 
 export function finishBattle(a, run, { battleId, actions }, now) {
   if (!run || battleId !== run.battleId) throw new GameError('battle_not_found', 409);
+  if (run.snapshot?.balanceVersion !== BALANCE_VERSION) throw new GameError('battle_version_mismatch', 409);
   if (!Array.isArray(actions) || actions.length > 10000) throw new GameError('invalid_actions');
   const state = createBattle(run.options);
   let cursor = 0, cannonStep = -750, last = -1;

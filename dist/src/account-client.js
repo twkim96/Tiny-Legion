@@ -17,6 +17,17 @@ export class AccountClientError extends Error {
   }
 }
 
+export function authenticationRequired(error) {
+  return (error?.status === 401 && error.payload?.error === "login_required") ||
+    (error?.status === 403 && error.payload?.error === "test_login_disabled");
+}
+
+function uncertainResult(message, cause) {
+  const error = new AccountClientError(message, { payload: cause });
+  error.network = true;
+  return error;
+}
+
 function defaultUuid() {
   if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
   const bytes = new Uint8Array(16);
@@ -61,11 +72,13 @@ export class AccountClient {
     sessionStorage,
     requestId = defaultUuid,
     onState = () => {},
+    requestTimeoutMs = 15000,
   } = {}) {
     this.fetchImpl = fetchImpl;
     this.storage = safeSessionStorage(sessionStorage);
     this.requestId = requestId;
     this.onState = onState;
+    this.requestTimeoutMs = requestTimeoutMs;
     this.accountTarget = null;
     this.identity = null;
     this.token = this.#readToken();
@@ -115,8 +128,8 @@ export class AccountClient {
         this.#replaceSession();
         throw error;
       }
-      this.retryAction = () => this.bootstrap();
-      this.#setState("offline", token ? "resume" : "start", error);
+      this.retryAction = authenticationRequired(error) ? null : () => this.bootstrap();
+      this.#setState(authenticationRequired(error) ? "auth-required" : "offline", token ? "resume" : "start", error);
       throw error;
     }
   }
@@ -138,8 +151,8 @@ export class AccountClient {
         this.#replaceSession();
         throw error;
       }
-      this.retryAction = () => this.startNewSession(identity);
-      this.#setState("offline", "start", error);
+      this.retryAction = authenticationRequired(error) ? null : () => this.startNewSession(identity);
+      this.#setState(authenticationRequired(error) ? "auth-required" : "offline", "start", error);
       throw error;
     }
   }
@@ -247,35 +260,46 @@ export class AccountClient {
       throw new AccountClientError("fetch is unavailable");
     const headers = { "Content-Type": "application/json" };
     if (token) headers["X-Game-Session"] = token;
-    let response;
+    const controller = new AbortController();
+    let timer;
     try {
-      response = await this.fetchImpl(path, {
-        method: "POST",
-        headers,
-        body: JSON.stringify(body),
+      const receive = async () => {
+        let response, payload;
+        try {
+          response = await this.fetchImpl(path, {
+            method: "POST", headers, body: JSON.stringify(body), signal: controller.signal,
+          });
+          payload = await response.json();
+        } catch (cause) {
+          throw uncertainResult("server result is unconfirmed", cause);
+        }
+        if (response.status === 409 && payload?.error === "session_replaced")
+          throw new SessionReplacedError();
+        if (!response.ok) {
+          const error = new AccountClientError(payload?.error ?? `request failed (${response.status})`, {
+            status: response.status, payload,
+          });
+          if (response.status >= 500 || typeof payload?.error !== "string") error.network = true;
+          throw error;
+        }
+        if (!payload || !payload.account || typeof payload.account !== "object" || Array.isArray(payload.account) ||
+            !Number.isSafeInteger(payload.revision) || payload.revision < 0 ||
+            ((path.includes("/session/") || path.endsWith("/test/login")) &&
+              (typeof payload.session !== "string" || !payload.session)) ||
+            (path.endsWith("/command") && !Object.prototype.hasOwnProperty.call(payload, "result")))
+          throw uncertainResult("invalid server result");
+        return payload;
+      };
+      const timeout = new Promise((_, reject) => {
+        timer = setTimeout(() => {
+          reject(uncertainResult("server request timed out"));
+          controller.abort();
+        }, this.requestTimeoutMs);
       });
-    } catch (cause) {
-      const error = new AccountClientError("network request failed", { payload: cause });
-      error.network = true;
-      throw error;
+      return await Promise.race([receive(), timeout]);
+    } finally {
+      clearTimeout(timer);
     }
-    let payload = null;
-    try {
-      payload = await response.json();
-    } catch {
-      payload = null;
-    }
-    if (response.status === 409 && payload?.error === "session_replaced")
-      throw new SessionReplacedError();
-    if (!response.ok) {
-      const error = new AccountClientError(payload?.error ?? `request failed (${response.status})`, {
-        status: response.status,
-        payload,
-      });
-      if (response.status >= 500) error.network = true;
-      throw error;
-    }
-    return payload;
   }
 
   #acceptSession(envelope, epoch) {
@@ -348,6 +372,11 @@ export class AccountClient {
         this.queue.shift();
         item.reject(error);
         this.#setState("connected", "account-exists", error);
+      } else if (authenticationRequired(error) && item.path !== "/api/game/account/link") {
+        this.blocked = true;
+        this.retryAction = null;
+        this.#rejectQueue(error);
+        this.#setState("auth-required", "command", error);
       } else if (error.network) {
         this.blocked = true;
         this.retryAction = null;

@@ -12,6 +12,10 @@ import { companionPanel } from '../dist/src/companion-ui.js';
 import {drawGem,gemByUid,gemDefinition,gemDescription,gemOptionText,gemOptionTier,gemRerollCost,gemUpgradeCost,gemUpgradeMaterials,upgradeGem,rerollGem,equipGem,unequipGem,equippedGemItems,ownedGemBasics,isGemEquipped,GEM_OPTION_LIMIT,GEM_OPTION_TIERS,GEM_TYPES,GEM_BANNERS,GEM_OPTIONS} from '../dist/src/gems.js';
 import { moveSequenceItem } from '../dist/src/sequence-ui.js';
 import {gemPage,gemPicker,gemDetail,gemCard,gemArt,gemRateMarkup} from '../dist/src/gem-ui.js';
+import { onboardingEncounter } from '../dist/src/onboarding.js';
+import { idleRecordMarkup } from '../dist/src/idle-result-ui.js';
+import { CloudSessionUI } from '../dist/src/cloud-session-ui.js';
+import { AccountClient } from '../dist/src/account-client.js';
 import { entryPanel, signInPath, signInIntent, accountIdentityPanel } from '../dist/src/sign-in.js';
 import { testLoginPanel, bindTestLogin, adminPanel } from '../dist/src/test-access-ui.js';
 import { bindRotationPrompt, enterLandscapeFullscreen } from '../dist/src/fullscreen.js';
@@ -51,7 +55,7 @@ function harness(names) {
   account.highestCleared = 1;
   const calls = [];
   const context = {
-    $, account, calls, hostedMode:false, testLoginEnabled:false, testLoginRequested:false, cloudIdentity:null, adminPanel, accountClient:null, sendCommand:async()=>null, updatePreference:async()=>true, STAGES, battleDuration, stageLabel, currentMission, recordMissionBattle, claimMission, accrue, recordIdle, isOnboarding, recruitOnboardingCompanion, growthUnlocked, sequenceUnlocked, sequenceForMode, setSequence, playableSequence, growUnit, refundUnitLevels, unitLevelRefund, levelCost, recruitEarlyRabbit, applyGuideSequence, canUseUnit, ownsUnit, UNITS, speedrunStageRecord, speedrunProgress, speedrunReward, speedrunStageReward, SPEEDRUN_LIMIT_SECONDS, SPEEDRUN_TARGET_SECONDS, SPEEDRUN_STAGES,
+    $, account, calls, idleRecordMarkup, hostedMode:false, testLoginEnabled:false, testLoginRequested:false, cloudIdentity:null, adminPanel, accountClient:null, sendCommand:async()=>null, updatePreference:async()=>true, STAGES, battleDuration, stageLabel, currentMission, recordMissionBattle, claimMission, accrue, recordIdle, isOnboarding, recruitOnboardingCompanion, growthUnlocked, sequenceUnlocked, sequenceForMode, setSequence, playableSequence, growUnit, refundUnitLevels, unitLevelRefund, levelCost, recruitEarlyRabbit, applyGuideSequence, canUseUnit, ownsUnit, UNITS, speedrunStageRecord, speedrunProgress, speedrunReward, speedrunStageReward, SPEEDRUN_LIMIT_SECONDS, SPEEDRUN_TARGET_SECONDS, SPEEDRUN_STAGES,
     bindSequenceDrag(){}, moveSequenceItem, modalHistory:[], modalLayout, messagePanel, modalKind:null, modalRender:null, lastFocused:null, hideTooltip(){},
     readyBattle(){calls.push("ready");}, openCodex(){},
     drawGem,gemByUid,gemDefinition,gemDescription,gemOptionText,gemOptionTier,gemRerollCost,gemUpgradeCost,gemUpgradeMaterials,upgradeGem,rerollGem,equipGem,unequipGem,equippedGemItems,ownedGemBasics,isGemEquipped,GEM_OPTION_LIMIT,GEM_OPTION_TIERS,GEM_TYPES,GEM_BANNERS,GEM_OPTIONS,gemPage,gemPicker,gemDetail,gemCard,gemArt,gemRateMarkup,
@@ -143,6 +147,93 @@ test('idle failure is informational and suppression is specific to its stage', (
   c.showIdleResult({won:true,survival:120,reward:90});
   assert.equal(c.$('idle-result-popup').hidden, false);
   assert.equal(c.idleResultStage, 2);
+});
+
+test('idle results distinguish actual earnings from new records and compare differing record periods', () => {
+  const c = harness(['showIdleResult', 'closeIdleResult']);
+  c.battleSnapshot = { duration: 40 };
+  c.showIdleResult({ won: true, survival: 40, reward: 60 }, { gold: 120, productionSeconds: 120 });
+  const markup = c.$('idle-result-content').innerHTML;
+  assert.match(markup, /실제 지급된 재화/);
+  assert.match(markup, /생산 기록은 즉시 지급되는 보상이 아닙니다/);
+  assert.match(markup, /최고 기록 갱신 · 시간당 도토리 3600 → 5400/);
+  c.closeIdleResult();
+  c.showIdleResult({ won: true, survival: 40, reward: 30 }, { gold: 120 });
+  assert.match(c.$('idle-result-content').innerHTML, /최고 기록 유지 · 시간당 도토리 3600/);
+  c.closeIdleResult();
+  c.showIdleResult({ won: true, survival: 40, reward: 60 }, undefined);
+  assert.match(c.$('idle-result-content').innerHTML, /최고 기록 갱신 · 시간당 도토리 0 → 5400/);
+});
+
+test('a stale browser refuses to simulate a newly versioned server battle and offers refresh', async () => {
+  const c = harness(['startBattle']);
+  c.hostedMode = true;
+  c.account.onboarding.phase = 'intro';
+  c.onboardingEncounter = onboardingEncounter;
+  c.currentStage = () => onboardingEncounter(c.account.onboarding.phase);
+  c.accountClient = { status: 'connected' };
+  c.battleStartPending = false;
+  c.battleStartSerial = 0;
+  c.BALANCE_VERSION = 'browser-version';
+  c.sendCommand = async () => ({ result: { battleId: 'new-run', options: {}, snapshot: { balanceVersion: 'new-version' } } });
+  c.showBattleUpdate = () => c.calls.push('refresh-required');
+  c.createBattle = () => { throw new Error('Do not replay new rules using the old browser engine'); };
+  await c.startBattle();
+  assert.equal(c.battle, null);
+  assert.equal(c.battleStartPending, false);
+  assert.ok(c.calls.includes('refresh-required'));
+});
+
+test('a battle update remains actionable while a required onboarding dialog is open', () => {
+  const c = harness(['openModal', 'showBattleUpdate']);
+  c.account.onboarding.phase = 'intro';
+  c.modalKind = 'onboarding';
+  c.$('modal-backdrop').hidden = false;
+  c.location = { reload() { c.calls.push('reload'); } };
+  c.showBattleUpdate();
+  assert.equal(c.modalKind, 'battle-update');
+  assert.match(c.$('modal-content').innerHTML, /기존 진행도와 생산 기록은 보존/);
+  c.$('reload-battle').onclick();
+  assert.ok(c.calls.includes('reload'));
+});
+
+test('command authentication expiry opens the matching login gate and pauses gameplay', async () => {
+  for (const [code, status, kind] of [['login_required', 401, 'account'], ['test_login_disabled', 403, 'test']]) {
+    const root = { style: {}, setAttribute() {} }, calls = [];
+    const client = new AccountClient({ sessionStorage: null, fetchImpl: async path => {
+      if (path.endsWith('/start')) return { ok: true, status: 200, json: async () => ({ account: { gold: 5 }, session: 'session', revision: 1, identity: { kind } }) };
+      return { ok: false, status, json: async () => ({ error: code }) };
+    } });
+    const gate = new CloudSessionUI({ client, hooks: { pause() { calls.push('pause'); }, resume() { calls.push('resume'); }, halt() {} },
+      isReady: () => true, getIdentity: () => client.identity, testLoginEnabled: true,
+      document: { createElement: () => root, body: { append() {} } }, location: {} });
+    await client.bootstrap();
+    client.onState = state => gate.show(state);
+    await assert.rejects(client.command('unit.grow', {}));
+    assert.equal(root.hidden, false);
+    assert.deepEqual(calls, ['pause']);
+    assert.match(root.innerHTML, kind === 'test' ? /href="\/\?testLogin=1"/ : /signin-with-chatgpt/);
+    assert.doesNotMatch(root.innerHTML, /id="cloud-gate-action"/);
+    gate.show({ status: 'auth-required' });
+    assert.deepEqual(calls, ['pause']);
+  }
+});
+
+test('connection retries keep the existing pause until a confirmed reply', async () => {
+  const button = {}, calls = [];
+  const root = { style: {}, setAttribute() {}, querySelector: () => button };
+  const client = { async retry() { calls.push('retry'); } };
+  const gate = new CloudSessionUI({ client, hooks: { pause() { calls.push('pause'); }, resume() { calls.push('resume'); }, halt() {} },
+    isReady: () => true, getIdentity: () => null, testLoginEnabled: false,
+    document: { createElement: () => root, body: { append() {} } }, location: {} });
+  gate.show({ status: 'offline', operation: 'command' });
+  await button.onclick();
+  gate.show({ status: 'retrying', operation: 'command' });
+  assert.equal(root.hidden, false);
+  assert.deepEqual(calls, ['pause', 'retry']);
+  gate.show({ status: 'connected', operation: 'command' });
+  assert.equal(root.hidden, true);
+  assert.deepEqual(calls, ['pause', 'retry', 'resume']);
 });
 test('regional victory returns to the newly opened idle stage and preserves prior production records', () => {
   const c=harness(['settleProduction','closeIdleResult','enterRegionIdle','showResult','setMode']);

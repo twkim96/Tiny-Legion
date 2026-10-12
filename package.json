@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "python3 -m http.server 4173 --bind 127.0.0.1 --directory dist",
     "test": "node --test tests/*.test.js",
-    "check": "node --check dist/src/main.js && node --check dist/src/renderer.js && node --check dist/src/account.js && node --check server/api.js && node --check server/commands.js && node --check server/battle.js",
+    "check": "node scripts/check-source.mjs",
     "build": "node scripts/build-server.mjs",
     "db:generate": "drizzle-kit generate",
     "dev:server": "npm run build && node scripts/dev-server.mjs"

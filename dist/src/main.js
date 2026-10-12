@@ -1,3 +1,5 @@
+import { CloudSessionUI } from "./cloud-session-ui.js";
+import { idleRecordMarkup } from "./idle-result-ui.js";
 import { GameAudio } from "./audio.js";
 import { bindRotationPrompt, enterLandscapeFullscreen } from "./fullscreen.js";
 import { enemyCombatStats } from "./character-stats.js";
@@ -88,7 +90,6 @@ const loginIntent = hostedMode ? signInIntent(location.href) : null;
 let cloudBootstrapEnvelope = null;
 let cloudIdentity = null;
 let cloudGateRoot = null;
-let cloudGateState = null;
 let cloudAppReady = false;
 let hostedHalted = false;
 let cloudPauseBeforeOffline = null;
@@ -97,18 +98,12 @@ const accountClient = hostedMode
   ? new AccountClient({ onState: (state) => showCloudGate(state) })
   : null;
 
+const cloudSessionUI = hostedMode ? new CloudSessionUI({
+  client: accountClient, hooks: cloudGameHooks,
+  isReady: () => cloudAppReady, getIdentity: () => cloudIdentity, testLoginEnabled,
+}) : null;
 function ensureCloudGate() {
-  if (!hostedMode || cloudGateRoot) return cloudGateRoot;
-  cloudGateRoot = document.createElement("section");
-  cloudGateRoot.setAttribute("role", "alertdialog");
-  cloudGateRoot.setAttribute("aria-live", "assertive");
-  Object.assign(cloudGateRoot.style, {
-    position: "fixed", inset: "0", zIndex: "10000", display: "none",
-    placeItems: "center", padding: "20px", background: "#171a15eF",
-    color: "#f4f1e7", font: "600 16px system-ui, sans-serif", textAlign: "center",
-  });
-  document.body.append(cloudGateRoot);
-  return cloudGateRoot;
+  return cloudGateRoot = cloudSessionUI?.ensureRoot();
 }
 
 function chooseCloudEntry() {
@@ -132,55 +127,8 @@ function chooseCloudEntry() {
   });
 }
 
-function showCloudGate(state = cloudGateState) {
-  if (!hostedMode || !state) return;
-  cloudGateState = state;
-  const root = ensureCloudGate();
-  const replaced = state.status === "replaced";
-  const offline = state.status === "offline" || state.status === "connecting" || state.status === "retrying";
-  const loginRequired = ["login_required", "test_login_disabled"].includes(state.error?.payload?.error);
-  if (replaced && cloudAppReady) cloudGameHooks.halt();
-  if (offline && cloudAppReady && cloudPauseBeforeOffline === null) {
-    cloudGameHooks.pause();
-  }
-  if (!offline && !replaced && cloudAppReady && cloudPauseBeforeOffline !== null) {
-    cloudGameHooks.resume();
-  }
-  if (!replaced && !offline) {
-    root.hidden = true;
-    root.style.display = "none";
-    return;
-  }
-  root.hidden = false;
-  root.style.display = "grid";
-  const connecting = state.status === "connecting" || state.status === "retrying";
-  const heading = replaced ? "다른 기기에서 접속했습니다" : loginRequired ? "ChatGPT 로그인이 필요합니다" : connecting ? "연결 중" : "서버에 연결할 수 없습니다";
-  const useAccountChoice = state.error?.payload?.error === "account_exists";
-  const action = replaced ? "여기서 계속하기" : loginRequired ? "ChatGPT로 로그인" : useAccountChoice ? "기존 계정으로" : connecting ? "연결 중" : "다시 연결";
-  root.innerHTML = `<div style="max-width:320px"><strong style="display:block;margin-bottom:16px">${useAccountChoice ? "이미 연결된 계정이 있습니다" : heading}</strong>${loginRequired ? `<a class="primary-button" href="${signInPath()}" target="_top">${action}</a>` : `<button id="cloud-gate-action" style="padding:10px 18px;border:0;border-radius:10px;background:#e8d89a;color:#26271f;font:inherit">${action}</button>`}${testLoginEnabled && !connecting ? '<a class="secondary-button" style="margin-top:12px" href="/?testLogin=1">테스트 로그인</a>' : ''}</div>`;
-  if (loginRequired) return;
-  root.querySelector("#cloud-gate-action").disabled = connecting;
-  root.querySelector("#cloud-gate-action").onclick = async () => {
-    const button = root.querySelector("#cloud-gate-action");
-    button.disabled = true;
-    try {
-      if (useAccountChoice) {
-        await accountClient.startNewSession("account");
-        location.reload();
-      } else if (replaced) {
-        if (cloudIdentity?.kind === "test") { location.assign("/?testLogin=1"); return; }
-        await accountClient.startNewSession();
-        location.reload();
-      } else if (state.operation === "command") {
-        await accountClient.retry();
-      } else {
-        await accountClient.retry();
-        location.reload();
-      }
-    } catch (error) {
-      showCloudGate({ status: error instanceof SessionReplacedError ? "replaced" : "offline", operation: state.operation, error });
-    }
-  };
+function showCloudGate(state) {
+  cloudSessionUI?.show(state);
 }
 
 if (hostedMode) {
@@ -416,11 +364,25 @@ async function sendCommand(type, args = {}) {
     return await accountClient.command(type, args);
   } catch (error) {
     if (error instanceof SessionReplacedError) return null;
+    if (accountClient.status === "auth-required") return null;
+    if (error?.payload?.error === "battle_version_mismatch") {
+      showBattleUpdate();
+      return null;
+    }
     if (hostedMode && accountClient.status === "offline")
       showCloudGate({ status: "offline", operation: "command" });
     else toast(error?.message === "account_exists" ? "이미 연결된 계정이 있습니다." : "요청을 처리하지 못했습니다.");
     return null;
   }
+}
+function showBattleUpdate() {
+  openModal("전투 업데이트", "battle-update", () => {
+    $("modal-content").innerHTML = messagePanel({
+      text: "전투 규칙이 업데이트되어 이번 결과는 저장하지 않았습니다. 기존 진행도와 생산 기록은 보존됩니다.<br>새로고침 후 전투를 다시 시작해 주세요.",
+      actions: '<button class="primary-button" id="reload-battle">새로고침</button>',
+    });
+    $("reload-battle").onclick = () => location.reload();
+  });
 }
 async function updatePreference(patch) {
   if (!hostedMode) {
@@ -569,6 +531,11 @@ async function startBattle() {
       readyBattle();
       return;
     }
+    if (started.snapshot.balanceVersion !== BALANCE_VERSION) {
+      battleStartPending = false;
+      showBattleUpdate();
+      return;
+    }
     battle = createBattle(started.options);
     battleSnapshot = { ...started.snapshot, battleId: started.battleId };
     manualBattleActions = [];
@@ -704,14 +671,14 @@ function closeIdleResult() {
   $("idle-result-popup").hidden = true;
   idleResultStage = null;
 }
-function showIdleResult(result) {
+function showIdleResult(result, previousRecord) {
   if (account.settings.hiddenIdleResults.includes(stageId) || !$("idle-result-popup").hidden) return;
   idleResultStage = stageId;
   const bonus = battleSnapshot.gemEffects?.acorn ?? 1;
   const gold = Math.floor(result.reward * bonus);
   const income = idleIncome;
   $("idle-result-title").textContent = result.won ? "방치 완료" : "방치 실패";
-  $("idle-result-content").innerHTML = `<p class="idle-result-stage">${stageLabel(stageId)} · ${precise(result.survival)}</p><div class="idle-earned"><span>${icon("acorn")}도토리 <strong>+${fmt(income.gold)}</strong></span><span>${icon("gem")}다이아 <strong>+${income.diamonds.toFixed(2)}</strong></span></div><div class="idle-record"><span>이번 생산 기록</span><strong>${icon("acorn")}${fmt(gold)} / ${battleSnapshot.duration ?? 90}초</strong></div><p class="settings-note">생산 기록에 따라 재화가 계속 쌓입니다.<br>방치 전투는 계속 진행됩니다.</p>`;
+  $("idle-result-content").innerHTML = `<p class="idle-result-stage">${stageLabel(stageId)} · ${precise(result.survival)}</p><p class="settings-note">이 전투 동안 실제 지급된 재화</p><div class="idle-earned"><span>${icon("acorn")}도토리 <strong>+${fmt(income.gold)}</strong></span><span>${icon("gem")}다이아 <strong>+${income.diamonds.toFixed(2)}</strong></span></div>${idleRecordMarkup({ gold, duration: battleSnapshot.duration ?? battleDuration(stageId), previousRecord, icon, fmt })}<p class="settings-note">생산 기록은 즉시 지급되는 보상이 아닙니다.<br>최고 기록에 따라 재화가 계속 쌓이며 방치 전투도 계속 진행됩니다.</p>`;
   $("hide-idle-result").checked = false;
   $("idle-result-popup").hidden = false;
 }
@@ -1044,10 +1011,11 @@ function finishBattle() {
   chirp("win");
   if (mode === "idle") {
     settleProduction();
+    const previousRecord = account.records[stageId];
     recordIdle(account, r, battleSnapshot);
     recordMissionBattle(account, { mode, stageId, won: r.won });
     persist();
-    showIdleResult(r);
+    showIdleResult(r, previousRecord);
     restartAt = performance.now() + 3000;
     updateUi();
     if (earlyPhase === "idle-defense" && account.earlyGuide?.phase === "remove-rabbit") showDefenseGuide();
@@ -1110,6 +1078,7 @@ async function finishHostedBattle() {
     highestCleared: account.highestCleared,
     advancedUnlocked: advancedContentUnlocked(account),
     battleId: battleSnapshot?.battleId,
+    idleRecord: account.records[stageId],
   };
   const envelope = await sendCommand("battle.finish", {
     battleId: before.battleId,
@@ -1134,7 +1103,7 @@ async function finishHostedBattle() {
       idleIncome.gold += earned.gold ?? 0;
       idleIncome.diamonds += earned.diamonds ?? 0;
     }
-    showIdleResult(result);
+    showIdleResult(result, before.idleRecord);
     restartAt = performance.now() + 3000;
     updateUi();
     if (before.earlyPhase === "idle-defense" && account.earlyGuide?.phase === "remove-rabbit") showDefenseGuide();
@@ -1626,8 +1595,8 @@ function openModal(title, kind, render, { layout = modalLayout(kind), navigation
     toast("1-2 방치에서 처음 실패하면 편성 교체가 열립니다.");
     return;
   }
-  if (isOnboarding(account) && !["onboarding", "menu", "settings", "import", "codex", "reset-account", "leave-battle", "guest-choice", "account-choice", "test-login", "admin"].includes(kind)) return;
-  if (modalKind === "onboarding" && kind !== "onboarding") return;
+  if (isOnboarding(account) && !["onboarding", "menu", "settings", "import", "codex", "reset-account", "battle-update", "leave-battle", "guest-choice", "account-choice", "test-login", "admin"].includes(kind)) return;
+  if (modalKind === "onboarding" && !["onboarding", "battle-update"].includes(kind)) return;
   const root = $("modal-backdrop").hidden || navigation === "root";
   if (root) {
     if ($("modal-backdrop").hidden) lastFocused = document.activeElement;
@@ -2239,7 +2208,7 @@ function renderSettings() {
     ? `<div class="settings-row settings-account"><span>계정</span>${accountIdentityPanel(cloudIdentity)}<div>${cloudIdentity?.kind === "guest" ? `<a class="secondary-button" id="login-account" href="${signInPath()}" target="_top">계정 로그인</a> ${cloudIdentity?.canLink ? '<button class="secondary-button" id="link-account">계정 연결</button>' : ""}` : '<button class="secondary-button" id="switch-to-guest">게스트로</button>'}${testLoginEnabled ? ' <button class="secondary-button" id="test-login">테스트 로그인</button>' : ''}</div></div>`
     : "";
   $("modal-content").innerHTML =
-    `${audioSettingsMarkup()}<div class="settings-row"><span>화면</span><button class="secondary-button" id="fullscreen">${icon("fullscreen")}전체 화면</button></div><div class="settings-row"><span>저장 파일</span><div><button class="secondary-button" id="export-save">내려받기</button>${hostedMode ? "" : ' <button class="secondary-button" id="import-save">불러오기</button><input type="file" id="save-file" accept="application/json,.json" hidden>'}</div></div><div class="settings-row"><span>방치 결과</span><button class="secondary-button" id="restore-idle-results" ${account.settings.hiddenIdleResults.length ? "" : "disabled"}>다시 표시</button></div>${hostedAccountRows}<div class="settings-row"><span>계정</span><button class="secondary-button" id="reset-account">계정 초기화</button></div>${hostedMode && cloudBootstrapEnvelope.created ? '<p class="settings-note">새 온라인 계정을 만들었습니다. 기존 브라우저 저장 기록은 그대로 보존됩니다.</p>' : hostedMode ? '<p class="settings-note">진행도는 온라인 계정에 저장됩니다.</p>' : '<p class="settings-note">진행도는 이 브라우저에 저장됩니다.<br>다른 기기로 옮기려면 저장 파일을 사용하세요.</p>'}<p class="settings-note">키보드: 1–9·0 소환 · Space 일시 정지 · Esc 뒤로 / 닫기</p>`;
+    `${audioSettingsMarkup()}<div class="settings-row"><span>화면</span><button class="secondary-button" id="fullscreen">${icon("fullscreen")}전체 화면</button></div><div class="settings-row"><span>${hostedMode ? "진행도 기록" : "저장 파일"}</span><div><button class="secondary-button" id="export-save">내려받기</button>${hostedMode ? "" : ' <button class="secondary-button" id="import-save">불러오기</button><input type="file" id="save-file" accept="application/json,.json" hidden>'}</div></div>${hostedMode ? '<p class="settings-note">내려받은 파일은 기록 보관용입니다. 이 파일로 온라인 진행도를 복원할 수 없습니다.</p>' : ''}<div class="settings-row"><span>방치 결과</span><button class="secondary-button" id="restore-idle-results" ${account.settings.hiddenIdleResults.length ? "" : "disabled"}>다시 표시</button></div>${hostedAccountRows}<div class="settings-row"><span>계정</span><button class="secondary-button" id="reset-account">계정 초기화</button></div>${hostedMode && cloudBootstrapEnvelope.created ? '<p class="settings-note">새 온라인 계정을 만들었습니다. 기존 브라우저 저장 기록은 그대로 보존됩니다.</p>' : hostedMode ? '<p class="settings-note">진행도는 온라인 계정에 저장됩니다.</p>' : '<p class="settings-note">진행도는 이 브라우저에 저장됩니다.<br>다른 기기로 옮기려면 저장 파일을 사용하세요.</p>'}<p class="settings-note">키보드: 1–9·0 소환 · Space 일시 정지 · Esc 뒤로 / 닫기</p>`;
   if ($("link-account")) $("link-account").onclick = () => linkGuestAccount();
   if (testLoginEnabled) $("test-login").onclick = () => openModal("테스트 로그인", "test-login", renderTestLogin);
   if (hostedMode && $("login-account") && sitesSignedIn) $("login-account").onclick = (event) => {
@@ -2296,7 +2265,7 @@ function renderSettings() {
   if (!hostedMode) $("import-save").onclick = () => $("save-file").click();
   $("reset-account").onclick = () => {
     openModal("계정 초기화", "reset-account", () => {
-      $("modal-content").innerHTML = messagePanel({ text: "동료·재화·성장·전투 기록을 모두 지우고 0스테이지부터 다시 시작합니다.<br>복구하려면 초기화 전에 저장 파일을 내려받아 두세요.", actions: '<button class="secondary-button" id="cancel-reset-account">취소</button><button class="primary-button" id="confirm-reset-account">초기화하고 시작</button>' });
+      $("modal-content").innerHTML = messagePanel({ text: `동료·재화·성장·전투 기록을 모두 지우고 0스테이지부터 다시 시작합니다.<br>${hostedMode ? "온라인 진행도는 초기화 후 복구할 수 없습니다. 내려받은 파일로도 온라인 진행도를 복원할 수 없습니다." : "복구하려면 초기화 전에 저장 파일을 내려받아 두세요."}`, actions: '<button class="secondary-button" id="cancel-reset-account">취소</button><button class="primary-button" id="confirm-reset-account">초기화하고 시작</button>' });
       $("cancel-reset-account").onclick = () => returnModal("설정", "settings", renderSettings);
       $("confirm-reset-account").onclick = () => {
         if (hostedMode) {

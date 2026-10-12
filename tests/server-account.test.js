@@ -4,7 +4,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
 import { handleGameRequest } from '../server/api.js';
 import { createBattle, stepBattle, summonUnit, fireCannon } from '../dist/src/engine.js';
-import { UNITS } from '../dist/src/data.js';
+import { BALANCE_VERSION, UNITS } from '../dist/src/data.js';
 import { passwordHash } from '../server/test-access.js';
 
 const rootSalt = 'a'.repeat(32), playerSalt = 'b'.repeat(32);
@@ -221,6 +221,7 @@ test('idle replay keeps server production snapshot and cannot skip the tutorial 
   const started = await h.command(b, 'battle.start', { mode: 'idle', stageId: 1 });
   assert.equal(started.status, 200);
   const run = started.result, state = createBattle(run.options);
+  assert.equal(run.snapshot.balanceVersion, BALANCE_VERSION);
   stepBattle(state, 90);
   h.advance(90000);
   const finished = await h.command(b, 'battle.finish', { battleId: run.battleId, actions: [] });
@@ -231,6 +232,38 @@ test('idle replay keeps server production snapshot and cannot skip the tutorial 
   assert.equal((await h.command(b, 'battle.start', { mode: 'challenge', stageId: 2 })).error, 'battle_locked');
   assert.equal((await h.command(b, 'mission.claim')).status, 200);
   assert.equal((await h.command(b, 'battle.start', { mode: 'challenge', stageId: 2 })).status, 200);
+});
+
+test('battle replay rejects missing or outdated balance snapshots without changing account state', async () => {
+  const h = harness(), b = h.browser(); await h.call(b, 'session/start');
+  h.seed({ onboarding: { phase: 'complete' }, highestCleared: 1 });
+  const started = await h.command(b, 'battle.start', { mode: 'idle', stageId: 1 });
+  assert.equal(started.status, 200);
+  assert.equal(started.result.snapshot.balanceVersion, BALANCE_VERSION);
+  const row = h.sqlite.prepare('SELECT * FROM game_accounts LIMIT 1').get();
+  const accountBefore = row.account_json;
+  const battle = JSON.parse(row.battle_json);
+
+  battle.snapshot.balanceVersion = 'outdated-version';
+  h.sqlite.prepare('UPDATE game_accounts SET battle_json = ? WHERE account_id = ?').run(JSON.stringify(battle), row.account_id);
+  h.advance(90000);
+  const outdated = await h.command(b, 'battle.finish', { battleId: started.result.battleId, actions: [] });
+  assert.equal(outdated.status, 409);
+  assert.equal(outdated.error, 'battle_version_mismatch');
+  assert.equal(h.sqlite.prepare('SELECT account_json FROM game_accounts LIMIT 1').get().account_json, accountBefore);
+
+  delete battle.snapshot.balanceVersion;
+  h.sqlite.prepare('UPDATE game_accounts SET battle_json = ? WHERE account_id = ?').run(JSON.stringify(battle), row.account_id);
+  const missing = await h.command(b, 'battle.finish', { battleId: started.result.battleId, actions: [] });
+  assert.equal(missing.status, 409);
+  assert.equal(missing.error, 'battle_version_mismatch');
+  assert.equal(h.sqlite.prepare('SELECT account_json FROM game_accounts LIMIT 1').get().account_json, accountBefore);
+
+  const replacement = await h.command(b, 'battle.start', { mode: 'idle', stageId: 1 });
+  assert.equal(replacement.status, 200);
+  assert.notEqual(replacement.result.battleId, started.result.battleId);
+  assert.equal(replacement.result.snapshot.balanceVersion, BALANCE_VERSION);
+  assert.equal((await h.command(b, 'battle.finish', { battleId: started.result.battleId, actions: [] })).error, 'battle_not_found');
 });
 
 test('simultaneous distinct claims cannot both grant the same mission', async () => {

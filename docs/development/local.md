@@ -34,6 +34,7 @@ npm run dev
 | `dist/src/gems.js`, `dist/src/gem-ui.js` | 보석 개체·보유 기본 효과·추가옵션 3개 장착·강화·재설정·페이지 |
 | `dist/src/abilities.js`, `dist/src/companion-ui.js` | 동료 특수능력·상세 성장 |
 | `dist/src/recruitment-ui.js` | 동료 모집·확률·카드 공개 연출 |
+| `dist/src/cloud-session-ui.js`, `dist/src/idle-result-ui.js` | 온라인 연결/인증 안내·일시 정지와 생산 기록 비교 표시 |
 | `dist/src/main.js` | UI·입력·전투/계정 연결 |
 | `dist/src/audio.js`, `dist/assets/music/` | 채널별 소리 설정·입력 후 재생·스테이지 곡과 CC0 라이선스 |
 | `tests/` | Node 기본 테스트 러너로 검증하는 동작 |
@@ -73,7 +74,9 @@ npm test
 npm run check
 ```
 
-`test`는 전투와 계정 동작을 검증합니다. `check`는 `main.js`, `renderer.js`, `account.js`의 문법 검사입니다. 서버 API 회귀는 실제 SQLite 트랜잭션 대역과 결정적 전투 재생을 포함합니다. Cloudflare D1·Sites 로그인·실제 UI/기기 수용 검증은 포함하지 않습니다. 저장소에는 CI 워크플로가 없으므로 CI 통과 상태를 주장하지 않습니다.
+`test`는 전투와 계정 동작을 검증합니다. `check`는 `dist/src/`, `server/`, `scripts/`, `tests/`의 모든 JS·MJS·CJS 파일을 검사하며 생성물인 `dist/server/`는 대상에 넣지 않습니다. 서버 API 회귀는 실제 SQLite 트랜잭션 대역과 결정적 전투 재생을 포함합니다. Cloudflare D1·Sites 로그인·실제 UI/기기 수용 검증은 포함하지 않습니다. `.github/workflows/check.yml`은 push·pull request 때 Node 22에서 의존성 설치 → 전체 문법 검사 → 테스트 → Worker 빌드를 실행합니다. 로컬 통과와 실제 GitHub CI 실행 결과는 구분합니다.
+
+전투 계산·밸런스 규칙 변경 시 `dist/src/data.js`의 `BALANCE_VERSION`도 갱신합니다. 이전 버전 전투 완료를 거절하는 계약은 [서버 사양](../SPEC/server-account.md#검증과-저장)을 따릅니다.
 
 문서 변경만으로 전체 제품 테스트나 새 문서 검사 도구를 추가하지 않습니다. 관련 링크·완료된 diff를 확인하고, 동작 변경에는 해당 기존 테스트부터 실행합니다.
 
