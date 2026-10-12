@@ -31,7 +31,7 @@ npm run dev
 | `dist/src/character-art.js`, `dist/src/art.js`, `dist/src/renderer.js` | 계열별 캐릭터 SVG·아이콘과 Canvas 렌더링 |
 | `dist/src/sequence-ui.js` | 순서 끼워넣기·마우스/터치 포인터 입력 |
 | `dist/src/modal-ui.js` | 종류별 모달 크기 선택과 공통 안내·확인 본문 |
-| `dist/src/gems.js`, `dist/src/gem-ui.js` | 보석 개체·종류별 계정 장착·강화·전승·페이지 |
+| `dist/src/gems.js`, `dist/src/gem-ui.js` | 보석 개체·보유 기본 효과·추가옵션 3개 장착·강화·재설정·페이지 |
 | `dist/src/abilities.js`, `dist/src/companion-ui.js` | 동료 특수능력·상세 성장 |
 | `dist/src/recruitment-ui.js` | 동료 모집·확률·카드 공개 연출 |
 | `dist/src/main.js` | UI·입력·전투/계정 연결 |

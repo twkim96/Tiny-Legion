@@ -15,8 +15,8 @@ import {
 import { createBattle, fireCannon, stepBattle, summonUnit } from "./engine.js";
 import { icon, portrait } from "./art.js";
 import { modalLayout, messagePanel } from "./modal-ui.js";
-import { drawGem, gemByUid, gemDefinition, gemUpgradeCost, gemTransferCost, gemUpgradeMaterials, upgradeGem, transferGem, equipGem, unequipGem, GEM_TYPES, GEM_BANNERS, GEM_OPTIONS } from "./gems.js";
-import { gemPage, gemDetail, gemCard, gemArt } from "./gem-ui.js";
+import { drawGem, gemByUid, gemDefinition, gemUpgradeCost, gemRerollCost, gemOptionTier, gemUpgradeMaterials, upgradeGem, rerollGem, equipGem, unequipGem, equippedGemItems, GEM_OPTION_LIMIT } from "./gems.js";
+import { gemPage, gemPicker, gemDetail, gemCard, gemRateMarkup } from "./gem-ui.js";
 import { bindSequenceDrag, moveSequenceItem } from "./sequence-ui.js";
 import { companionPanel } from "./companion-ui.js";
 import { specializationBonus } from "./combat-rules.js";
@@ -811,7 +811,7 @@ function actOnMission() {
 function openGemGuide() {
   if (!advancedContentUnlocked(account)) return;
   openModal("보석", "gem-guide", () => {
-    $("modal-content").innerHTML = messagePanel({text:"2-2의 적은 훨씬 강해요.<br>숲의 보물에서 보석을 무료로 모집하고 장착해 보세요.<br>속공에서도 보석 조각을 얻습니다.",actions:'<button class="primary-button" id="gem-guide-open">보석 보기</button>'});
+    $("modal-content").innerHTML = messagePanel({text:"2-2의 적은 훨씬 강해요.<br>보유한 보석의 기본 효과는 항상 적용되고, 추가옵션은 장착한 3개만 적용됩니다.<br>숲의 보물에서 보석을 무료로 모집해 보세요. 속공에서도 보석 조각을 얻습니다.",actions:'<button class="primary-button" id="gem-guide-open">보석 보기</button>'});
     $("gem-guide-open").onclick = openGems;
   });
 }
@@ -822,12 +822,12 @@ function openGems() {
 function renderGems() {
   $("modal-content").innerHTML = gemPage(account);
   $("modal-content").querySelectorAll("[data-gem-uid]").forEach(button => button.onclick = () => openGemDetail(button.dataset.gemUid));
-  $("modal-content").querySelectorAll("[data-gem-type-pick]").forEach(button => button.onclick = () => openGemPicker(button.dataset.gemTypePick));
+  $("modal-content").querySelectorAll("[data-gem-option-pick]").forEach(button => button.onclick = () => openGemPicker());
   if($("gem-free")) $("gem-free").onclick = () => drawResourceGem("diamonds",true);
   $("gem-draw-tickets").onclick = () => drawResourceGem("tickets");
   $("gem-draw-diamonds").onclick = () => drawResourceGem("diamonds");
   $("gem-rates").onclick = () => openModal("확률","probability",() => {
-    $("modal-content").innerHTML = `<h3>${GEM_BANNERS[0].name}</h3><div class="income-list">${GEM_BANNERS[0].types.map(type => `<div class="income-row"><strong>${gemDefinition(type).name}</strong><span>25%</span></div>`).join("")}</div><p class="settings-note">첫 무료 모집은 햇살 보석을 지급합니다. 추가옵션은 1·2·3줄이 각각 1/3 확률이며 같은 옵션이 반복될 수 있습니다. 각 줄의 종류는 같은 확률이고 범위 안 정수 %를 동일한 확률로 정합니다.</p><div class="gem-options">${GEM_OPTIONS.map(option => `<p>${option.name} ${Math.round(option.min*100)}~${Math.round(option.max*100)}%</p>`).join("")}</div><div class="modal-footer"><button class="secondary-button" id="gem-rates-back">돌아가기</button></div>`;
+    $("modal-content").innerHTML = `${gemRateMarkup()}<div class="modal-footer"><button class="secondary-button" id="gem-rates-back">돌아가기</button></div>`;
     $("gem-rates-back").onclick = () => returnModal("보석","gems",renderGems);
   });
 }
@@ -842,29 +842,51 @@ function drawResourceGem(payment,free=false) {
     });
     return;
   }
+  settleProduction();
   const item=drawGem(account,{payment,free});
   if(!item) { toast("모집 재화를 확인해 주세요."); return; }
   persist(); updateUi(); chirp("win"); openGemDetail(item.uid);
 }
-function openGemPicker(type) {
-  const definition = GEM_TYPES.find(item => item.id === type);
-  if (!definition) return;
-  openModal("보석 선택","gem-picker",() => {
-    const items = account.gemItems.filter(item => item.type === type);
-    $("modal-content").innerHTML = `<div class="gem-picker-heading">${gemArt(type)}<strong>${definition.name}</strong></div><div class="gem-grid">${items.map(item=>gemCard(item,"gem-equip",account)).join("") || '<p class="settings-note">보유한 보석이 없습니다.</p>'}</div><div class="modal-footer"><button class="secondary-button" id="gem-picker-back">보석 목록</button></div>`;
+function commitGemEquip(uid, replaceType = null, returnToDetail = false) {
+  const finish = () => {
+    toast("추가옵션을 장착했습니다. 다음 전투부터 적용됩니다.");
+    if (returnToDetail) returnModal("보석","gem-detail",()=>renderGemDetail(uid));
+    else returnModal("보석","gems",renderGems);
+  };
+  const args = replaceType === null ? { uid } : { uid, replaceType };
+  if (hostedMode) {
+    void sendCommand("gem.equip", args).then(envelope => {
+      if (!envelope) return;
+      updateUi();finish();
+    });
+    return;
+  }
+  settleProduction();
+  if (!equipGem(account,uid,replaceType)) { toast("보석을 장착할 수 없습니다."); return; }
+  persist();updateUi();finish();
+}
+function openGemPicker() {
+  openModal("추가옵션 선택","gem-picker",()=>{
+    $("modal-content").innerHTML=gemPicker(account);
     $("modal-content").querySelectorAll("[data-gem-equip]").forEach(button=>button.onclick=()=>{
-      if (hostedMode) {
-        void sendCommand("gem.equip", { uid: button.dataset.gemEquip }).then((envelope) => {
-          if (!envelope) return;
-          updateUi();
-          returnModal("보석","gems",renderGems);
-        });
-        return;
-      }
-      if(!equipGem(account,button.dataset.gemEquip)) { toast("보석을 장착할 수 없습니다."); return; }
-      persist(); updateUi(); returnModal("보석","gems",renderGems);
+      const uid=button.dataset.gemEquip,item=gemByUid(account,uid),equipped=equippedGemItems(account);
+      if (!item) return;
+      const replaceType=equipped.find(gem=>gem.type===item.type)?.type ?? null;
+      if (equipped.length>=GEM_OPTION_LIMIT && replaceType===null) { openGemReplacePicker(uid); return; }
+      commitGemEquip(uid,replaceType);
     });
     $("gem-picker-back").onclick=()=>returnModal("보석","gems",renderGems);
+  });
+}
+function openGemReplacePicker(uid, returnToDetail = false) {
+  if (!gemByUid(account,uid) || !equippedGemItems(account).length) return;
+  openModal("교체할 추가옵션","gem-picker",()=>{
+    $("modal-content").innerHTML=gemPicker(account,uid);
+    $("modal-content").querySelectorAll("[data-gem-replace-type]").forEach(button=>button.onclick=()=>commitGemEquip(uid,button.dataset.gemReplaceType,returnToDetail));
+    $("gem-picker-back").onclick=()=>{
+      if (returnToDetail) returnModal("보석","gem-detail",()=>renderGemDetail(uid));
+      else backModal() || returnModal("보석","gems",renderGems);
+    };
   });
 }
 function openGemDetail(uid) {
@@ -878,15 +900,11 @@ function renderGemDetail(uid) {
   $("gem-back").onclick=()=>returnModal("보석","gems",renderGems);
   const equipButton = $("gem-equip");
   if (equipButton) equipButton.onclick = () => {
-    if (hostedMode) {
-      void sendCommand("gem.equip", { uid }).then((envelope) => {
-        if (!envelope) return;
-        updateUi();toast("장착했습니다. 다음 전투부터 적용됩니다.");renderGemDetail(uid);
-      });
-      return;
+    const item=gemByUid(account,uid),equipped=equippedGemItems(account);
+    if (item && equipped.length>=GEM_OPTION_LIMIT && !equipped.some(gem=>gem.type===item.type)) {
+      openGemReplacePicker(uid,true);return;
     }
-    if(!equipGem(account,uid)){toast("보석을 장착할 수 없습니다.");return;}
-    persist();updateUi();toast("장착했습니다. 다음 전투부터 적용됩니다.");renderGemDetail(uid);
+    commitGemEquip(uid,null,true);
   };
   $("modal-content").querySelectorAll("[data-detail-unequip]").forEach(unequipButton => unequipButton.onclick = () => {
     const type = unequipButton.dataset.detailUnequip;
@@ -897,11 +915,12 @@ function renderGemDetail(uid) {
       });
       return;
     }
+    settleProduction();
     if(!unequipGem(account,type)) { toast("보석을 해제할 수 없습니다."); return; }
     persist();updateUi();toast("해제했습니다. 다음 전투부터 적용됩니다.");renderGemDetail(uid);
   });
   $("gem-upgrade").onclick=()=>showGemUpgrade(uid);
-  $("gem-transfer").onclick=()=>showGemTransfer(uid);
+  $("gem-reroll").onclick=()=>showGemReroll(uid);
 }
 function showGemUpgrade(uid) {
   const item=gemByUid(account,uid),cost=gemUpgradeCost(item);
@@ -936,35 +955,28 @@ function showGemUpgrade(uid) {
     };
   });
 }
-function showGemTransfer(uid) {
-  const source=gemByUid(account,uid);
-  if(!source||source.level<=1) return;
-  openModal("전승 대상", "gems",()=>{
-    $("modal-content").innerHTML=`<p class="settings-note">받는 보석의 추가옵션은 유지하고 강화 단계만 Lv. ${source.level}로 옮깁니다.</p><div class="gem-grid">${account.gemItems.filter(item=>item.uid!==uid&&item.level<source.level).map(item=>gemCard(item,"gem-target")).join("")}</div><div class="modal-footer"><button class="secondary-button" id="gem-transfer-back">취소</button></div>`;
-    $("gem-transfer-back").onclick=()=>returnModal("보석","gem-detail",()=>renderGemDetail(uid));
-    $("modal-content").querySelectorAll("[data-gem-target]").forEach(button=>button.onclick=()=>{
-      const targetUid=button.dataset.gemTarget,target=gemByUid(account,targetUid);
-      openModal("전승", "gem-transfer",()=>{
-        $("modal-content").innerHTML=messagePanel({text:`${gemDefinition(source.type).name} Lv. ${source.level} 보석은 사라집니다.<br>${gemDefinition(target.type).name}의 추가옵션을 유지하고 Lv. ${source.level}로 올립니다.<br>도토리 ${fmt(gemTransferCost(source))}개를 사용합니다.`,actions:'<button class="secondary-button" id="gem-transfer-cancel">취소</button><button class="primary-button" id="gem-transfer-confirm">전승</button>'});
-        $("gem-transfer-cancel").onclick=()=>backModal() || returnModal("보석","gem-detail",()=>renderGemDetail(uid));
-        let applied=false;
-        $("gem-transfer-confirm").onclick=()=>{
-          if(applied) return;
-          if (hostedMode) {
-            applied = true;
-            void sendCommand("gem.transfer", { sourceUid: uid, targetUid }).then((envelope) => {
-              if (!envelope) { applied = false; return; }
-              updateUi();returnModal("보석","gems",renderGems);openGemDetail(targetUid);chirp();
-            });
-            return;
-          }
-          settleProduction();
-          if(!transferGem(account,uid,targetUid)){toast("전승 대상과 도토리를 확인해 주세요.");return;}
-          applied=true;
-          persist();updateUi();returnModal("보석","gems",renderGems);openGemDetail(targetUid);chirp();
-        };
-      });
-    });
+function showGemReroll(uid) {
+  const item=gemByUid(account,uid),cost=gemRerollCost(item),tier=gemOptionTier(item);
+  if (!item || !cost || !tier) return;
+  let applied=false;
+  openModal("추가옵션 재설정", "gem-reroll",()=>{
+    const chance=Math.round(tier.promotionChance*100);
+    $("modal-content").innerHTML=messagePanel({text:`${gemDefinition(item.type).name} ${tier.name} · ${tier.lines}줄의 옵션을 새로 뽑습니다.<br>도토리 ${fmt(cost)}개를 사용하며, 다음 등급 승급 확률은 ${chance}%입니다.<br>기존 옵션은 새 결과로 바뀌고, 적용은 다음 전투부터입니다.`,actions:'<button class="secondary-button" id="gem-reroll-cancel">취소</button><button class="primary-button" id="gem-reroll-confirm">재설정</button>'});
+    $("gem-reroll-cancel").onclick=()=>returnModal("보석","gem-detail",()=>renderGemDetail(uid));
+    $("gem-reroll-confirm").onclick=()=>{
+      if (applied) return;
+      if (hostedMode) {
+        applied=true;
+        void sendCommand("gem.reroll",{uid}).then(envelope=>{
+          if (!envelope) { applied=false;return; }
+          updateUi();returnModal("보석","gem-detail",()=>renderGemDetail(uid));chirp();
+        });
+        return;
+      }
+      settleProduction();
+      if (!rerollGem(account,uid)) { toast("도토리가 부족하거나 재설정할 수 없습니다.");return; }
+      applied=true;persist();updateUi();returnModal("보석","gem-detail",()=>renderGemDetail(uid));chirp();
+    };
   });
 }
 function showReturnIncome() {

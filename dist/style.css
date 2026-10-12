@@ -3815,3 +3815,32 @@ html:fullscreen .game {
 .speedrun-list [data-speedrun-stage]:disabled { opacity: .45; }
 .speedrun-list [data-speedrun-stage] strong { display: block; font-size: 13px; }
 .speedrun-list .primary-button, .speedrun-list .secondary-button { padding: 7px 12px; min-height: 32px; font-size: 11px; }
+
+/* Gem slots and reroll tier details. */
+.gem-option-equipment, .gem-basics { margin-bottom: 18px; }
+.gem-section-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 9px; }
+.gem-section-heading h3, .gem-basics > h3 { margin: 0 0 5px; font-size: 15px; }
+.gem-section-heading h3 span { color: #71865a; font-variant-numeric: tabular-nums; }
+.gem-section-heading p { margin: 0; color: #758067; font-size: 11px; }
+.gem-option-slots { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; }
+.gem-option-slot { min-width: 0; min-height: 94px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; padding: 8px; border: 1px solid #d5dac1; border-radius: 12px; background: #fcfaef; color: inherit; text-align: center; cursor: pointer; }
+.gem-option-slot.is-filled { border-color: #819964; background: #ebefd9; }
+.gem-option-slot .gem-art { width: 30px; height: 30px; padding: 4px; background: transparent; }
+.gem-option-slot .gem-art .icon { width: 100%; height: 100%; }
+.gem-option-slot strong { font-size: 11px; }
+.gem-option-slot span:not(.gem-art) { font-size: 10px; line-height: 1.35; }
+.gem-option-slot small { color: #687858; font-size: 9px; }
+.gem-option-slot.is-empty { color: #71865a; font-size: 11px; font-weight: 700; }
+.gem-type-card.is-unowned { opacity: .72; }
+.gem-unowned-label { color: #7d8374; font-size: 10px; }
+.gem-option-tier-info { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin-top: 12px; padding: 9px 11px; border-radius: 9px; background: #f2f3e8; color: #667354; font-size: 11px; }
+.gem-option-tier-info > strong { color: #48583c; }
+.gem-option-tier-info > span { display: inline-flex; align-items: center; gap: 4px; }
+.gem-option-tier-info .icon { width: 15px; height: 15px; vertical-align: middle; }
+@media (max-width: 520px) {
+  .gem-option-slots { gap: 5px; }
+  .gem-option-slot { min-height: 82px; padding: 6px 4px; }
+  .gem-option-slot .gem-art { width: 25px; height: 25px; }
+  .gem-option-slot span:not(.gem-art) { font-size: 9px; }
+  .gem-option-tier-info { gap: 5px 10px; padding: 8px; font-size: 10px; }
+}

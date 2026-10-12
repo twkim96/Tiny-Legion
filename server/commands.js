@@ -1,5 +1,5 @@
 import * as account from '../dist/src/account.js';
-import { equipGem, unequipGem, upgradeGem, transferGem, drawGem } from '../dist/src/gems.js';
+import { equipGem, unequipGem, upgradeGem, rerollGem, drawGem } from '../dist/src/gems.js';
 import { STAGES } from '../dist/src/data.js';
 import { GameError, startBattle, finishBattle } from './battle.js';
 
@@ -24,10 +24,10 @@ export function applyCommand(a, activeBattle, type, args, now) {
     case 'unit.ability': result = required(account.upgradeUnitAbility(a, args.id, args.abilityId)); break;
     case 'unit.refund': result = required(account.refundUnitLevels(a, args.id, now)); break;
     case 'lineup.set': result = required(account.setSequence(a, args.sequence, args.mode, args.index)); break;
-    case 'gem.equip': result = required(equipGem(a, args.uid)); break;
+    case 'gem.equip': result = required(equipGem(a, args.uid, args.replaceType ?? null)); break;
     case 'gem.unequip': result = required(unequipGem(a, args.type)); break;
     case 'gem.upgrade': result = required(upgradeGem(a, args.uid, args.materialUids)); break;
-    case 'gem.transfer': result = required(transferGem(a, args.sourceUid, args.targetUid)); break;
+    case 'gem.reroll': result = required(rerollGem(a, args.uid, { random: secureRandom })); break;
     case 'speedrun.claim': result = required(account.claimSpeedrun(a, args.stageId ?? 1, now) || null); break;
     case 'idle.select':
       if (!Number.isInteger(args.stageId) || args.stageId < 1 || args.stageId > a.highestCleared + (a.highestCleared > 0 && a.highestCleared % 10 === 0 ? 1 : 0) || !STAGES.some(s => s.id === args.stageId)) throw new GameError('stage_locked');

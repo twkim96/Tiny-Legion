@@ -310,36 +310,78 @@ test('server verifies speedrun stage progression and replays reward claim receip
 });
 
 
-test('server registers all gem kinds globally and same-kind replacements cannot multiply rewards', async () => {
+test('server caps selected gem options, replaces selected types atomically and snapshots owned basics', async () => {
   const h=harness(), b=h.browser(); await h.call(b,'session/start');
   h.seed({onboarding:{phase:'complete'},earlyGuide:{phase:'complete'},highestCleared:11,
-    gemItems:['income','capacity','harvest','bounty'].map(type=>({uid:type,type,level:1,options:[]}))
-      .concat([{uid:'better',type:'income',level:4,options:[{id:'attack',value:.03}]}]),
+    gemItems:[
+      {uid:'income',type:'income',level:1,optionTier:'normal',options:[]},
+      {uid:'capacity',type:'capacity',level:1,optionTier:'normal',options:[]},
+      {uid:'harvest',type:'harvest',level:1,optionTier:'normal',options:[{id:'acorn',value:.02}]},
+      {uid:'bounty',type:'bounty',level:1,optionTier:'normal',options:[{id:'wildAttack',value:.05}]},
+      {uid:'better',type:'income',level:4,optionTier:'normal',options:[{id:'attack',value:.03}]},
+    ],
     gemEquipment:{},gold:10000});
-  for(const uid of ['income','capacity','harvest','bounty']) {
+  for(const uid of ['income','capacity','harvest']) {
     const response=await h.command(b,'gem.equip',{uid});assert.equal(response.status,200);
   }
-  const replaced=await h.command(b,'gem.equip',{uid:'better'},'register-better');
-  assert.deepEqual(replaced.account.gemEquipment,{income:'better',capacity:'capacity',harvest:'harvest',bounty:'bounty'});
-  const retry=await h.command(b,'gem.equip',{uid:'better'},'register-better');
+  const selected={income:'income',capacity:'capacity',harvest:'harvest'};
+  const storedBeforeRejections=h.sqlite.prepare('SELECT account_json FROM game_accounts LIMIT 1').get().account_json;
+  const rejected=await h.command(b,'gem.equip',{uid:'bounty'},'over-cap');
+  assert.equal(rejected.error,'action_unavailable');
+  assert.equal(h.sqlite.prepare('SELECT account_json FROM game_accounts LIMIT 1').get().account_json,storedBeforeRejections);
+  const invalidReplacement=await h.command(b,'gem.equip',{uid:'bounty',replaceType:'attack'},'invalid-replacement');
+  assert.equal(invalidReplacement.error,'action_unavailable');
+  assert.equal(h.sqlite.prepare('SELECT account_json FROM game_accounts LIMIT 1').get().account_json,storedBeforeRejections);
+  assert.deepEqual(JSON.parse(storedBeforeRejections).gemEquipment,selected);
+  const replaced=await h.command(b,'gem.equip',{uid:'better'},'replace-income');
+  assert.equal(replaced.status,200);
+  assert.deepEqual(replaced.account.gemEquipment,{income:'better',capacity:'capacity',harvest:'harvest'});
+  const retry=await h.command(b,'gem.equip',{uid:'better'},'replace-income');
   assert.deepEqual(retry.account.gemEquipment,replaced.account.gemEquipment);
+  assert.deepEqual(retry.result,replaced.result);
+  const swapped=await h.command(b,'gem.equip',{uid:'bounty',replaceType:'capacity'},'replace-capacity');
+  assert.equal(swapped.status,200);
+  assert.deepEqual(swapped.account.gemEquipment,{income:'better',harvest:'harvest',bounty:'bounty'});
+  const swappedRetry=await h.command(b,'gem.equip',{uid:'bounty',replaceType:'capacity'},'replace-capacity');
+  assert.deepEqual(swappedRetry.account.gemEquipment,swapped.account.gemEquipment);
+  assert.deepEqual(swappedRetry.result,swapped.result);
+  assert.equal((await h.command(b,'gem.equip',{uid:'capacity'})).error,'action_unavailable');
   assert.equal((await h.command(b,'gem.equip',{uid:'missing'})).error,'action_unavailable');
-  // Old clients cannot place one item into arbitrary slots or presets.
-  assert.equal((await h.command(b,'gem.equip',{uid:'income',presetIndex:9,slotIndex:2})).status,200);
   const started=await h.command(b,'battle.start',{mode:'speedrun',stageId:1});
   assert.equal(started.status,200);
-  assert.equal(started.result.options.modifiers.goldIncome,1.1);
+  assert.equal(started.result.options.modifiers.goldIncome,1.175);
   assert.equal(started.result.options.modifiers.goldCapacity,1.15);
   assert.equal(started.result.options.modifiers.killGold,1.2);
-  assert.deepEqual(started.result.snapshot.gemEquipment,{income:'income',capacity:'capacity',harvest:'harvest',bounty:'bounty'});
-  const upgraded=await h.command(b,'gem.equip',{uid:'better'});
-  assert.equal(upgraded.status,200);
+  assert.equal(started.result.options.modifiers.acorn,1.17);
+  assert.equal(started.result.options.modifiers.attack,1.03);
+  assert.equal(started.result.options.modifiers.attributeBonuses.wild.attack,.05);
+  assert.deepEqual(started.result.snapshot.gemEquipment,{income:'better',harvest:'harvest',bounty:'bounty'});
   const unequipped=await h.command(b,'gem.unequip',{type:'income'});
   assert.equal(unequipped.status,200);
-  assert.deepEqual(unequipped.account.gemEquipment,{capacity:'capacity',harvest:'harvest',bounty:'bounty'});
+  assert.deepEqual(unequipped.account.gemEquipment,{harvest:'harvest',bounty:'bounty'});
+  assert.equal(unequipped.account.gemItems.find(g=>g.uid==='better').level,4);
   assert.equal((await h.command(b,'gem.unequip',{type:'income'})).error,'action_unavailable');
   const row=h.sqlite.prepare('SELECT battle_json FROM game_accounts LIMIT 1').get();
   const active=JSON.parse(row.battle_json);
-  assert.equal(active.options.modifiers.goldIncome,1.1);
-  assert.equal(active.snapshot.gemEquipment.income,'income');
+  assert.equal(active.options.modifiers.goldIncome,1.175);
+  assert.equal(active.options.modifiers.attack,1.03);
+  assert.equal(active.snapshot.gemEquipment.income,'better');
+});
+
+test('server reroll retries return one saved gem mutation and charge once', async () => {
+  const h=harness(), b=h.browser(); await h.call(b,'session/start');
+  h.seed({onboarding:{phase:'complete'},earlyGuide:{phase:'complete'},highestCleared:11,gold:1000,
+    gemItems:[{uid:'reroll-me',type:'income',level:2,optionTier:'normal',options:[{id:'hp',value:.02}]}],gemEquipment:{}});
+  const [first,retry]=await Promise.all([
+    h.command(b,'gem.reroll',{uid:'reroll-me'},'reroll-once'),
+    h.command(b,'gem.reroll',{uid:'reroll-me'},'reroll-once'),
+  ]);
+  assert.equal(first.status,200);
+  assert.equal(retry.status,200);
+  assert.deepEqual(retry.result,first.result);
+  assert.equal(first.account.gold,900);
+  assert.equal(retry.account.gold,900);
+  assert.deepEqual(first.account.gemItems.find(g=>g.uid==='reroll-me').options,first.result.options);
+  assert.equal((await h.command(b,'gem.reroll',{uid:'missing'},'reroll-once')).error,'request_id_reused');
+  assert.equal((await h.command(b,'settle')).account.gold,900);
 });

@@ -25,7 +25,7 @@ test('return summary caps earnings once and reload does not pay them again',()=>
 });
 test('ten independent unit lineups retain account-wide gem equipment through reload',()=>{
  const a=account();
- a.gemItems=[{uid:'sun',type:'income',level:1,options:[]}]; equipGem(a,'sun');
+ a.gemItems=[{uid:'sun',type:'income',level:1,options:[]},{uid:'bounty',type:'bounty',level:2,options:[{id:'wildAttack',value:.1}]}]; equipGem(a,'sun');
  assert.ok(setSequence(a,lineup('squirrel'),'idle',1));
  assert.ok(setSequence(a,lineup('rabbit'),'challenge',1));
  assert.ok(setSequence(a,lineup('sheep'),'speedrun',9));
@@ -36,7 +36,11 @@ test('ten independent unit lineups retain account-wide gem equipment through rel
  assert.equal(sequenceForMode(b,'idle')[0],'squirrel');
  assert.equal(sequenceForMode(b,'speedrun')[0],'sheep');
  assert.deepEqual(b.gemEquipment,{income:'sun'});
- for(const mode of ['idle','challenge','speedrun']) assert.equal(gemModifiers(b,mode).goldIncome,1.1);
+ for(const mode of ['idle','challenge','speedrun']) {
+  assert.equal(gemModifiers(b,mode).goldIncome,1.1);
+  assert.equal(gemModifiers(b,mode).killGold,1.25);
+  assert.equal(gemModifiers(b,mode).attributeBonuses.wild.attack,0);
+ }
  const before=JSON.stringify(b);
  assert.equal(setSequence(b,lineup('sheep'),'idle',10),false);
  assert.equal(JSON.stringify(b),before);
@@ -62,10 +66,17 @@ test('account gem snapshots apply in all content and preserve existing battles a
   {uid:'income',type:'income',level:1,options:[{id:'attack',value:.03},{id:'attack',value:.03},{id:'wildAttack',value:.1}]},
   {uid:'capacity',type:'capacity',level:1,options:[]},
   {uid:'harvest',type:'harvest',level:10,options:[{id:'acorn',value:.03}]},
+  {uid:'bounty',type:'bounty',level:2,options:[{id:'machineAttack',value:.1}]},
  ];
  equipGem(a,'income');equipGem(a,'harvest');equipGem(a,'capacity');
  setSequence(a,lineup('sheep'),'challenge',0);
  const idleEffects=gemModifiers(a,'idle'),challengeEffects=gemModifiers(a,'challenge');
+ for(const mode of ['idle','challenge','speedrun']) {
+  assert.equal(gemModifiers(a,mode).goldIncome,1.1);
+  assert.equal(gemModifiers(a,mode).goldCapacity,1.15);
+  assert.equal(gemModifiers(a,mode).killGold,1.25);
+  assert.equal(gemModifiers(a,mode).attributeBonuses.machine.attack,0);
+ }
  const idle=createBattle({stageId:11,sequence:[],modifiers:idleEffects});
  const challenge=createBattle({stageId:11,mode:'challenge',sequence:[],modifiers:challengeEffects});
  idle._spawnSchedule=[];challenge._spawnSchedule=[];
@@ -138,18 +149,23 @@ test('gem elemental lines add real damage against a non-specialty enemy and rema
 });
 
 
-test('four distinct kinds contribute every elemental option without the former three-slot cap',()=>{
+test('all owned types contribute basics while option effects remain limited to three selected types',()=>{
  const a=account();
  const options=Array.from({length:3},()=>({id:'machineAttack',value:.1}));
  a.gemItems=['income','capacity','harvest','bounty'].map(type=>({uid:type,type,level:1,options:structuredClone(options)}));
- for(const gem of a.gemItems) equipGem(a,gem.uid);
- const modifiers=gemModifiers(a);
- assert.ok(Math.abs(modifiers.attributeBonuses.machine.attack-1.2)<1e-9);
+ for(const gem of a.gemItems.slice(0,3)) assert.equal(equipGem(a,gem.uid),true);
+ assert.equal(equipGem(a,'bounty'),false);
+ for(const mode of ['idle','challenge','speedrun']) {
+  const effects=gemModifiers(a,mode);
+  assert.ok(Math.abs(effects.attributeBonuses.machine.attack-.9)<1e-9);
+  assert.equal(effects.killGold,1.2);
+ }
+ const modifiers=gemModifiers(a,'challenge');
  const state=createBattle({mode:'challenge',sequence:[],modifiers});
  state._spawnSchedule=[{time:0,id:'beetle',x:540,overrides:{attribute:'machine',effects:{shield:false}}}];
  stepBattle(state,1/30);state.gold=1000;summonUnit(state,'squirrel');
  const player=state.units.find(u=>u.team==='player'),enemy=state.units.find(u=>u.team==='enemy');
  player.x=500;player.speed=0;enemy.x=540;enemy.speed=0;enemy.attackTimer=100;enemy.hp=enemy.maxHp=10000;
  while(enemy.hp===10000&&state.time<5)stepBattle(state,1/30);
- assert.ok(Math.abs(10000-enemy.hp-player.attack*2.2)<1e-6);
+ assert.ok(Math.abs(10000-enemy.hp-player.attack*1.9)<1e-6);
 });

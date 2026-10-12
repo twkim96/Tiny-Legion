@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { GEM_TYPES, GEM_OPTIONS, GEM_BANNERS, initialGemState, normalizeGemState, gemByUid, gemDefinition, gemOptionText, gemDescription, gemUpgradeCost, gemTransferCost, drawGem, gemUpgradeMaterials, upgradeGem, transferGem, equipGem, unequipGem, gemEffects } from '../dist/src/gems.js';
+import { GEM_TYPES, GEM_OPTIONS, GEM_BANNERS, GEM_OPTION_LIMIT, GEM_OPTION_TIERS, initialGemState, normalizeGemState, gemByUid, gemDefinition, gemOptionText, gemDescription, gemOptionTier, gemRerollCost, gemUpgradeCost, drawGem, rerollGem, ownedGemBasics, gemUpgradeMaterials, upgradeGem, equipGem, unequipGem, gemEffects } from '../dist/src/gems.js';
 const account = () => ({ ...initialGemState(), onboarding: { phase: 'complete' }, highestCleared: 11, gold: 1e7, tickets: 50, diamonds: 300, gemGuide: {} });
-const item = (uid, type = 'income', level = 1, options = []) => ({ uid, type, level, options });
+const item = (uid, type = 'income', level = 1, options = [], optionTier = undefined) => ({ uid, type, level, ...(optionTier === undefined ? {} : { optionTier }), options });
 const sequence = values => { let i = 0; return () => values[i++]; };
 const unchanged = (a, operation, expected) => { const before = structuredClone(a); assert.equal(operation(), expected); assert.deepEqual(a, before); };
 const close = (actual, expected) => assert.ok(Math.abs(actual - expected) < 1e-10, `${actual} ≠ ${expected}`);
@@ -13,13 +13,19 @@ test('fresh state is independent and definitions describe scaled legacy and new 
   assert.deepEqual(b.gemEquipment, {});
   assert.equal(GEM_TYPES.length, 7);
   assert.equal(GEM_OPTIONS.length, 10);
+  assert.equal(GEM_OPTION_LIMIT, 3);
+  assert.deepEqual(GEM_OPTION_TIERS.map(({ id, lines, cost, promotionChance }) => [id, lines, cost, promotionChance]), [
+    ['normal', 1, 100, .10], ['rare', 1, 300, .07], ['epic', 2, 1000, .04], ['unique', 3, 3000, .02], ['legendary', 3, 10000, 0],
+  ]);
   assert.deepEqual(GEM_BANNERS[0].types, ['income', 'capacity', 'harvest', 'bounty']);
   assert.equal(gemDefinition('hp').name, '온기');
   assert.equal(gemDefinition('invalid'), null);
   assert.match(gemDescription(item('x', 'attack', 10)), /32.5%/);
   assert.match(gemOptionText({ id: 'wildAttack', value: .1 }), /10%/);
   assert.deepEqual(gemUpgradeCost(item('x', 'hp', 9)), { copies: 256, gold: 24300 });
-  assert.equal(gemTransferCost(item('x', 'hp', 9)), 4500);
+  assert.equal(gemOptionTier(item('old', 'hp', 1, [{ id: 'attack', value: .01 }, { id: 'hp', value: .02 }])).id, 'epic');
+  assert.equal(gemRerollCost(item('x', 'hp', 9)), 100);
+  assert.equal(gemRerollCost({ ...item('x', 'hp'), optionTier: 'legendary' }), 10000);
 });
 
 test('legacy migration preserves owned counts and equipped effect, occurs once without random options', () => {
@@ -30,8 +36,11 @@ test('legacy migration preserves owned counts and equipped effect, occurs once w
     assert.equal(state.gemItems.filter(g => g.type === type).length + state.gemReserves[type], raw.gems[type]);
   }
   assert.ok(state.gemItems.every(g => g.level === 1 && g.options.length === 0));
+  assert.ok(state.gemItems.every(g => g.optionTier === 'normal'));
   assert.equal(gemByUid(state, state.gemEquipment.hp).type, 'hp');
   close(gemEffects(state).hp, 1.15);
+  close(gemEffects(state).attack, 1.1);
+  close(gemEffects(state).acorn, 1.15);
   assert.deepEqual(normalizeGemState({ ...raw, ...state }), state);
   assert.equal(normalizeGemState({ ...raw, gemItems: [] }).gemItems.length, 0);
   const old = account();
@@ -54,6 +63,7 @@ test('normalization repairs duplicate IDs, caps ranks and preserves repeated val
   assert.equal(new Set(state.gemItems.map(g => g.uid)).size, 5);
   assert.equal(gemByUid(state, 'gem-2').type, 'bounty');
   assert.deepEqual(state.gemItems.map(g => g.level), [8, 10, 1, 4, 3]);
+  assert.deepEqual(state.gemItems.map(g => g.optionTier), ['unique', 'normal', 'normal', 'normal', 'epic']);
   assert.deepEqual(state.gemItems[0].options, raw.gemItems[0].options.slice(0, 3));
   assert.deepEqual(state.gemItems[4].options, [{ id: 'acorn', value: .03 }, { id: 'speed', value: .01 }]);
   assert.deepEqual(state.gemEquipment, { income: 'gem-1', bounty: 'gem-2', hp: 'odd' });
@@ -65,9 +75,33 @@ test('normalization repairs duplicate IDs, caps ranks and preserves repeated val
   assert.equal(new Set(state.gemItems.map(g => g.uid)).size, 6);
 });
 
+test('normalization infers legacy tiers without rerolling and caps explicit options to tier lines', () => {
+  const raw = { gemItems: [
+    item('old-normal', 'income', 1, [{ id: 'attack', value: .02 }]),
+    item('old-epic', 'capacity', 1, [{ id: 'hp', value: .01 }, { id: 'hp', value: .03 }]),
+    item('explicit', 'harvest', 1, [{ id: 'attack', value: .01 }, { id: 'hp', value: .02 }, { id: 'speed', value: .03 }], 'rare'),
+  ] };
+  raw.gemItems[2].optionTier = 'rare';
+  const state = normalizeGemState(raw);
+  assert.deepEqual(state.gemItems.map(g => g.optionTier), ['normal', 'epic', 'rare']);
+  assert.deepEqual(state.gemItems.map(g => g.options), [raw.gemItems[0].options, raw.gemItems[1].options, [raw.gemItems[2].options[0]]]);
+  assert.deepEqual(normalizeGemState(state), state);
+});
+
+test('normalization keeps only the first three valid equipped types in GEM_TYPES order and preserves inventory', () => {
+  const types = ['income', 'capacity', 'harvest', 'bounty', 'attack'];
+  const raw = {
+    gemItems: types.map(type => item(type, type, 1, [], 'normal')),
+    gemEquipment: { attack: 'attack', bounty: 'bounty', harvest: 'harvest', capacity: 'capacity', income: 'income' },
+  };
+  const state = normalizeGemState(raw);
+  assert.deepEqual(state.gemEquipment, { income: 'income', capacity: 'capacity', harvest: 'harvest' });
+  assert.deepEqual(state.gemItems.map(g => g.uid), types);
+});
+
 test('draw RNG exceptions and invalid samples at every generation step leave all state unchanged', () => {
-  // type, line count, then three option ID/value pairs.
-  const rolls = [.2, .99, 0, 0, 0, 0, 0, 0];
+  // Nonfree draws sample type, then one option kind and value; free draws omit type.
+  const rolls = [.2, 0, 0];
   for (let i = 0; i < rolls.length; i++) {
     for (const bad of [NaN, Infinity, -1, 1, undefined, '0']) {
       const a = account(), samples = [...rolls]; samples[i] = bad;
@@ -76,28 +110,32 @@ test('draw RNG exceptions and invalid samples at every generation step leave all
     const a = account(); let n = 0;
     unchanged(a, () => drawGem(a, { random: () => { if (n++ === i) throw Error('RNG unavailable'); return rolls[n - 1]; } }), null);
   }
-  const free = account();
-  unchanged(free, () => drawGem(free, { free: true, random: sequence([.99, 0, 1]) }), null);
+  for (let i = 0; i < 2; i++) {
+    for (const bad of [NaN, Infinity, -1, 1, undefined, '0']) {
+      const a = account(), samples = [0, 0]; samples[i] = bad;
+      unchanged(a, () => drawGem(a, { free: true, random: sequence(samples) }), null);
+    }
+    const a = account(); let n = 0;
+    unchanged(a, () => drawGem(a, { free: true, random: () => { if (n++ === i) throw Error('RNG unavailable'); return 0; } }), null);
+  }
 });
 
-test('draw equal partitions, line counts, integer ranges and duplicate options, with atomic charge and no equip', () => {
+test('draw equal type partitions and one integer-range option, with atomic charge and no equip', () => {
   for (let t = 0; t < 4; t++) {
-    for (let lines = 1; lines <= 3; lines++) {
-      const a = account();
-      const drawn = drawGem(a, { payment: 'tickets', random: sequence([(t + .5) / 4, (lines - .5) / 3, ...Array.from({ length: lines }, () => [0, .999]).flat()]) });
-      assert.equal(drawn.type, GEM_BANNERS[0].types[t]);
-      assert.equal(drawn.options.length, lines);
-      assert.ok(drawn.options.every(o => o.id === 'attack' && o.value === .03));
-      assert.equal(a.tickets, 45);
-      assert.equal(a.diamonds, 300);
-      assert.equal(a.gemGuide.drawn, true);
-      assert.deepEqual(a.gemEquipment, {});
-    }
+    const a = account();
+    const drawn = drawGem(a, { payment: 'tickets', random: sequence([(t + .5) / 4, 0, .999]) });
+    assert.equal(drawn.type, GEM_BANNERS[0].types[t]);
+    assert.equal(drawn.optionTier, 'normal');
+    assert.deepEqual(drawn.options, [{ id: 'attack', value: .03 }]);
+    assert.equal(a.tickets, 45);
+    assert.equal(a.diamonds, 300);
+    assert.equal(a.gemGuide.drawn, true);
+    assert.deepEqual(a.gemEquipment, {});
   }
   for (let i = 0; i < GEM_OPTIONS.length; i++) {
     for (const amount of [0, .999]) {
       const a = account();
-      const drawn = drawGem(a, { random: sequence([0, 0, (i + .5) / GEM_OPTIONS.length, amount]) });
+      const drawn = drawGem(a, { random: sequence([0, (i + .5) / GEM_OPTIONS.length, amount]) });
       assert.deepEqual(drawn.options[0], { id: GEM_OPTIONS[i].id, value: amount === 0 ? GEM_OPTIONS[i].min : GEM_OPTIONS[i].max });
       assert.equal(a.diamonds, 270);
     }
@@ -110,12 +148,14 @@ test('all operations require onboarding and 2-1 completion; free welcome is inco
     a.gemItems = [item('s', 'attack', 3), item('t', 'attack'), item('m', 'attack')];
     unchanged(a, () => drawGem(a, { free: true }), null);
     unchanged(a, () => upgradeGem(a, 't', ['m']), false);
-    unchanged(a, () => transferGem(a, 's', 't'), false);
+    unchanged(a, () => rerollGem(a, 't'), null);
     unchanged(a, () => equipGem(a, 't'), false);
   }
   const a = account(); a.diamonds = 0; a.tickets = 0;
   const free = drawGem(a, { free: true, random: () => 0 });
   assert.equal(free.type, 'income');
+  assert.equal(free.optionTier, 'normal');
+  assert.equal(free.options.length, 1);
   assert.equal(a.diamonds, 0);
   assert.equal(a.tickets, 0);
   assert.equal(a.gemWelcomeClaimed, true);
@@ -123,6 +163,66 @@ test('all operations require onboarding and 2-1 completion; free welcome is inco
   unchanged(a, () => drawGem(a), null);
   unchanged(a, () => drawGem(a, { free: true, banner: 'bad' }), null);
   unchanged(a, () => drawGem(a, { payment: 'gold' }), null);
+});
+
+test('reroll definitions promote one tier at a time and generate the resulting tier line count', () => {
+  for (let i = 0; i < GEM_OPTION_TIERS.length; i++) {
+    const tier = GEM_OPTION_TIERS[i], a = account();
+    const gem = item('g', 'income', 4, Array.from({ length: tier.lines }, () => ({ id: 'hp', value: .02 })), tier.id);
+    a.gemItems = [gem];
+    const initialGold = a.gold;
+    let rolls = 0;
+    const rerolled = rerollGem(a, 'g', { random: () => { rolls++; return 0; } });
+    const expectedTier = GEM_OPTION_TIERS[Math.min(i + 1, GEM_OPTION_TIERS.length - 1)];
+    assert.equal(rerolled.uid, 'g');
+    assert.equal(rerolled.level, 4);
+    assert.equal(rerolled.optionTier, expectedTier.id);
+    assert.equal(rerolled.options.length, expectedTier.lines);
+    assert.ok(rerolled.options.every(option => option.id === 'attack' && option.value === .01));
+    assert.equal(a.gold, initialGold - tier.cost);
+    assert.equal(rolls, (tier.id === 'legendary' ? 0 : 1) + expectedTier.lines * 2);
+  }
+});
+
+test('reroll failures for locked, missing, unaffordable or invalid RNG leave state and payment unchanged', () => {
+  const a = account(), gem = item('g', 'income', 2, [{ id: 'hp', value: .02 }, { id: 'attack', value: .01 }], 'epic');
+  a.gemItems = [gem];
+  let calls = 0;
+  const locked = structuredClone(a); locked.onboarding.phase = 'intro';
+  unchanged(locked, () => rerollGem(locked, 'g', { random: () => { calls++; return 0; } }), null);
+  assert.equal(calls, 0);
+  unchanged(a, () => rerollGem(a, 'missing', { random: () => { calls++; return 0; } }), null);
+  assert.equal(calls, 0);
+  a.gold = 999;
+  unchanged(a, () => rerollGem(a, 'g', { random: () => { calls++; return 0; } }), null);
+  assert.equal(calls, 0);
+  a.gold = 1000;
+  const rolls = [.5, 0, 0, 0, 0];
+  for (let i = 0; i < rolls.length; i++) {
+    for (const bad of [NaN, Infinity, -1, 1, undefined, '0']) {
+      const before = structuredClone(a), samples = [...rolls]; samples[i] = bad;
+      assert.equal(rerollGem(a, 'g', { random: sequence(samples) }), null);
+      assert.deepEqual(a, before);
+    }
+    const before = structuredClone(a); let n = 0;
+    assert.equal(rerollGem(a, 'g', { random: () => { if (n++ === i) throw Error('RNG unavailable'); return rolls[n - 1]; } }), null);
+    assert.deepEqual(a, before);
+  }
+});
+
+test('reroll of a legendary stays legendary and keeps its three-line tier', () => {
+  const a = account(); a.gemItems = [item('legend', 'hp', 1, [{ id: 'attack', value: .01 }], 'legendary')];
+  const result = rerollGem(a, 'legend', { random: sequence([0, .5, 0, .5, 0, .5]) });
+  assert.equal(result.optionTier, 'legendary');
+  assert.equal(result.options.length, 3);
+  assert.equal(a.gold, 1e7 - 10000);
+});
+
+test('reroll promotion threshold is exclusive and a failed promotion never downgrades', () => {
+  const a = account(); a.gemItems = [item('normal', 'income', 1, [{ id: 'hp', value: .02 }], 'normal')];
+  const result = rerollGem(a, 'normal', { random: sequence([.10, 0, 0]) });
+  assert.equal(result.optionTier, 'normal');
+  assert.equal(result.options.length, 1);
 });
 
 test('upgrade consumes exact explicit candidates plus reserve gap, preserves options and unrelated items', () => {
@@ -161,64 +261,74 @@ test('reserve-only, instance-only, excessive materials, insufficient acorns and 
   unchanged(a, () => upgradeGem(a, 't', ['extra']), false);
 });
 
-test('transfer replaces destination rank across types, preserves its options, clears all source references once', () => {
-  const a = account(), targetOptions = [{ id: 'acorn', value: .03 }];
-  a.gemItems = [item('s', 'attack', 8, [{ id: 'attack', value: .03 }]), item('t', 'harvest', 2, targetOptions)];
-  equipGem(a, 's'); equipGem(a, 't');
-  assert.equal(transferGem(a, 's', 't'), true);
-  assert.equal(gemByUid(a, 's'), null);
-  assert.equal(gemByUid(a, 't').level, 8);
-  assert.deepEqual(gemByUid(a, 't').options, targetOptions);
-  assert.equal(a.gold, 1e7 - 4000);
-  assert.deepEqual(a.gemEquipment, { harvest: 't' });
-  unchanged(a, () => transferGem(a, 's', 't'), false);
-  unchanged(a, () => transferGem(a, 't', 't'), false);
+test('upgrade material consumption keeps the strongest owned basic effect and increases it with target level', () => {
+  const a = account(); a.gemItems = [item('target', 'income'), item('material', 'income')];
+  close(gemEffects(a).goldIncome, 1.1);
+  assert.equal(upgradeGem(a, 'target', ['material']), true);
+  assert.equal(gemByUid(a, 'material'), null);
+  assert.equal(gemByUid(a, 'target').level, 2);
+  assert.deepEqual(ownedGemBasics(a).map(g => g.uid), ['target']);
+  close(gemEffects(a).goldIncome, 1.125);
 });
 
-test('transfer rejects missing, equal/lower/rank-one sources and insufficient payment without changes', () => {
-  for (const [s, t, gold] of [[1, 1, 1000], [2, 2, 1000], [2, 3, 1000], [3, 1, 1499]]) {
-    const a = account(); a.gemItems = [item('s', 'income', s), item('t', 'hp', t)]; a.gold = gold;
-    unchanged(a, () => transferGem(a, 's', 't'), false);
-    unchanged(a, () => transferGem(a, 'missing', 't'), false);
-    unchanged(a, () => transferGem(a, 's', 'missing'), false);
-  }
-});
-
-test('equipment has no three-gem cap, replaces only the same kind and unregisters one kind', () => {
+test('equipment selects at most three option sets, supports atomic replacement and unregisters one type', () => {
   const a = account();
   a.gemItems = GEM_TYPES.map(def => item(def.id, def.id));
-  for (const gem of a.gemItems) assert.equal(equipGem(a, gem.uid), true);
-  assert.equal(Object.keys(a.gemEquipment).length, GEM_TYPES.length);
+  for (const gem of a.gemItems.slice(0, GEM_OPTION_LIMIT)) assert.equal(equipGem(a, gem.uid), true);
+  const selected = structuredClone(a.gemEquipment);
+  assert.equal(Object.keys(a.gemEquipment).length, GEM_OPTION_LIMIT);
   assert.equal(a.gemGuide.equipped, true);
-  const others = {...a.gemEquipment};
+  unchanged(a, () => equipGem(a, 'bounty'), false);
+  unchanged(a, () => equipGem(a, 'bounty', 'attack'), false);
+  assert.deepEqual(a.gemEquipment, selected);
   a.gemItems.push(item('better', 'income', 3));
   assert.equal(equipGem(a, 'better'), true);
-  assert.deepEqual(a.gemEquipment, {...others, income: 'better'});
+  assert.deepEqual(a.gemEquipment, {...selected, income: 'better'});
   assert.ok(gemByUid(a, 'income'));
+  assert.equal(equipGem(a, 'bounty', 'capacity'), true);
+  assert.deepEqual(a.gemEquipment, { income: 'better', harvest: 'harvest', bounty: 'bounty' });
+  assert.equal(Object.keys(a.gemEquipment).length, GEM_OPTION_LIMIT);
+  unchanged(a, () => equipGem(a, 'gold', 'attack'), false);
+  assert.equal(equipGem(a, 'gold', 'bounty'), true);
+  assert.deepEqual(a.gemEquipment, { income: 'better', harvest: 'harvest', gold: 'gold' });
   for (const uid of ['missing', undefined, null, 0]) unchanged(a, () => equipGem(a, uid), false);
   assert.equal(unequipGem(a, 'income'), true);
   assert.equal(a.gemEquipment.income, undefined);
   unchanged(a, () => unequipGem(a, 'income'), false);
   unchanged(a, () => unequipGem(a, 'missing'), false);
-  assert.equal(Object.keys(a.gemEquipment).length, GEM_TYPES.length - 1);
+  assert.equal(Object.keys(a.gemEquipment).length, GEM_OPTION_LIMIT - 1);
 });
 
-test('all equipped kinds and repeated options sum into a detached account-wide snapshot', () => {
+test('strongest owned basics always apply while only selected gem options sum into a detached snapshot', () => {
   const a = account();
   a.gemItems = [
-    item('a', 'income', 5, [{ id: 'attack', value: .03 }, { id: 'attack', value: .03 }, { id: 'goldIncome', value: .02 }]),
-    item('b', 'bounty', 1, [{ id: 'wildAttack', value: .1 }, { id: 'wildAttack', value: .1 }, { id: 'wildDefense', value: .05 }]),
-    item('c', 'harvest', 10, [{ id: 'acorn', value: .03 }, { id: 'speed', value: .02 }, { id: 'hp', value: .01 }]),
+    item('income-low', 'income', 1, [{ id: 'attack', value: .03 }, { id: 'goldIncome', value: .02 }]),
+    item('income-best', 'income', 5, [{ id: 'wildAttack', value: .1 }]),
+    item('capacity', 'capacity', 3),
+    item('bounty', 'bounty', 4, [{ id: 'machineAttack', value: .1 }]),
+    item('harvest', 'harvest', 2, [{ id: 'acorn', value: .03 }, { id: 'speed', value: .02 }]),
+    item('attack', 'attack', 2), item('hp', 'hp', 4), item('gold', 'gold', 7),
   ];
-  a.gemEquipment = { income: 'a', bounty: 'b', harvest: 'c' };
+  a.gemEquipment = { income: 'income-low', capacity: 'capacity', harvest: 'harvest' };
+  assert.deepEqual(ownedGemBasics(a).map(g => g.uid), ['income-best', 'capacity', 'harvest', 'bounty', 'attack', 'hp', 'gold']);
   const effects = gemEffects(a);
-  close(effects.goldIncome, 1.22); close(effects.attack, 1.06); close(effects.hp, 1.01);
-  close(effects.acorn, 1 + .15 * 3.25 + .03); close(effects.speed, 1.02);
-  close(effects.attributeBonuses.wild.attack, .2); close(effects.attributeBonuses.wild.effectiveHp, .05);
+  close(effects.goldIncome, 1.22); close(effects.attack, 1.155); close(effects.hp, 1.2625);
+  close(effects.goldCapacity, 1.225); close(effects.killGold, 1.35);
+  close(effects.acorn, 1.5925); close(effects.speed, 1.02);
+  assert.deepEqual(effects.attributeBonuses.wild, { attack: 0, effectiveHp: 0 });
   assert.deepEqual(effects.attributeBonuses.machine, { attack: 0, effectiveHp: 0 });
-  a.gemItems[0].level = 1; a.gemItems[1].options[0].value = .05;
-  close(effects.goldIncome, 1.22); close(effects.attributeBonuses.wild.attack, .2);
-  assert.deepEqual(gemEffects({...a, gemEquipment:{}}), gemEffects(initialGemState()));
+  a.gemItems[0].options[0].value = .01;
+  close(effects.attack, 1.155);
+  const basicsWithoutEquipment = gemEffects({...a, gemEquipment:{}});
+  close(basicsWithoutEquipment.goldIncome, 1.2);
+  close(basicsWithoutEquipment.attack, 1.125);
+  close(basicsWithoutEquipment.acorn, 1.5625);
+  close(basicsWithoutEquipment.speed, 1);
+  assert.deepEqual(basicsWithoutEquipment.attributeBonuses.machine, { attack: 0, effectiveHp: 0 });
+  assert.equal(unequipGem(a, 'income'), true);
+  close(gemEffects(a).goldIncome, 1.2);
+  close(gemEffects(a).attack, 1.125);
+  assert.equal(gemEffects(a).goldIncome, gemEffects({...a, gemEquipment:{}}).goldIncome);
   for (const [type, effect, base] of [['capacity', 'goldCapacity', .15], ['bounty', 'killGold', .2], ['attack', 'attack', .1], ['hp', 'hp', .15], ['gold', 'acorn', .15]]) {
     a.gemItems = [item('x', type, 2)]; a.gemEquipment = { [type]: 'x' };
     close(gemEffects(a)[effect], 1 + base * 1.25);
@@ -243,16 +353,18 @@ test('imported unsafe IDs cannot become executable attribute text or steal refer
 test('old test presets do not keep live mode-specific equipment or migrate inventory',()=>{
  const raw={gemItems:[item('a'),item('b','capacity',4)],gemPresets:[['a','b',null]]};
  const state=normalizeGemState(raw);
- assert.deepEqual(state.gemItems,raw.gemItems);
+ assert.deepEqual(state.gemItems,raw.gemItems.map(g=>({...g,optionTier:'normal'})));
  assert.deepEqual(state.gemEquipment,{});
  assert.equal('gemPresets' in state,false);
 });
 
-test('same-kind transfer clears source equipment without implicitly registering the target',()=>{
- const a=account(); a.gemItems=[item('s','income',4),item('t','income',1)];
- equipGem(a,'s'); assert.equal(transferGem(a,'s','t'),true);
- assert.deepEqual(a.gemEquipment,{});
- assert.equal(gemEffects(a).goldIncome,1);
- assert.equal(equipGem(a,'t'),true);
- close(gemEffects(a).goldIncome,1.175);
+test('unequipping removes only selected options while the strongest owned basic effect remains',()=>{
+ const a=account(); a.gemItems=[item('low','income',2,[{id:'attack',value:.03}]),item('best','income',6,[{id:'hp',value:.02}])];
+ equipGem(a,'low');
+ close(gemEffects(a).goldIncome,1.225);
+ close(gemEffects(a).attack,1.03);
+ assert.equal(unequipGem(a,'income'),true);
+ close(gemEffects(a).goldIncome,1.225);
+ close(gemEffects(a).attack,1);
+ close(gemEffects(a).hp,1);
 });

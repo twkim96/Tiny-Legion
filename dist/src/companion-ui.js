@@ -2,7 +2,7 @@ import { getUnit, ATTRIBUTES, ROLE_SPECIALIZATION } from "./characters.js";
 import { companionStats, levelCost, growthUnlocked, ownsUnit, effectiveUnitLevel, sharedLevel, unitLevelRefund } from "./account.js";
 import { unitAbilities, normalizeAbilities, abilityCost, abilityText, markTypeFor, markName } from "./abilities.js";
 import { specializationBonus } from "./combat-rules.js";
-import { gemByUid, gemDefinition, gemDescription, gemOptionText } from "./gems.js";
+import { equippedGemItems, gemDefinition, gemDescription, gemOptionText, ownedGemBasics } from "./gems.js";
 import { portrait, icon } from "./art.js";
 import { rarityBadge } from "./recruitment-ui.js";
 import { STAT_NAMES } from "./effects.js";
@@ -40,7 +40,8 @@ export function companionPanel(account, id, nativeEffects = [], mode = "idle") {
   const effects = [
     ...appliedAbilityLines(unit, ranks),
     ...(account.special[id] ? [`이전 특별강화 +${account.special[id]}레벨`] : []),
-    ...(Object.values(account.gemEquipment ?? {}).map(uid=>gemByUid(account,uid)).filter(Boolean).map(item=>`${gemDefinition(item.type).name} Lv. ${item.level} · ${gemDescription(item)}${item.options.length ? " · "+item.options.map(gemOptionText).join(" · ") : ""}`)),
+    ...ownedGemBasics(account).map(item=>`${gemDefinition(item.type).name} Lv. ${item.level} · ${gemDescription(item)} · 보유 기본 효과`),
+    ...equippedGemItems(account).flatMap(item=>item.options.map(option=>`${gemDefinition(item.type).name} · 추가옵션 ${gemOptionText(option)}`)),
   ];
   const pairs = [[STAT_NAMES.hp, stats.hp], [STAT_NAMES.attack, stats.attack], ["초당 공격력", stats.attack / stats.attackInterval],
     [STAT_NAMES.range, stats.range], [STAT_NAMES.speed, stats.speed], [STAT_NAMES.attackInterval, `${fmt(stats.attackInterval)}초`],

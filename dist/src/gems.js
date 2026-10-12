@@ -23,6 +23,31 @@ export const GEM_OPTIONS = [
   { id: 'goldIncome', name: '초당 전투 골드', min: .01, max: .03 },
   { id: 'acorn', name: '방치 도토리 수익', min: .01, max: .03 },
 ];
+export const GEM_OPTION_LIMIT = 3;
+export const GEM_OPTION_TIERS = [
+  { id: 'normal', name: '일반', lines: 1, cost: 100, promotionChance: .10 },
+  { id: 'rare', name: '레어', lines: 1, cost: 300, promotionChance: .07 },
+  { id: 'epic', name: '에픽', lines: 2, cost: 1000, promotionChance: .04 },
+  { id: 'unique', name: '유니크', lines: 3, cost: 3000, promotionChance: .02 },
+  { id: 'legendary', name: '레전더리', lines: 3, cost: 10000, promotionChance: 0 },
+];
+export function gemOptionTier(item) {
+  return GEM_OPTION_TIERS.find(t => t.id === item?.optionTier)
+    ?? GEM_OPTION_TIERS[item?.options?.length >= 3 ? 3 : item?.options?.length === 2 ? 2 : 0];
+}
+export const gemRerollCost = item => gemDefinition(item?.type) && rank(item?.level) ? gemOptionTier(item).cost : null;
+function checkedRoll(random) {
+  const value = random();
+  if (!Number.isFinite(value) || value < 0 || value >= 1) throw new RangeError('Invalid gem RNG');
+  return value;
+}
+function rollOptions(lines, random) {
+  return Array.from({ length: lines }, () => {
+    const def = GEM_OPTIONS[Math.floor(checkedRoll(random) * GEM_OPTIONS.length)];
+    const min = Math.round(def.min * 100), max = Math.round(def.max * 100);
+    return { id: def.id, value: (min + Math.floor(checkedRoll(random) * (max - min + 1))) / 100 };
+  });
+}
 const legacyTypes = ['attack', 'hp', 'gold'];
 const safeUid = uid => typeof uid === 'string' && /^[A-Za-z0-9_-]{1,80}$/.test(uid);
 const rank = level => Number.isInteger(level) && level >= 1 && level <= 10;
@@ -68,14 +93,15 @@ export function normalizeGemState(raw) {
       options.push({ id: def.id, value: Math.max(def.min, Math.min(def.max, Math.round(option.value * 100) / 100)) });
       if (options.length === 3) break;
     }
-    state.gemItems.push({ uid, type: item.type, level, options });
+    const tier = gemOptionTier({ ...item, options });
+    state.gemItems.push({ uid, type: item.type, level, optionTier: tier.id, options: options.slice(0, tier.lines) });
   }
   for (const type of legacyTypes) state.gemReserves[type] = count(Number(raw.gemReserves?.[type]));
-  // Equipment is keyed by type: each kind contributes at most one instance.
+  // Equipment selects additional options only, once per kind and up to the limit.
   for (const def of GEM_TYPES) {
     const uid = raw.gemEquipment?.[def.id];
     const item = gemByUid(state, uid);
-    if (originalIds.has(uid) && item?.type === def.id) state.gemEquipment[def.id] = uid;
+    if (Object.keys(state.gemEquipment).length < GEM_OPTION_LIMIT && originalIds.has(uid) && item?.type === def.id) state.gemEquipment[def.id] = uid;
   }
   state.nextGemUid = nextUid(state.gemItems, state.nextGemUid).next - 1;
   return state;
@@ -91,7 +117,6 @@ export function gemDescription(item) {
 export function gemUpgradeCost(item) {
   return rank(item?.level) && item.level < 10 ? { copies: 2 ** (item.level - 1), gold: 300 * item.level ** 2 } : null;
 }
-export const gemTransferCost = source => rank(source?.level) ? 500 * source.level : null;
 export function drawGem(a, { payment = 'diamonds', free = false, random = Math.random, banner = 'treasure' } = {}) {
   const pool = GEM_BANNERS.find(b => b.id === banner);
   if (!unlocked(a) || !pool || !Array.isArray(a.gemItems) || !['tickets', 'diamonds'].includes(payment)) return null;
@@ -99,21 +124,10 @@ export function drawGem(a, { payment = 'diamonds', free = false, random = Math.r
   if (free ? a.gemWelcomeClaimed : !affordable(a, payment, cost)) return null;
   let item, allocation;
   try {
-    const roll = () => {
-      const value = random();
-      if (!Number.isFinite(value) || value < 0 || value >= 1) throw new RangeError('Invalid gem RNG');
-      return value;
-    };
-    const type = free ? 'income' : pool.types[Math.floor(roll() * pool.types.length)];
-    const options = [];
-    const lines = 1 + Math.floor(roll() * 3);
-    for (let i = 0; i < lines; i++) {
-      const def = GEM_OPTIONS[Math.floor(roll() * GEM_OPTIONS.length)];
-      const min = Math.round(def.min * 100), max = Math.round(def.max * 100);
-      options.push({ id: def.id, value: (min + Math.floor(roll() * (max - min + 1))) / 100 });
-    }
+    const type = free ? 'income' : pool.types[Math.floor(checkedRoll(random) * pool.types.length)];
+    const options = rollOptions(1, random);
     allocation = nextUid(a.gemItems, a.nextGemUid);
-    item = { uid: allocation.uid, type, level: 1, options };
+    item = { uid: allocation.uid, type, level: 1, optionTier: 'normal', options };
   } catch { return null; }
   a.gemItems.push(item);
   a.nextGemUid = allocation.next;
@@ -144,19 +158,41 @@ export function upgradeGem(a, uid, materialUids = []) {
   target.level++;
   return true;
 }
-export function transferGem(a, sourceUid, targetUid) {
-  const source = gemByUid(a, sourceUid), target = gemByUid(a, targetUid);
-  if (!unlocked(a) || !source || !target || sourceUid === targetUid || !rank(source.level) || !rank(target.level) || source.level < 2 || source.level <= target.level || !affordable(a, 'gold', gemTransferCost(source))) return false;
-  a.gold -= gemTransferCost(source);
-  target.level = source.level;
-  a.gemItems = a.gemItems.filter(g => g.uid !== sourceUid);
-  if (a.gemEquipment?.[source.type] === sourceUid) delete a.gemEquipment[source.type];
-  return true;
+export function rerollGem(a, uid, { random = Math.random } = {}) {
+  const item = gemByUid(a, uid), cost = gemRerollCost(item);
+  if (!unlocked(a) || !item || !cost || !affordable(a, 'gold', cost)) return null;
+  let tier = gemOptionTier(item), options;
+  try {
+    if (tier.promotionChance && checkedRoll(random) < tier.promotionChance) {
+      tier = GEM_OPTION_TIERS[GEM_OPTION_TIERS.indexOf(tier) + 1];
+    }
+    options = rollOptions(tier.lines, random);
+  } catch { return null; }
+  a.gold -= cost;
+  item.optionTier = tier.id;
+  item.options = options;
+  return item;
 }
-export function equipGem(a, uid) {
+export function equippedGemItems(a) {
+  return GEM_TYPES.map(def => {
+    const item = gemByUid(a, a?.gemEquipment?.[def.id]);
+    return item?.type === def.id && rank(item.level) ? item : null;
+  }).filter(Boolean).slice(0, GEM_OPTION_LIMIT);
+}
+export function ownedGemBasics(a) {
+  return GEM_TYPES.map(def => (a?.gemItems ?? []).filter(item => item.type === def.id && rank(item.level))
+    .reduce((best, item) => !best || item.level > best.level ? item : best, null)).filter(Boolean);
+}
+export function equipGem(a, uid, replaceType = null) {
   const item = gemByUid(a, uid);
   if (!unlocked(a) || !item || !gemDefinition(item.type) || !rank(item.level) || !a.gemEquipment) return false;
-  a.gemEquipment[item.type] = uid;
+  const equipped = equippedGemItems(a);
+  if (replaceType !== null && !equipped.some(g => g.type === replaceType)) return false;
+  const next = Object.fromEntries(equipped.map(g => [g.type, g.uid]));
+  if (replaceType !== null && replaceType !== item.type) delete next[replaceType];
+  if (!next[item.type] && Object.keys(next).length >= GEM_OPTION_LIMIT) return false;
+  next[item.type] = uid;
+  a.gemEquipment = next;
   if (a.gemGuide && typeof a.gemGuide === 'object') a.gemGuide.equipped = true;
   return true;
 }
@@ -167,11 +203,12 @@ export function unequipGem(a, type) {
 }
 export function gemEffects(a) {
   const effects = { attack: 1, hp: 1, speed: 1, goldIncome: 1, goldCapacity: 1, killGold: 1, acorn: 1, attributeBonuses: Object.fromEntries(['wild', 'machine', 'spirit', 'shadow'].map(id => [id, { attack: 0, effectiveHp: 0 }])) };
-  for (const def of GEM_TYPES) {
-    const item = gemByUid(a, a?.gemEquipment?.[def.id]);
-    if (item?.type !== def.id || !rank(item.level)) continue;
+  for (const item of ownedGemBasics(a)) {
+    const def = gemDefinition(item.type);
     effects[def.effect] += def.base * (1 + .25 * (item.level - 1));
-    for (const option of item.options ?? []) {
+  }
+  for (const item of equippedGemItems(a)) {
+    for (const option of (item.options ?? []).slice(0, gemOptionTier(item).lines)) {
       const optionDef = GEM_OPTIONS.find(d => d.id === option?.id);
       if (!optionDef || !Number.isFinite(option.value) || option.value < optionDef.min || option.value > optionDef.max) continue;
       if (option.id.endsWith('Attack')) effects.attributeBonuses[option.id.slice(0, -6)].attack += option.value;
