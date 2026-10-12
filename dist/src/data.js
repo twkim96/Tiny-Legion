@@ -1,7 +1,7 @@
 import { UNITS, getEnemy } from "./characters.js";
 export { UNITS, ENEMIES, ATTRIBUTES, NEUTRAL_ATTRIBUTE, ROLE_SPECIALIZATION, ATTRIBUTE_BONUS_CAP, SHIELD_BONUS_CAP, stageLabel } from "./characters.js";
 // Initial tuning, subject to play acceptance. Permanent equipment/specialty bonuses add.
-export const BALANCE_VERSION = "early-tempo-13";
+export const BALANCE_VERSION = "castle-entry-14";
 export const RARITIES = [
   { id: "common", name: "일반", color: "#7b8974", rate: 0.6 },
   { id: "rare", name: "희귀", color: "#6094a4", rate: 0.28 },
@@ -29,39 +29,39 @@ export const STAGES = [
     waves: [
       {
         time: 0.6,
-        enemies: [{ id: "beetle", count: 2, interval: 1.3, x: 1080 }],
+        enemies: [{ id: "beetle", count: 2, interval: 1.3 }],
       },
       {
         time: 13,
-        enemies: [{ id: "mushroom", count: 2, interval: 1.5, x: 890 }],
+        enemies: [{ id: "mushroom", count: 2, interval: 1.5 }],
       },
       {
         time: 27,
         enemies: [
-          { id: "boar", count: 1, x: 920 },
-          { id: "beetle", count: 2, interval: 1.2, x: 990 },
+          { id: "boar", count: 1 },
+          { id: "beetle", count: 2, interval: 1.2 },
         ],
       },
       {
         time: 45,
         enemies: [
-          { id: "mushroom", count: 3, interval: 1.6, x: 910 },
-          { id: "beetle", count: 2, interval: 1.2, x: 1010 },
+          { id: "mushroom", count: 3, interval: 1.6 },
+          { id: "beetle", count: 2, interval: 1.2 },
         ],
       },
-      { time: 64, enemies: [{ id: "boar", count: 2, interval: 2, x: 960 }] },
+      { time: 64, enemies: [{ id: "boar", count: 2, interval: 2 }] },
       {
         time: 82,
         enemies: [
-          { id: "mushroom", count: 4, interval: 1.5, x: 920 },
-          { id: "beetle", count: 3, interval: 1.1, x: 1010 },
+          { id: "mushroom", count: 4, interval: 1.5 },
+          { id: "beetle", count: 3, interval: 1.1 },
         ],
       },
       {
         time: 102,
         enemies: [
-          { id: "boar", count: 2, interval: 2, x: 960 },
-          { id: "mushroom", count: 3, interval: 1.4, x: 1030 },
+          { id: "boar", count: 2, interval: 2 },
+          { id: "mushroom", count: 3, interval: 1.4 },
         ],
       },
     ],
@@ -74,32 +74,32 @@ export const STAGES = [
     enemyHp: 2200,
     enemyAttack: 1.05,
     waves: [
-      { time: 1, enemies: [{ id: "beetle", count: 3, interval: 1.2, x: 1080 }] },
+      { time: 1, enemies: [{ id: "beetle", count: 3, interval: 1.2 }] },
       {
         time: 17,
-        enemies: [{ id: "mushroom", count: 4, interval: 1.3, x: 930 }],
+        enemies: [{ id: "mushroom", count: 4, interval: 1.3 }],
       },
       {
         time: 38,
         enemies: [
-          { id: "boar", count: 2, interval: 2, x: 970 },
-          { id: "beetle", count: 3, interval: 1.1, x: 1020 },
+          { id: "boar", count: 2, interval: 2 },
+          { id: "beetle", count: 3, interval: 1.1 },
         ],
       },
       {
         time: 63,
-        enemies: [{ id: "mushroom", count: 5, interval: 1.3, x: 940 }],
+        enemies: [{ id: "mushroom", count: 5, interval: 1.3 }],
       },
       {
         time: 88,
         enemies: [
-          { id: "boar", count: 3, interval: 1.8, x: 990 },
-          { id: "mushroom", count: 3, interval: 1.5, x: 1040 },
+          { id: "boar", count: 3, interval: 1.8 },
+          { id: "mushroom", count: 3, interval: 1.5 },
         ],
       },
       {
         time: 108,
-        enemies: [{ id: "beetle", count: 5, interval: 1, x: 1000 }],
+        enemies: [{ id: "beetle", count: 5, interval: 1 }],
       },
     ],
   },
@@ -111,26 +111,26 @@ export const STAGES = [
     enemyHp: 2450,
     enemyAttack: 1.1,
     waves: [
-      { time: 1, enemies: [{ id: "beetle", count: 3, interval: 1, x: 1080 }] },
-      { time: 18, enemies: [{ id: "boar", count: 2, interval: 1.8, x: 950 }] },
+      { time: 1, enemies: [{ id: "beetle", count: 3, interval: 1 }] },
+      { time: 18, enemies: [{ id: "boar", count: 2, interval: 1.8 }] },
       {
         time: 38,
         enemies: [
-          { id: "mushroom", count: 4, interval: 1.3, x: 920 },
-          { id: "beetle", count: 3, interval: 1, x: 1030 },
+          { id: "mushroom", count: 4, interval: 1.3 },
+          { id: "beetle", count: 3, interval: 1 },
         ],
       },
-      { time: 62, enemies: [{ id: "boar", count: 3, interval: 1.7, x: 980 }] },
+      { time: 62, enemies: [{ id: "boar", count: 3, interval: 1.7 }] },
       {
         time: 86,
         enemies: [
-          { id: "mushroom", count: 5, interval: 1.2, x: 940 },
-          { id: "boar", count: 2, interval: 1.8, x: 1030 },
+          { id: "mushroom", count: 5, interval: 1.2 },
+          { id: "boar", count: 2, interval: 1.8 },
         ],
       },
       {
         time: 107,
-        enemies: [{ id: "beetle", count: 6, interval: 0.9, x: 990 }],
+        enemies: [{ id: "beetle", count: 6, interval: 0.9 }],
       },
     ],
   },
@@ -142,35 +142,35 @@ export const STAGES = [
     enemyHp: 2700,
     enemyAttack: 1.15,
     waves: [
-      { time: 1, enemies: [{ id: "beetle", count: 3, interval: 1, x: 1080 }] },
+      { time: 1, enemies: [{ id: "beetle", count: 3, interval: 1 }] },
       {
         time: 17,
         enemies: [
-          { id: "bear", count: 1, x: 1080 },
-          { id: "mushroom", count: 2, interval: 1.5, x: 1080 },
+          { id: "bear", count: 1 },
+          { id: "mushroom", count: 2, interval: 1.5 },
         ],
       },
       {
         time: 39,
         enemies: [
-          { id: "boar", count: 1, x: 1080 },
-          { id: "beetle", count: 3, interval: 1.2, x: 1080 },
+          { id: "boar", count: 1 },
+          { id: "beetle", count: 3, interval: 1.2 },
         ],
       },
       {
         time: 65,
-        enemies: [{ id: "bear", count: 1, x: 1080 }, { id: "mushroom", count: 2, interval: 1.5, x: 1080 }],
+        enemies: [{ id: "bear", count: 1 }, { id: "mushroom", count: 2, interval: 1.5 }],
       },
       {
         time: 88,
         enemies: [
-          { id: "boar", count: 2, interval: 2, x: 1080 },
-          { id: "beetle", count: 3, interval: 1.2, x: 1080 },
+          { id: "boar", count: 2, interval: 2 },
+          { id: "beetle", count: 3, interval: 1.2 },
         ],
       },
       {
         time: 108,
-        enemies: [{ id: "bear", count: 1, x: 1080 }],
+        enemies: [{ id: "bear", count: 1 }],
       },
     ],
   },
@@ -182,32 +182,32 @@ export const STAGES = [
     enemyHp: 3000,
     enemyAttack: 1.2,
     waves: [
-      { time: 1, enemies: [{ id: "beetle", count: 4, interval: 0.9, x: 1080 }] },
+      { time: 1, enemies: [{ id: "beetle", count: 4, interval: 0.9 }] },
       {
         time: 17,
         enemies: [
-          { id: "mushroom", count: 5, interval: 1.1, x: 930 },
-          { id: "boar", count: 2, interval: 1.6, x: 1020 },
+          { id: "mushroom", count: 5, interval: 1.1 },
+          { id: "boar", count: 2, interval: 1.6 },
         ],
       },
-      { time: 40, enemies: [{ id: "boar", count: 4, interval: 1.4, x: 980 }] },
+      { time: 40, enemies: [{ id: "boar", count: 4, interval: 1.4 }] },
       {
         time: 65,
         enemies: [
-          { id: "mushroom", count: 6, interval: 1, x: 940 },
-          { id: "beetle", count: 4, interval: 0.9, x: 1030 },
+          { id: "mushroom", count: 6, interval: 1 },
+          { id: "beetle", count: 4, interval: 0.9 },
         ],
       },
       {
         time: 89,
         enemies: [
-          { id: "boar", count: 4, interval: 1.3, x: 990 },
-          { id: "mushroom", count: 4, interval: 1.1, x: 1040 },
+          { id: "boar", count: 4, interval: 1.3 },
+          { id: "mushroom", count: 4, interval: 1.1 },
         ],
       },
       {
         time: 108,
-        enemies: [{ id: "beetle", count: 8, interval: 0.8, x: 1000 }],
+        enemies: [{ id: "beetle", count: 8, interval: 0.8 }],
       },
     ],
   },
@@ -221,36 +221,36 @@ export const STAGES = [
     waves: [
       {
         time: 1,
-        enemies: [{ id: "beetle", count: 5, interval: 0.85, x: 1080 }],
+        enemies: [{ id: "beetle", count: 5, interval: 0.85 }],
       },
       {
         time: 18,
         enemies: [
-          { id: "boar", count: 3, interval: 1.4, x: 970 },
-          { id: "mushroom", count: 4, interval: 1.1, x: 1030 },
+          { id: "boar", count: 3, interval: 1.4 },
+          { id: "mushroom", count: 4, interval: 1.1 },
         ],
       },
       {
         time: 41,
-        enemies: [{ id: "mushroom", count: 7, interval: 0.95, x: 940 }],
+        enemies: [{ id: "mushroom", count: 7, interval: 0.95 }],
       },
       {
         time: 66,
         enemies: [
-          { id: "boar", count: 5, interval: 1.2, x: 990 },
-          { id: "beetle", count: 4, interval: 0.85, x: 1040 },
+          { id: "boar", count: 5, interval: 1.2 },
+          { id: "beetle", count: 4, interval: 0.85 },
         ],
       },
       {
         time: 90,
         enemies: [
-          { id: "mushroom", count: 7, interval: 0.9, x: 950 },
-          { id: "boar", count: 3, interval: 1.3, x: 1040 },
+          { id: "mushroom", count: 7, interval: 0.9 },
+          { id: "boar", count: 3, interval: 1.3 },
         ],
       },
       {
         time: 109,
-        enemies: [{ id: "beetle", count: 9, interval: 0.75, x: 1000 }],
+        enemies: [{ id: "beetle", count: 9, interval: 0.75 }],
       },
     ],
   },
@@ -262,35 +262,35 @@ export const STAGES = [
     enemyHp: 3750,
     enemyAttack: 1.3,
     waves: [
-      { time: 1, enemies: [{ id: "beetle", count: 5, interval: 0.8, x: 1080 }] },
+      { time: 1, enemies: [{ id: "beetle", count: 5, interval: 0.8 }] },
       {
         time: 17,
         enemies: [
-          { id: "mushroom", count: 6, interval: 0.95, x: 930 },
-          { id: "boar", count: 3, interval: 1.3, x: 1030 },
+          { id: "mushroom", count: 6, interval: 0.95 },
+          { id: "boar", count: 3, interval: 1.3 },
         ],
       },
       {
         time: 40,
         enemies: [
-          { id: "boar", count: 5, interval: 1.1, x: 980 },
-          { id: "beetle", count: 5, interval: 0.8, x: 1040 },
+          { id: "boar", count: 5, interval: 1.1 },
+          { id: "beetle", count: 5, interval: 0.8 },
         ],
       },
       {
         time: 65,
-        enemies: [{ id: "mushroom", count: 8, interval: 0.85, x: 940 }],
+        enemies: [{ id: "mushroom", count: 8, interval: 0.85 }],
       },
       {
         time: 89,
         enemies: [
-          { id: "boar", count: 5, interval: 1, x: 990 },
-          { id: "mushroom", count: 6, interval: 0.9, x: 1040 },
+          { id: "boar", count: 5, interval: 1 },
+          { id: "mushroom", count: 6, interval: 0.9 },
         ],
       },
       {
         time: 108,
-        enemies: [{ id: "beetle", count: 10, interval: 0.7, x: 1000 }],
+        enemies: [{ id: "beetle", count: 10, interval: 0.7 }],
       },
     ],
   },
@@ -304,36 +304,36 @@ export const STAGES = [
     waves: [
       {
         time: 1,
-        enemies: [{ id: "beetle", count: 6, interval: 0.75, x: 1080 }],
+        enemies: [{ id: "beetle", count: 6, interval: 0.75 }],
       },
       {
         time: 17,
         enemies: [
-          { id: "mushroom", count: 7, interval: 0.85, x: 940 },
-          { id: "boar", count: 3, interval: 1.2, x: 1030 },
+          { id: "mushroom", count: 7, interval: 0.85 },
+          { id: "boar", count: 3, interval: 1.2 },
         ],
       },
       {
         time: 40,
         enemies: [
-          { id: "boar", count: 6, interval: 1, x: 990 },
-          { id: "beetle", count: 5, interval: 0.75, x: 1040 },
+          { id: "boar", count: 6, interval: 1 },
+          { id: "beetle", count: 5, interval: 0.75 },
         ],
       },
       {
         time: 65,
-        enemies: [{ id: "mushroom", count: 9, interval: 0.75, x: 950 }],
+        enemies: [{ id: "mushroom", count: 9, interval: 0.75 }],
       },
       {
         time: 89,
         enemies: [
-          { id: "boar", count: 6, interval: 0.9, x: 1000 },
-          { id: "mushroom", count: 7, interval: 0.8, x: 1040 },
+          { id: "boar", count: 6, interval: 0.9 },
+          { id: "mushroom", count: 7, interval: 0.8 },
         ],
       },
       {
         time: 108,
-        enemies: [{ id: "beetle", count: 11, interval: 0.65, x: 1000 }],
+        enemies: [{ id: "beetle", count: 11, interval: 0.65 }],
       },
     ],
   },
@@ -345,35 +345,35 @@ export const STAGES = [
     enemyHp: 4700,
     enemyAttack: 1.4,
     waves: [
-      { time: 1, enemies: [{ id: "beetle", count: 6, interval: 0.7, x: 1080 }] },
+      { time: 1, enemies: [{ id: "beetle", count: 6, interval: 0.7 }] },
       {
         time: 16,
         enemies: [
-          { id: "mushroom", count: 8, interval: 0.75, x: 940 },
-          { id: "boar", count: 4, interval: 1, x: 1040 },
+          { id: "mushroom", count: 8, interval: 0.75 },
+          { id: "boar", count: 4, interval: 1 },
         ],
       },
       {
         time: 39,
         enemies: [
-          { id: "boar", count: 7, interval: 0.85, x: 990 },
-          { id: "beetle", count: 6, interval: 0.7, x: 1040 },
+          { id: "boar", count: 7, interval: 0.85 },
+          { id: "beetle", count: 6, interval: 0.7 },
         ],
       },
       {
         time: 64,
-        enemies: [{ id: "mushroom", count: 10, interval: 0.7, x: 950 }],
+        enemies: [{ id: "mushroom", count: 10, interval: 0.7 }],
       },
       {
         time: 88,
         enemies: [
-          { id: "boar", count: 7, interval: 0.8, x: 1000 },
-          { id: "mushroom", count: 8, interval: 0.7, x: 1040 },
+          { id: "boar", count: 7, interval: 0.8 },
+          { id: "mushroom", count: 8, interval: 0.7 },
         ],
       },
       {
         time: 108,
-        enemies: [{ id: "beetle", count: 12, interval: 0.6, x: 1000 }],
+        enemies: [{ id: "beetle", count: 12, interval: 0.6 }],
       },
     ],
   },
@@ -387,38 +387,38 @@ export const STAGES = [
     waves: [
       {
         time: 1,
-        enemies: [{ id: "beetle", count: 7, interval: 0.65, x: 1080 }],
+        enemies: [{ id: "beetle", count: 7, interval: 0.65 }],
       },
       {
         time: 16,
         enemies: [
-          { id: "mushroom", count: 9, interval: 0.65, x: 950 },
-          { id: "boar", count: 4, interval: 0.9, x: 1040 },
+          { id: "mushroom", count: 9, interval: 0.65 },
+          { id: "boar", count: 4, interval: 0.9 },
         ],
       },
       {
         time: 39,
         enemies: [
-          { id: "boar", count: 8, interval: 0.75, x: 1000 },
-          { id: "beetle", count: 7, interval: 0.65, x: 1040 },
+          { id: "boar", count: 8, interval: 0.75 },
+          { id: "beetle", count: 7, interval: 0.65 },
         ],
       },
       {
         time: 64,
-        enemies: [{ id: "mushroom", count: 11, interval: 0.6, x: 950 }],
+        enemies: [{ id: "mushroom", count: 11, interval: 0.6 }],
       },
       {
         time: 88,
         enemies: [
-          { id: "boar", count: 8, interval: 0.7, x: 1000 },
-          { id: "mushroom", count: 9, interval: 0.65, x: 1040 },
+          { id: "boar", count: 8, interval: 0.7 },
+          { id: "mushroom", count: 9, interval: 0.65 },
         ],
       },
       {
         time: 107,
         enemies: [
-          { id: "beetle", count: 14, interval: 0.55, x: 1000 },
-          { id: "boar", count: 3, interval: 0.9, x: 1040 },
+          { id: "beetle", count: 14, interval: 0.55 },
+          { id: "boar", count: 3, interval: 0.9 },
         ],
       },
     ],
@@ -452,7 +452,7 @@ STAGES.find((stage) => stage.id === 8).description = "가시 호저가 멀리서
 // Milestone bosses arrive before the first castle push, so they must be fought.
 for (const [stageId, bossId] of [[5, "grove-bear"], [10, "grove-boar"]]) {
   const stage = STAGES.find((entry) => entry.id === stageId);
-  stage.waves[0].enemies.push({ id: bossId, count: 1, x: 1080 });
+  stage.waves[0].enemies.push({ id: bossId, count: 1 });
   // The early boss replaces the old bear reinforcement, preserving mission growth.
   if (stageId === 5) {
     stage.waves[0].enemies[0].count = 1;
@@ -500,18 +500,24 @@ for (const source of firstRegion) {
     }
   }
   if (source.id === 2) {
-    stage.enemyHp = 9800;
+    stage.enemyHp = 7500;
     stage.enemyAttack = 6.5;
+    stage.enemyModifiers = { speed: 1.1 };
     stage.description = "기계 무리가 더 거세게 몰려와요. 보석으로 골드 수급을 늘리고 동료를 키워 보세요.";
   }
   if (source.id === 1) {
     stage.description = "공방 입구에서 쉬어 가요. 적은 무리를 막으며 도토리를 모아 보세요.";
     stage.waves = [
-      { time: 1, enemies: [{ id: "beetle", count: 2, interval: 2, x: 1080 }] },
-      { time: 28, enemies: [{ id: "clock-beetle", count: 2, interval: 3, x: 1080 }] },
-      { time: 56, enemies: [{ id: "boar", count: 1, x: 1080 }] },
-      { time: 85, enemies: [{ id: "clock-beetle", count: 2, interval: 3, x: 1080 }] },
+      { time: 1, enemies: [{ id: "beetle", count: 2, interval: 2 }] },
+      { time: 28, enemies: [{ id: "clock-beetle", count: 2, interval: 3 }] },
+      { time: 56, enemies: [{ id: "boar", count: 1 }] },
+      { time: 85, enemies: [{ id: "clock-beetle", count: 2, interval: 3 }] },
     ];
+  }
+  if (source.id === 6) {
+    for (const wave of stage.waves) for (const group of wave.enemies) {
+      group.count = Math.ceil(group.count * .9);
+    }
   }
   STAGES.push(stage);
 }
@@ -559,9 +565,9 @@ for (const stage of STAGES.filter(stage => stage.region === 1)) {
 // The defense lesson uses costly raiders: saving the rabbit's summon budget
 // for shields and ranged allies keeps the same threat survivable.
 STAGES[1].waves = [
-  { time: 1, enemies: [{ id: "beetle", count: 2, interval: 1.2, x: 1080 }] },
-  { time: 9, enemies: [{ id: "boar", count: 4, interval: 1.5, x: 500,
-    statMultipliers: { hp: 1.7, attack: 1.3, speed: .58, attackInterval: 1.15 } }] },
+  { time: 1, enemies: [{ id: "beetle", count: 2, interval: 1.2 }] },
+  { time: 2, enemies: [{ id: "boar", count: 4, interval: 1.5,
+    statMultipliers: { hp: 1.7, attack: 2.4, speed: .8, attackInterval: 1.15 } }] },
 ];
 
 for (const wave of STAGES[1].waves) for (const group of wave.enemies) {

@@ -9,7 +9,7 @@ const INTRO = {
   enemyAttack: 1,
   baseReward: 0,
   duration: 40,
-  waves: [{ time: 0.6, enemies: [{ id: "beetle", count: 1, x: 1080 }] }],
+  waves: [{ time: 0.6, enemies: [{ id: "beetle", count: 1 }] }],
 };
 const FIRST = {
   id: 1,
@@ -18,7 +18,7 @@ const FIRST = {
   enemyAttack: 1,
   baseReward: 0,
   duration: 40,
-  waves: [{ time: .6, enemies: [{ id: "beetle", count: 1, x: 1080 }] }],
+  waves: [{ time: .6, enemies: [{ id: "beetle", count: 1 }] }],
 };
 export function onboardingEncounter(phase) {
   if (phase === "intro") return INTRO;
@@ -36,7 +36,7 @@ const WALL_BATTLE = {
   baseReward: STAGE_TWO.baseReward,
   duration: 40,
   waves: [
-    { time: 0.6, enemies: [{ id: "beetle", count: 2, interval: 1.3, x: 1080 }] },
+    { time: 0.6, enemies: [{ id: "beetle", count: 2, interval: 1.3 }] },
   ],
 };
 

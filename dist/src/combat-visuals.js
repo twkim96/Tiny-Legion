@@ -1,3 +1,5 @@
+import { WORLD_MAX, PLAYER_CASTLE_X, ENEMY_CASTLE_X } from "./battlefield.js";
+
 const clamp = (value, min = 0, max = 1) => Math.min(max, Math.max(min, value));
 export function battlefieldLayout(width, height) {
   const ground = height * 0.74;
@@ -5,8 +7,8 @@ export function battlefieldLayout(width, height) {
   return {
     ground,
     castleSize,
-    playerX: width * (80 / 1200),
-    enemyX: width * (1120 / 1200),
+    playerX: width * (PLAYER_CASTLE_X / WORLD_MAX),
+    enemyX: width * (ENEMY_CASTLE_X / WORLD_MAX),
     healthY: ground - castleSize * (166 / 128) - 8,
   };
 }

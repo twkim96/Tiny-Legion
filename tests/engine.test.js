@@ -32,23 +32,43 @@ test("opening waves enter from the enemy castle and walk left in every mode", ()
   for (const mode of ["idle", "challenge", "speedrun"]) {
     for (const stage of mode === "speedrun" ? SPEEDRUN_STAGES : STAGES) {
       const state = createBattle({ mode, stageId: stage.id, sequence: [] });
+      assert.ok(state._spawnSchedule.every(spawn => spawn.x === 1132), `${mode} stage ${stage.id}: all waves share the door`);
       const wave = stage.waves[0];
-      const openingDuration = Math.max(...wave.enemies.map((group) => ((group.count ?? 1) - 1) * (group.interval ?? 0)));
+      const lastOpeningTime = wave.time + Math.max(...wave.enemies.map((group) => ((group.count ?? 1) - 1) * (group.interval ?? 0)));
       assert.equal(state.time, 0);
       assert.equal(state.units.length, 0);
       stepBattle(state, wave.time - FIXED_STEP);
       assert.equal(state.units.length, 0);
 
-      stepBattle(state, FIXED_STEP + openingDuration + 0.1);
+      stepBattle(state, FIXED_STEP + lastOpeningTime - wave.time + 0.1);
       const spawns = state.events.filter((event) => event.type === "spawn");
-      assert.equal(spawns.length, wave.enemies.reduce((sum, group) => sum + (group.count ?? 1), 0), `${mode} stage ${stage.id}`);
-      assert.ok(spawns.every((event) => event.x >= 1000 && event.x < 1120));
+      assert.equal(spawns.length, state._spawnSchedule.filter(spawn => spawn.time <= state.time).length, `${mode} stage ${stage.id}`);
+      assert.ok(spawns.every((event) => event.x === 1132));
       assert.ok(state.units.every((enemy) => enemy.team === "enemy"));
       for (let index = 0; index < spawns.length; index++) {
         assert.ok(state.units[index].x < spawns[index].x);
+        assert.equal(state.units[index].facing, -1);
       }
     }
   }
+});
+
+test("later reinforcements emerge behind the door without turning toward castle defenders", () => {
+  const state = createBattle({ mode: "idle", stageId: 2, sequence: [] });
+  const spawnTime = state._spawnSchedule.find(spawn => spawn.id === "boar").time;
+  state._spawnSchedule = state._spawnSchedule.filter(spawn => spawn.id === "boar");
+  state.gold = 1000;
+  summonUnit(state, "sheep");
+  const defender = state.units[0];
+  defender.x = 1090;
+  defender.attackTimer = 1000;
+  defender.speed = 0;
+  stepBattle(state, spawnTime + FIXED_STEP);
+  const enemy = state.units.find(unit => unit.team === "enemy");
+  const spawn = state.events.find(event => event.type === "spawn");
+  assert.equal(spawn.x, 1132);
+  assert.ok(enemy.x > defender.x);
+  assert.equal(enemy.facing, -1);
 });
 
 test("first journey wins stage zero, loses with shields and wins with a ranged ally", () => {

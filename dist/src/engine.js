@@ -7,13 +7,9 @@ import { resolveDamage } from "./combat-rules.js";
 import { earlyGuideEncounter, onboardingEncounter } from "./onboarding.js";
 import { normalizeAbilities } from "./abilities.js";
 import { SPEEDRUN_LIMIT_SECONDS, SPEEDRUN_STAGES } from "./speedrun.js";
+import { WORLD_MIN, WORLD_MAX, PLAYER_CASTLE_X, ENEMY_CASTLE_X, PLAYER_SPAWN_X, ENEMY_SPAWN_X } from "./battlefield.js";
 export { UNIT_LEVEL_GROWTH } from "./abilities.js";
 
-const WORLD_MIN = 0;
-const WORLD_MAX = 1200;
-const PLAYER_CASTLE_X = 80;
-const ENEMY_CASTLE_X = 1120;
-const PLAYER_SPAWN_X = 122;
 const MAX_ACTIVE_UNITS = 80;
 const FIXED_STEP = COMBAT_TIMING.step;
 const GOLD_PER_SECOND = 35;
@@ -59,11 +55,6 @@ function makeSpawnSchedule(stage) {
         MAX_ACTIVE_UNITS,
       );
       const interval = Math.max(0, finiteNumber(group.interval, 0));
-      const baseX = clamp(
-        finiteNumber(group.x, 1080),
-        PLAYER_CASTLE_X,
-        ENEMY_CASTLE_X - 8,
-      );
       for (let index = 0; index < count; index += 1) {
         schedule.push({
           time: waveTime + interval * index,
@@ -73,11 +64,7 @@ function makeSpawnSchedule(stage) {
               .filter((key) => key in group)
               .map((key) => [key, group[key]]),
           ),
-          x: clamp(
-            baseX + Math.min(index * 12, 42),
-            PLAYER_CASTLE_X,
-            ENEMY_CASTLE_X - 8,
-          ),
+          x: ENEMY_SPAWN_X,
           order: order++,
         });
       }

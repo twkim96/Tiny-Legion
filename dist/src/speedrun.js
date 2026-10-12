@@ -4,7 +4,7 @@ export const SPEEDRUN_MAX_REWARD = 10;
 
 // Independent encounters: normal challenge maps and their multipliers are not
 // inputs to this content. Character identities/stats still come from characters.js.
-const group = (id, count = 1, interval = 1.2) => ({ id, count, interval, x: 1080 });
+const group = (id, count = 1, interval = 1.2) => ({ id, count, interval });
 const wave = (time, ...enemies) => ({ time, enemies });
 const stage = (id, name, scene, enemyHp, hp, attack, waves) => ({
   id, name, regionName: name, scene, enemyHp, enemyAttack: attack,

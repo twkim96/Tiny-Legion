@@ -88,7 +88,7 @@ test("1-2 idle guide phases reuse stage 2 and distinguish rabbit defense pressur
     earlyGuideEncounter("idle-retry", "idle"),
   );
   assert.equal(earlyGuideEncounter("idle-defense", "challenge"), null);
-  assert.equal(clean[0]._spawnSchedule[0].x, 1080);
+  assert.equal(clean[0]._spawnSchedule[0].x, 1132);
 
   const normal = createBattle({ mode: "idle", stageId: 2, sequence: cleanSequence });
   assert.deepEqual(normal._spawnSchedule, clean[0]._spawnSchedule);
@@ -130,7 +130,7 @@ test("wall tutorial loses without rabbit and wins naturally at the real cannon c
   assert.deepEqual(noCannonRetry.cannonTimes, []);
   assert.equal(earlyGuideEncounter("rabbit-recruit", "challenge").enemyHp, first.state.enemyMaxHp);
   assert.equal(earlyGuideEncounter("idle-retry", "challenge"), null);
-  assert.equal(first.state._spawnSchedule[0].x, 1080);
+  assert.equal(first.state._spawnSchedule[0].x, 1132);
   assert.strictEqual(
     earlyGuideEncounter("wall-battle", "challenge"),
     earlyGuideEncounter("rabbit-recruit", "challenge"),
@@ -155,7 +155,7 @@ test("wall tutorial loses without rabbit and wins naturally at the real cannon c
 test("castle specialist bonus applies only to player unit hits on the enemy castle", () => {
   assert.equal(UNITS.find((unit) => unit.id === "rabbit").name, "속공 토끼");
   assert.equal(UNITS.find((unit) => unit.id === "rabbit").effects.castleDamage.bonus, 4);
-  assert.equal(BALANCE_VERSION, "early-tempo-13");
+  assert.equal(BALANCE_VERSION, "castle-entry-14");
 
   const state = createBattle({ mode: "challenge", stageId: 1, sequence: [] });
   state._spawnSchedule = [];

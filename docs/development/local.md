@@ -25,6 +25,7 @@ npm run dev
 | `dist/src/data.js` | 스테이지·웨이브·모집/성장 데이터; 캐릭터 정의 재수출 |
 | `dist/src/speedrun.js` | 속공 전용 스테이지·웨이브·배경·목표 시간·보상 |
 | `dist/src/engine.js` | 화면과 독립된 결정적 전투 계산 |
+| `dist/src/battlefield.js` | 엔진·화면이 공유하는 전장·기지 문·생성 좌표 |
 | `dist/src/onboarding.js` | 신규 0스테이지·1-1·1-2 성 공략과 방치 편성 전투 구성 |
 | `dist/src/account.js` | 성장·재화·진행·기록·저장 |
 | `dist/src/save-compat.js` | 이전 테스트 저장의 임시 변환; 아래 제거 지침 참조 |
