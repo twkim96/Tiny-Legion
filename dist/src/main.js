@@ -7,6 +7,7 @@ import { UNITS, ENEMIES, ATTRIBUTES, NEUTRAL_ATTRIBUTE, ROLE_SPECIALIZATION, get
 import { effectLines } from "./effects.js";
 import {
   STAGES,
+  battleDuration,
   BALANCE_VERSION,
   RARITIES,
   stageLabel,
@@ -310,15 +311,15 @@ function stageIntelMarkup(stage) {
         : [],
     )
     .join("　·　");
-  const phases = [
-    { label: "초반 · 0–30초" },
-    { label: "중반 · 30–60초" },
-    { label: "후반 · 60–90초" },
-  ];
+  const limit = battleDuration(stage.id, mode);
+  const boundaries = [0, Math.round(limit / 3), Math.round(limit * 2 / 3), limit];
+  const phases = ["초반", "중반", "후반"].map((name, index) => ({
+    label: `${name} · ${boundaries[index]}–${boundaries[index + 1]}초`,
+  }));
   const phaseGroups = phases.map(() => []);
   for (const wave of stage.waves ?? []) {
     const time = Number.isFinite(wave.time) ? wave.time : 0;
-    const phaseIndex = time < 30 ? 0 : time < 60 ? 1 : 2;
+    const phaseIndex = time < boundaries[1] ? 0 : time < boundaries[2] ? 1 : 2;
     phaseGroups[phaseIndex].push(...(wave.enemies ?? []));
   }
   const phaseMarkup = phaseGroups
@@ -1304,7 +1305,7 @@ function showOnboardingRetry() {
   onboardingMessage("다시 출정", "양 방패를 먼저 소환하고, 골드를 모아 씨앗 다람쥐를 소환하세요. 방패 뒤에서 적을 공격합니다.", "1-1 출정", enterOnboardingBattle, "squirrel");
 }
 function showIdleGuide() {
-  onboardingMessage("방치", "1-1을 돌파했어요! 이제 동료가 자동으로 소환되어 90초 동안 성을 지킵니다.<br>전투가 끝나면 생산 기록이 생겨요. 그 기록으로 게임을 꺼도 도토리와 다이아가 쌓입니다.", "방치 시작", () => {
+  onboardingMessage("방치", "1-1을 돌파했어요! 이제 동료가 자동으로 소환되어 40초 동안 성을 지킵니다.<br>전투가 끝나면 생산 기록이 생겨요. 그 기록으로 게임을 꺼도 도토리와 다이아가 쌓입니다.", "방치 시작", () => {
     if (hostedMode) {
       void sendCommand("onboarding.finish", {}).then((envelope) => {
         if (!envelope) return;
@@ -1492,7 +1493,7 @@ function updateUi() {
     ? clock(mode === "speedrun" ? battle.time : battle.duration - battle.time)
     : mode === "speedrun"
       ? "00:00"
-      : "01:30";
+      : clock(battleDuration(stageId, mode));
   $("pause-icon").innerHTML = icon(paused ? "play" : "pause");
   $("pause-text").textContent = paused ? "계속" : "정지";
   $("pause").dataset.tip = paused ? "계속하기" : "일시 정지";
@@ -1585,6 +1586,7 @@ function updateUi() {
   $("edit-sequence").disabled = !sequenceUnlocked(account);
   $("mode-select").disabled = true;
   $("speed-text").textContent = `${account.settings.speed}×`;
+  $("speed").setAttribute("aria-pressed", String(account.settings.speed === 2));
   $("upgrade-dot").hidden = !UNITS.some(
     (u) =>
       ownsUnit(account, u.id) &&

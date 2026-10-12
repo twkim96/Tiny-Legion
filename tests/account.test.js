@@ -35,7 +35,7 @@ import {
   SAVE_KEY,
 } from "../dist/src/account.js";
 import { createBattle, summonUnit } from "../dist/src/engine.js";
-import { STARTER_UNIT_IDS, STAGES, UNITS } from "../dist/src/data.js";
+import { STARTER_UNIT_IDS, STAGES, UNITS, battleDuration } from "../dist/src/data.js";
 const now = Date.UTC(2026, 9, 11, 3);
 test("account reset persists only a fresh intro account and preserves saves on write failure", () => {
   const previous = newAccount(now);
@@ -129,10 +129,29 @@ test("a new record settles the old rate and freezes its verified gold bonus", ()
   );
   assert.equal(a.gold, 700);
   assert.equal(a.records[1].gold, 138);
+  assert.equal(a.records[1].productionSeconds, 120);
+  assert.equal(a.records[1].diamonds, 0.167);
   a.gemItems = [{uid:"attack",type:"attack",level:1,options:[]}];
   a.gemEquipment = {attack:"attack"};
   accrue(a, now + 240000);
   assert.equal(a.gold, 838);
+});
+test("idle records without a duration use the stage period and scale full-time diamonds", () => {
+  const a = newAccount(now);
+  recordIdle(
+    a,
+    { reward: 44, survival: 40, hpRatio: 1 },
+    { stageId: 1 },
+    now,
+  );
+  assert.equal(a.records[1].productionSeconds, battleDuration(1, "idle"));
+  assert.equal(a.records[1].diamonds, 0.056);
+  assert.ok(Math.abs(
+    (a.records[1].gold / a.records[1].productionSeconds) - STAGES[0].baseReward / 90,
+  ) < 0.02);
+  assert.ok(Math.abs(
+    (a.records[1].diamonds / a.records[1].productionSeconds) - 0.125 / 90,
+  ) < 0.00002);
 });
 test("level refund restores spent gold and invalidates production records", () => {
   const a = completedAccount();

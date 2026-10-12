@@ -1,7 +1,7 @@
 import { normalizeAudioSettings } from "./audio.js";
 import { UNITS, getUnit } from "./characters.js";
 import { unitCombatStats } from "./character-stats.js";
-import { STAGES, RARITIES, bannerById, bannerPool, bannerRarities, stageLabel } from "./data.js";
+import { STAGES, battleDuration, RARITIES, bannerById, bannerPool, bannerRarities, stageLabel } from "./data.js";
 import { SPEEDRUN_STAGE_COUNT, SPEEDRUN_TARGET_SECONDS, SPEEDRUN_LIMIT_SECONDS, speedrunStageReward } from "./speedrun.js";
 import { MARK_TYPES, DUPLICATE_MARKS, markTypeFor, unitAbilities, normalizeAbilities, abilityCost } from "./abilities.js";
 import { initialGemState, normalizeGemState, gemEffects, drawGem } from "./gems.js";
@@ -415,13 +415,13 @@ export function recordIdle(a, result, snapshot, now = Date.now()) {
   const rateBonus = Number.isFinite(snapshot.gemEffects?.acorn) ? snapshot.gemEffects.acorn : snapshot.gem === "gold" ? 1.15 : 1;
   const productionSeconds = Number.isFinite(snapshot.duration) && snapshot.duration > 0
     ? snapshot.duration
-    : 90;
+    : battleDuration(snapshot.stageId);
   const r = {
     gold: Math.floor(result.reward * rateBonus),
     productionSeconds,
     diamonds:
       Math.round(
-        (0.1 + snapshot.stageId * 0.025) * (result.survival / productionSeconds) ** 2 * 1000,
+        (0.1 + snapshot.stageId * 0.025) * (productionSeconds / 90) * (result.survival / productionSeconds) ** 2 * 1000,
       ) / 1000,
     hpRatio: result.hpRatio,
     survival: result.survival,

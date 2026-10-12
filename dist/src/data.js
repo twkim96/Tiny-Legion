@@ -1,7 +1,7 @@
 import { UNITS, getEnemy } from "./characters.js";
 export { UNITS, ENEMIES, ATTRIBUTES, NEUTRAL_ATTRIBUTE, ROLE_SPECIALIZATION, ATTRIBUTE_BONUS_CAP, SHIELD_BONUS_CAP, stageLabel } from "./characters.js";
 // Initial tuning, subject to play acceptance. Permanent equipment/specialty bonuses add.
-export const BALANCE_VERSION = "owned-gems-options-12";
+export const BALANCE_VERSION = "early-tempo-13";
 export const RARITIES = [
   { id: "common", name: "일반", color: "#7b8974", rate: 0.6 },
   { id: "rare", name: "희귀", color: "#6094a4", rate: 0.28 },
@@ -534,6 +534,38 @@ for (const stage of STAGES) {
       }
     }
   }
+}
+
+// Region-one sessions stay short; other regions and speedrun retain their limit.
+export function battleDuration(stageId, mode = "idle") {
+  if (mode === "speedrun" || Number(stageId) > 10) return 90;
+  return Number(stageId) <= (mode === "idle" ? 3 : 2) ? 40 : 60;
+}
+// A short opening, a recognizable threat and one reinforcement leave room
+// to push the castle instead of flooding the lane at the old deadline.
+const firstRegionHp = [1, 1, .3, .7, .3, 1, .85, .85, .7, .3];
+for (const stage of STAGES.filter(stage => stage.region === 1)) {
+  stage.enemyHp = Math.round(stage.enemyHp * (stage.id === 10 ? .85 : .6));
+  stage.enemyModifiers = { ...(stage.enemyModifiers ?? {}), hp: firstRegionHp[stage.id - 1] };
+  stage.waves = stage.waves.slice(0, 3);
+  stage.waves.forEach((wave, index) => {
+    wave.time = (stage.id <= 3 ? [.6, 8, 20] : [.6, 12, 26])[index];
+    for (const group of wave.enemies) {
+      group.count = Math.max(1, Math.ceil((group.count ?? 1) * .6));
+      if (group.interval !== undefined) group.interval = Math.max(.7, group.interval);
+    }
+  });
+}
+// The defense lesson uses costly raiders: saving the rabbit's summon budget
+// for shields and ranged allies keeps the same threat survivable.
+STAGES[1].waves = [
+  { time: 1, enemies: [{ id: "beetle", count: 2, interval: 1.2, x: 1080 }] },
+  { time: 9, enemies: [{ id: "boar", count: 4, interval: 1.5, x: 500,
+    statMultipliers: { hp: 1.7, attack: 1.3, speed: .58, attackInterval: 1.15 } }] },
+];
+
+for (const wave of STAGES[1].waves) for (const group of wave.enemies) {
+  group.effects = { shield: false, regeneration: false };
 }
 
 export const RECRUIT_BANNERS = [

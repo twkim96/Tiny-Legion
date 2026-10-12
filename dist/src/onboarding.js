@@ -8,25 +8,22 @@ const INTRO = {
   enemyHp: 24,
   enemyAttack: 1,
   baseReward: 0,
-  duration: 45,
+  duration: 40,
   waves: [{ time: 0.6, enemies: [{ id: "beetle", count: 1, x: 1080 }] }],
 };
 const FIRST = {
   id: 1,
   name: "첫 숲길",
-  enemyHp: 600,
+  enemyHp: 220,
   enemyAttack: 1,
   baseReward: 0,
-  duration: 60,
-  waves: [
-    { time: 0.6, enemies: [{ id: "beetle", count: 1, x: 1080 }] },
-    { time: 8, enemies: [{ id: "mushroom", count: 4, interval: 4, x: 1080 }] },
-  ],
+  duration: 40,
+  waves: [{ time: .6, enemies: [{ id: "beetle", count: 1, x: 1080 }] }],
 };
 export function onboardingEncounter(phase) {
   if (phase === "intro") return INTRO;
   if (phase === "first-battle") return FIRST;
-  if (phase === "retry-battle") return { ...FIRST, duration: 90 };
+  if (phase === "retry-battle") return { ...FIRST, duration: 40 };
   return null;
 }
 const STAGE_TWO = STAGES.find((stage) => stage.id === 2);
@@ -34,10 +31,10 @@ const STAGE_TWO = STAGES.find((stage) => stage.id === 2);
 const WALL_BATTLE = {
   id: 2,
   name: "튼튼한 성벽",
-  enemyHp: 13000,
+  enemyHp: 1200,
   enemyAttack: 0.7,
   baseReward: STAGE_TWO.baseReward,
-  duration: 90,
+  duration: 40,
   waves: [
     { time: 0.6, enemies: [{ id: "beetle", count: 2, interval: 1.3, x: 1080 }] },
   ],
@@ -45,7 +42,7 @@ const WALL_BATTLE = {
 
 const IDLE_PRESSURE = {
   ...STAGE_TWO,
-  duration: 90,
+  duration: 40,
 };
 
 const CHALLENGE_GUIDE_PHASES = new Set([

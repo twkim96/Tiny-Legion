@@ -68,7 +68,7 @@ test("1-2 idle guide phases reuse stage 2 and distinguish rabbit defense pressur
   const rabbit = phases.map((phase) => playIdle(rabbitSequence, phase));
 
   for (const state of [...clean, ...rabbit]) {
-    assert.equal(state.duration, 90);
+    assert.equal(state.duration, 40);
     assert.equal(state._baseReward, STAGES.find((stage) => stage.id === 2).baseReward);
     assert.equal(
       state.result.reward,
@@ -101,9 +101,9 @@ test("wall tutorial loses without rabbit and wins naturally at the real cannon c
   const noCannonFirst = playChallenge(["sheep", "squirrel"], "wall-battle", null);
   const noCannonRetry = playChallenge(["sheep", "squirrel", "rabbit"], "wall-retry", null);
 
-  assert.equal(first.state.duration, 90);
+  assert.equal(first.state.duration, 40);
   assert.equal(first.state.result.won, false);
-  assert.equal(first.state.time, 90);
+  assert.equal(first.state.time, 40);
   assert.ok(first.state.enemyHp > 0);
   assert.ok(
     first.cannonTimes.every(
@@ -113,7 +113,7 @@ test("wall tutorial loses without rabbit and wins naturally at the real cannon c
 
   assert.equal(retry.state.result.won, true);
   assert.equal(retry.state.enemyHp, 0);
-  assert.ok(retry.state.time < 90);
+  assert.ok(retry.state.time < 40);
   assert.ok(
     retry.cannonTimes.every(
       (time, index) => index === 0 || time - retry.cannonTimes[index - 1] >= 25,
@@ -121,12 +121,12 @@ test("wall tutorial loses without rabbit and wins naturally at the real cannon c
   );
 
   assert.equal(noCannonFirst.state.result.won, false);
-  assert.equal(noCannonFirst.state.time, 90);
+  assert.equal(noCannonFirst.state.time, 40);
   assert.ok(noCannonFirst.state.enemyHp > 0);
   assert.deepEqual(noCannonFirst.cannonTimes, []);
   assert.equal(noCannonRetry.state.result.won, true);
   assert.equal(noCannonRetry.state.enemyHp, 0);
-  assert.ok(noCannonRetry.state.time < 90);
+  assert.ok(noCannonRetry.state.time < 40);
   assert.deepEqual(noCannonRetry.cannonTimes, []);
   assert.equal(earlyGuideEncounter("rabbit-recruit", "challenge").enemyHp, first.state.enemyMaxHp);
   assert.equal(earlyGuideEncounter("idle-retry", "challenge"), null);
@@ -149,13 +149,13 @@ test("wall tutorial loses without rabbit and wins naturally at the real cannon c
   assert.equal(normal.enemyMaxHp, STAGES.find((stage) => stage.id === 2).enemyHp);
   assert.deepEqual(progressed._spawnSchedule, normal._spawnSchedule);
   assert.equal(progressed.enemyMaxHp, normal.enemyMaxHp);
-  assert.equal(normal.duration, 90);
+  assert.equal(normal.duration, 40);
 });
 
 test("castle specialist bonus applies only to player unit hits on the enemy castle", () => {
   assert.equal(UNITS.find((unit) => unit.id === "rabbit").name, "속공 토끼");
   assert.equal(UNITS.find((unit) => unit.id === "rabbit").effects.castleDamage.bonus, 4);
-  assert.equal(BALANCE_VERSION, "owned-gems-options-12");
+  assert.equal(BALANCE_VERSION, "early-tempo-13");
 
   const state = createBattle({ mode: "challenge", stageId: 1, sequence: [] });
   state._spawnSchedule = [];
@@ -214,6 +214,7 @@ test("castle specialist bonus applies only to player unit hits on the enemy cast
   cannon._spawnSchedule = [{ time: 0, id: "beetle", overrides: {}, x: 1070, order: 0 }];
   stepBattle(cannon, FIXED_STEP);
   const enemy = cannon.units[0];
+  enemy.hp = enemy.maxHp = 1000;
   enemy.x = 1110;
   fireCannon(cannon);
   assert.equal(enemy.maxHp - enemy.hp, 110);

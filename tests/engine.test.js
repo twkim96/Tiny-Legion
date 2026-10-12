@@ -7,7 +7,7 @@ import {
   stepBattle,
   summonUnit,
 } from "../dist/src/engine.js";
-import { ENEMIES, STAGES, UNITS } from "../dist/src/data.js";
+import { ENEMIES, STAGES, UNITS, battleDuration } from "../dist/src/data.js";
 import { SPEEDRUN_STAGES } from "../dist/src/speedrun.js";
 
 const FIXED_STEP = 1 / 30;
@@ -76,7 +76,8 @@ test("first journey wins stage zero, loses with shields and wins with a ranged a
   const idle = createBattle({ mode: "idle", onboardingPhase: "intro", stageId: 1 });
   const normal = createBattle({ mode: "challenge", stageId: 1 });
   assert.equal(idle.stageId, 1);
-  assert.equal(idle.duration, 90);
+  assert.equal(idle.duration, battleDuration(1, "idle"));
+  assert.equal(normal.duration, battleDuration(1, "challenge"));
   assert.equal(normal.enemyMaxHp, STAGES[0].enemyHp);
 });
 
@@ -219,7 +220,10 @@ test("idle survival completes with normalized raw HP and integer reward", () => 
   assert.equal(state.result.hpRatio, 0.5);
   assert.equal(state.result.reward, calculateIdleReward(1, 3, 0.5));
   assert.equal(Number.isInteger(state.result.reward), true);
-  assert.equal(calculateIdleReward(1, 90, 1), 100);
+  assert.equal(
+    calculateIdleReward(1, battleDuration(1), 1),
+    Math.round(STAGES[0].baseReward * battleDuration(1) / 90),
+  );
 });
 
 test("challenge summons spend gold and apply a shared cooldown", () => {

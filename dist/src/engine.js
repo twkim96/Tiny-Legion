@@ -1,4 +1,4 @@
-import { STAGES, STARTER_UNIT_IDS } from "./data.js";
+import { STAGES, STARTER_UNIT_IDS, battleDuration } from "./data.js";
 import { UNITS, getUnit, getEnemy, getCharacter } from "./characters.js";
 import { characterStats, combineStatMultipliers } from "./character-stats.js";
 import { effect, effectOf, EFFECT_OVERRIDE_KEYS } from "./effects.js";
@@ -160,12 +160,13 @@ function setFinished(state, won) {
 
 export function calculateIdleReward(stageId, survival, hpRatio) {
   const stage = STAGE_BY_ID.get(Number(stageId)) ?? STAGES[0];
-  const normalizedSurvival = clamp(finiteNumber(survival, 0), 0, 90);
+  const period = battleDuration(stage.id);
+  const normalizedSurvival = clamp(finiteNumber(survival, 0), 0, period);
   const normalizedHp = clamp(finiteNumber(hpRatio, 0), 0, 1);
-  const completionFactor = normalizedSurvival >= 90 ? 1 : 0.8;
+  const completionFactor = normalizedSurvival >= period ? 1 : 0.8;
   const reward =
-    stage.baseReward *
-    (normalizedSurvival / 90) ** 2 *
+    stage.baseReward * (period / 90) *
+    (normalizedSurvival / period) ** 2 *
     (0.6 + 0.4 * normalizedHp) *
     completionFactor;
   return Math.round(reward);
@@ -196,11 +197,11 @@ export function createBattle(options = {}) {
   const stage = battleMode === "speedrun"
     ? SPEEDRUN_BY_ID.get(Number(stageId)) ?? SPEEDRUN_STAGES[0]
     : encounter ?? STAGE_BY_ID.get(Number(stageId)) ?? STAGES[0];
-  const modeDuration = battleMode === "speedrun" ? SPEEDRUN_LIMIT_SECONDS : 90;
+  const modeDuration = battleMode === "speedrun" ? SPEEDRUN_LIMIT_SECONDS : battleDuration(stage.id, battleMode);
   const durationSeconds = clamp(
     finiteNumber(encounter?.duration ?? duration ?? modeDuration, modeDuration),
     0,
-    90,
+    modeDuration,
   );
   const stageEnemyHp = Math.max(1, finiteNumber(stage.enemyHp, 2000));
   const enemyMaxHp = stageEnemyHp;
