@@ -4,12 +4,12 @@ import { GameAudio, normalizeAudioSettings, stageMusic } from '../dist/src/audio
 import { newAccount, normalizeAccount } from '../dist/src/account.js';
 
 function harness() {
-  const played = [], tones = [];
+  const played = [], tones = [], frequencies = [];
   const player = { paused: true, pause() { this.paused = true; }, load() {}, play() { this.paused = false; played.push(this.src); return Promise.resolve(); } };
   const context = { currentTime: 1, resume: () => Promise.resolve(), suspend: () => Promise.resolve(), destination: {},
-    createOscillator: () => ({ frequency: { setValueAtTime() {}, exponentialRampToValueAtTime() {} }, connect() {}, start() { tones.push('start'); }, stop() {} }),
+    createOscillator: () => ({ frequency: { setValueAtTime(value) { frequencies.push(value); }, exponentialRampToValueAtTime(value) { frequencies.push(value); } }, connect() {}, start() { tones.push('start'); }, stop() {} }),
     createGain: () => ({ gain: { setValueAtTime(value) { tones.push(value); }, exponentialRampToValueAtTime() {} }, connect() {} }) };
-  return { player, played, tones, audio: new GameAudio({ createPlayer: () => player, createContext: () => context }) };
+  return { player, played, tones, frequencies, audio: new GameAudio({ createPlayer: () => player, createContext: () => context }) };
 }
 test('music waits for input, loops the stage track, and pauses while hidden', async () => {
   const h = harness(); h.audio.configure({}, 1); assert.equal(h.played.length, 0);
@@ -37,4 +37,9 @@ test('volume validation clamps saves and blocked playback waits for the next inp
   h.audio.configure({}, 1); h.audio.configure({}, 1); assert.equal(attempts, 1);
   h.audio.unlock(); assert.equal(attempts, 2); await Promise.resolve(); await Promise.resolve();
   assert.equal(stageMusic(0), 'journey'); assert.equal(stageMusic(20), 'boss');
+});
+test('tap, summon and victory retain distinct tones and unknown cues use tap', () => {
+  const h = harness(); h.audio.unlock();
+  for (const cue of ['tap', 'summon', 'win', 'unknown', 'constructor']) h.audio.chirp(cue);
+  assert.deepEqual(h.frequencies, [440, 250, 360, 250, 660, 880, 440, 250, 440, 250]);
 });

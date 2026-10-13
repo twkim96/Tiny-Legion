@@ -13,7 +13,7 @@ import * as abilities from '../../dist/src/abilities.js';
 import * as speedrun from '../../dist/src/speedrun.js';
 import * as onboarding from '../../dist/src/onboarding.js';
 import * as economy from '../../dist/src/economy.js';
-import { AUDIO_DEFAULTS } from '../../dist/src/audio.js';
+import { AUDIO_DEFAULTS, stageMusic } from '../../dist/src/audio.js';
 import { spriteSvg } from '../../dist/src/art.js';
 import { sampleUnitPose } from '../../dist/src/combat-visuals.js';
 const root = resolve(fileURLToPath(new URL('../..', import.meta.url)));
@@ -23,6 +23,7 @@ const guidePhases = ['wall-battle','rabbit-recruit','wall-retry','idle-defense',
 export function exportCatalog() {
  return {
   schemaVersion: 1, balanceVersion: data.BALANCE_VERSION,
+  musicByStage: Object.fromEntries(Array.from({length:data.STAGES.length+1},(_,id)=>[id,stageMusic(id)])),
   animationPoses: Object.fromEntries([...characters.UNITS,...characters.ENEMIES].map(c=>[c.id,Object.fromEntries([["windup",1],["recovery",0]].map(([phase,elapsed])=>[phase,sampleUnitPose({id:c.id,uid:"",team:"player",facing:1,action:{phase,elapsed,duration:1}},0)]))])),
   units: characters.UNITS, enemies: characters.ENEMIES,
   stages: data.STAGES, speedrunStages: speedrun.SPEEDRUN_STAGES,

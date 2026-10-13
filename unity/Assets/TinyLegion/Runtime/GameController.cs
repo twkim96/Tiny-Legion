@@ -34,6 +34,8 @@ namespace TinyLegion.Unity
         public event Action<string> Notice;
         public event Action<JObject> BattleFinished;
         public event Action<JObject> BattleEvent;
+        public event Action<string> AudioCue;
+        public event Action<string> CommandCompleted;
         AccountRules rules;
         LocalSaveStore saves;
         GameSessionClient session;
@@ -102,7 +104,7 @@ namespace TinyLegion.Unity
                 }
                 if (Online) Account = session.Account;
                 if(type=="account.reset"){Battle=null;actions.Clear();restartAt=0;ReturnIncome=null;AccountReplaced?.Invoke();}
-                Changed?.Invoke(); return envelope;
+                Changed?.Invoke(); CommandCompleted?.Invoke(type); return envelope;
             }
             catch (Exception error) { Notice?.Invoke(error.Message); throw; }
         }
@@ -145,7 +147,7 @@ namespace TinyLegion.Unity
         {
             if (Busy || Paused || modalOpen || Battle == null || Mode == "idle" || cannonRemaining > 0 || (string)Account?["onboarding"]?["phase"] != "complete" || !CanAdvance) return;
             int previousEvents=Battle.State.Events.Count;
-            if (Battle.FireCannon()) { actions.Add(new JObject { ["step"] = (int)GameNumbers.Round(Battle.State.Time * 30), ["type"] = "cannon" }); cannonRemaining = 25; }
+            if (Battle.FireCannon()) { actions.Add(new JObject { ["step"] = (int)GameNumbers.Round(Battle.State.Time * 30), ["type"] = "cannon" }); cannonRemaining = 25; AudioCue?.Invoke("summon"); }
             EmitBattleEvents(previousEvents);
         }
         void EmitBattleEvents(int from)

@@ -35,6 +35,7 @@ Console.WriteLine($"Account regression checks: {TinyLegion.Tests.Account.Account
 Console.WriteLine($"Combat regression checks: {TinyLegion.Tests.Combat.CombatRegressionChecks.Run(catalog)}");
 if(args.Length>1) Console.WriteLine($"Combat parity states: {TinyLegion.Tests.Combat.CombatParityChecks.Run(catalog,JObject.Parse(File.ReadAllText(args[1])))}");
 if(args.Length>2) Console.WriteLine($"Account parity cases: {TinyLegion.Tests.Account.AccountParityChecks.Run(catalog,JObject.Parse(File.ReadAllText(args[2])))}");
+MusicPlaybackChecks.Run();
 return 0;
 sealed class LostResponseTransport : IGameTransport
 {

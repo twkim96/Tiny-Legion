@@ -8,7 +8,8 @@
 - `unity/Assets/TinyLegion/Presentation`: 공통 화면/입력과 전장 표시. 정의·조건·성장식을 화면에 복제하지 않습니다.
 - `unity/Assets/TinyLegion/Runtime`: 저장·Unity 생명주기·웹 통신·음악과 앱 연결.
 - `scripts/unity/export-catalog.mjs`: 유지 중인 웹 정의에서 캐릭터·스테이지·강화·효과·경제 데이터를 내보냅니다. JSON은 임의 수정하지 않습니다. 데이터 원본을 독립적으로 두 벌 유지하지 않습니다.
-- `scripts/unity/export-art.mjs`: 기존 SVG를 Unity 텍스처로 렌더링하고 CC0 음악을 복사합니다. 원화를 새로 설계하지 않습니다.
+- `scripts/unity/export-art.mjs`: 기존 SVG를 Unity 텍스처로 렌더링하고 CC0 음악을 복사합니다. `export-audio.mjs`로 웹의 공통 `AUDIO_CUES` 정의를 짧은 PCM 효과음으로 변환합니다. 초기 실행 시 파형을 다시 계산하지 않으며, 효과음 임포트는 정규화 없이 정의된 음량을 보존합니다. 원화를 새로 설계하지 않습니다.
+- `scripts/unity/export-platform.mjs`: `dist/src/fullscreen.js`의 공통 전체화면 진입 함수를 Unity Web 브리지로 내보냅니다. 미지원/거절·수동 회전 안내와 진입 중 종료 처리를 공유하며, 브라우저에서 전체화면을 종료하면 방향 고정을 해제합니다. 생성된 `.jslib`를 직접 수정하지 않습니다.
 - `unity/Tests`: .NET에서 순수 계산·통신을 검사하고 기존 JS 입력 재생과 비교할 경계. Unity 컴파일·실제 화면·기기 검증은 별도입니다.
 
 ## 환경
@@ -22,6 +23,7 @@ npm ci
 node scripts/unity/export-catalog.mjs
 node scripts/unity/export-art.mjs
 node scripts/unity/export-scenery.mjs
+node scripts/unity/export-platform.mjs
 node scripts/unity/generate-meta.mjs
 mkdir -p .sites-local
 node unity/Tests/Combat/generate-parity.mjs .sites-local/combat-parity.json
@@ -52,6 +54,10 @@ TINY_LEGION_UNITY_WEB=1 npm run build
 현재 Sites 준비는 기존 Worker에 `/unity/` 파일을 추가하는 명시적 옵션입니다. wasm/data를 바이너리로 제공하고 gzip·MIME·HEAD/Range를 유지합니다. 큰 데이터를 문자열로 내장하는 초기 경로이므로 빌드 크기·메모리·Sites 용량 검증 후 R2 등 별도 저장으로 분리할 필요가 있을 수 있습니다. 64MiB Worker 상한을 넘으면 빌드를 중단합니다. 기존 `/` 화면은 이식 수용 전 유지합니다.
 
 `node scripts/unity/check-unity-source.mjs`와 `--web`는 설치한 Unity의 실제 API 어셈블리에 C# 소스를 정적으로 컴파일합니다. 라이선스가 없는 동안 사용할 수 있지만 패키지 임포트·Editor/IL2CPP 실행을 대신하지 않습니다. 다른 기기는 `TINY_LEGION_UNITY_EDITOR`, `TINY_LEGION_DOTNET`로 실행 경로를 지정합니다.
+
+`node --test tests/unity-platform.test.js`는 생성된 Web 전체화면 브리지를 브라우저 API 대역에서 실행해 미지원·거절·방향 고정·종료 경합을 검사합니다. 설치된 Unity Web 컴파일러에서 브리지 단독 링크를 확인했습니다. 실제 Unity Web 빌드와 기기의 전체화면·회전 확인은 별도로 수행합니다.
+
+음악 선택은 카탈로그의 `musicByStage`를 소비합니다. 공통 `MusicPlaybackState`가 음소거/포커스 복귀와 새 곡 시작을 구분해 같은 곡의 재생 위치를 보존합니다. 소환·대포·승리·성공한 성장/모집/보석/보상 명령은 해당 효과음을 사용하며, 방치 자동 소환과 비활성 화면에는 효과음을 재생하지 않습니다. 순수 C# 음악 상태 검사와 `tests/audio.test.js`, `tests/unity-audio.test.js`의 파형/음량/톤 검사는 실제 기기 청취 검증을 대신하지 않습니다.
 
 ## 구현과 수용 상태
 

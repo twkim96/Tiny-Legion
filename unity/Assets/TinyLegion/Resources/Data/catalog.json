@@ -1,6 +1,29 @@
 {
   "schemaVersion": 1,
   "balanceVersion": "combat-traits-20",
+  "musicByStage": {
+    "0": "journey",
+    "1": "meadow",
+    "2": "meadow",
+    "3": "meadow",
+    "4": "meadow",
+    "5": "boss",
+    "6": "meadow",
+    "7": "meadow",
+    "8": "meadow",
+    "9": "meadow",
+    "10": "boss",
+    "11": "workshop",
+    "12": "workshop",
+    "13": "workshop",
+    "14": "workshop",
+    "15": "boss",
+    "16": "workshop",
+    "17": "workshop",
+    "18": "workshop",
+    "19": "workshop",
+    "20": "boss"
+  },
   "animationPoses": {
     "sheep": {
       "windup": {

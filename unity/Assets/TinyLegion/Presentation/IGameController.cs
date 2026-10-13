@@ -27,6 +27,8 @@ namespace TinyLegion.Unity
         event Action<string> Notice;
         event Action<JObject> BattleFinished;
         event Action<JObject> BattleEvent;
+        event Action<string> AudioCue;
+        event Action<string> CommandCompleted;
         Task<JObject> Command(string type, JObject args = null);
         Task StartBattle(string mode, int stageId);
         Task LeaveBattle();

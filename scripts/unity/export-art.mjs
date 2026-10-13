@@ -2,6 +2,7 @@ import { mkdir, readdir, readFile, writeFile, cp } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Resvg } from '@resvg/resvg-js';
+import { exportAudio } from './export-audio.mjs';
 const root=resolve(fileURLToPath(new URL('../..',import.meta.url)));
 const source=resolve(root,'unity/Assets/TinyLegion/Art/Svg');
 const target=resolve(root,'unity/Assets/TinyLegion/Resources/Art');
@@ -12,4 +13,5 @@ for(const file of await readdir(source)) {
  await writeFile(resolve(target,file.replace('.svg','.png')),png);
 }
 await cp(resolve(root,'dist/assets/music'),resolve(root,'unity/Assets/TinyLegion/Resources/Music'),{recursive:true});
-console.log('Exported original character art and licensed music for Unity');
+await exportAudio(root);
+console.log('Exported original character art, licensed music and shared effect sounds for Unity');
