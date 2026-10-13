@@ -15,6 +15,14 @@ export function legacyStarterSave(raw) {
 
 // Called after current fields are validated, before lineups are initialized.
 export function restoreLegacyProgress(a, raw, hasValidGuidePhase) {
+  // Discard only the test version whose short cycles earned unscaled rewards.
+  // Remove this block when idle-economy-15 test saves are retired.
+  for (const [stageId, record] of Object.entries(a.records)) {
+    if (record.snapshot?.balanceVersion === "idle-economy-15" &&
+        Number.isFinite(record.productionSeconds) && record.productionSeconds > 0 && record.productionSeconds < 90) {
+      delete a.records[stageId];
+    }
+  }
   if (!Object.hasOwn(raw, "marks")) {
     // Convert only unused legacy fragments once; already purchased levels stay intact.
     for (const unit of UNITS) {

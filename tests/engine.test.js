@@ -243,7 +243,7 @@ test("idle survival completes with normalized raw HP and integer reward", () => 
   assert.equal(Number.isInteger(state.result.reward), true);
   assert.equal(
     calculateIdleReward(1, battleDuration(1), 1),
-    Math.round(idleFullReward(1)),
+    Math.round(idleFullReward(1) * battleDuration(1) / 90),
   );
 });
 

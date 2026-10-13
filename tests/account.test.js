@@ -130,29 +130,53 @@ test("a new record settles the old rate and freezes its verified gold bonus", ()
   assert.equal(a.gold, 700);
   assert.equal(a.records[1].gold, 575);
   assert.equal(a.records[1].productionSeconds, 120);
-  assert.equal(a.records[1].diamonds, 0.025);
+  assert.equal(a.records[1].diamonds, 0.033);
   a.gemItems = [{uid:"attack",type:"attack",level:1,options:[]}];
   a.gemEquipment = {attack:"attack"};
   accrue(a, now + 240000);
   assert.equal(a.gold, 1275);
 });
-test("full idle totals ignore cycle length while accrual uses the saved duration", () => {
+test("short cycles earn proportionally less and have the same hourly income within rounding", () => {
   const hourlyIncome = [];
   for (const duration of [40, 60, 90]) {
     const a = newAccount(now);
     recordIdle(
       a,
-      { reward: 500, survival: duration, hpRatio: 1 },
+      { reward: calculateIdleReward(1, duration, 1, duration), survival: duration, hpRatio: 1 },
       { stageId: 1, duration },
       now,
     );
-    assert.equal(a.records[1].gold, 500);
+    assert.equal(a.records[1].gold, Math.round(500 * duration / 90));
     assert.equal(a.records[1].productionSeconds, duration);
-    assert.equal(a.records[1].diamonds, 0.025);
+    assert.equal(a.records[1].diamonds, Math.round(0.025 * duration / 90 * 1000) / 1000);
     hourlyIncome.push(accrue(a, now + 3600000));
   }
-  assert.deepEqual(hourlyIncome.map((income) => income.gold), [45000, 30000, 20000]);
-  assert.deepEqual(hourlyIncome.map((income) => income.diamonds), [2.25, 1.5, 1]);
+  for (const income of hourlyIncome) {
+    assert.ok(Math.abs(income.gold - 20000) <= 30);
+    assert.ok(Math.abs(income.diamonds - 1) <= 0.03);
+  }
+});
+test("only the unscaled test balance records require remeasurement", () => {
+  const a = newAccount(now);
+  a.records = {
+    1: { gold: 500, diamonds: 0.025, productionSeconds: 40, snapshot: { balanceVersion: "idle-economy-15" } },
+    2: { gold: 100, diamonds: 0.1, productionSeconds: 120, snapshot: { balanceVersion: "castle-entry-14" } },
+    3: { gold: 323, diamonds: 0.016, productionSeconds: 40, snapshot: { balanceVersion: "idle-time-scaled-16" } },
+    4: { gold: 878, diamonds: 0.044, productionSeconds: 60, snapshot: { balanceVersion: "idle-economy-15" } },
+    5: { gold: 1059, diamonds: 0.053, productionSeconds: 90, snapshot: { balanceVersion: "idle-economy-15" } },
+  };
+  const restored = normalizeAccount(a, now);
+  assert.equal(restored.records[1], undefined);
+  assert.deepEqual(restored.records[2], a.records[2]);
+  assert.deepEqual(restored.records[3], a.records[3]);
+  assert.equal(restored.records[4], undefined);
+  assert.deepEqual(restored.records[5], a.records[5]);
+  assert.equal(restored.gold, a.gold);
+  assert.equal(restored.diamonds, a.diamonds);
+  assert.deepEqual(normalizeAccount(restored, now).records, restored.records);
+  const result = {reward: calculateIdleReward(1, 40, 1, 40), survival: 40, hpRatio: 1};
+  assert.equal(recordIdle(restored, result, {stageId: 1, duration: 40, balanceVersion: "idle-time-scaled-16"}, now), true);
+  assert.equal(restored.records[1].gold, 222);
 });
 test("short failed idle cycles keep their full cycle duration in the accrual rate", () => {
   const full = newAccount(now);

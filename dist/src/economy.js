@@ -3,8 +3,9 @@ const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
 const IDLE_ACORNS = 500;
 const IDLE_DIAMONDS = 0.025;
+export const IDLE_REWARD_SECONDS = 90;
 const healthFactor = hpRatio => 0.1 + 0.9 * clamp(finite(hpRatio, 0), 0, 1) ** 2;
-// A full defense at 90% castle health on the next stage equals this stage's 100%.
+// Per-second income at 90% castle health on the next stage equals this stage's 100%.
 const STAGE_GROWTH = 1 / healthFactor(0.9);
 const stageFactor = stageId => STAGE_GROWTH ** (Math.max(1, finite(stageId, 1)) - 1);
 
@@ -16,7 +17,7 @@ export function idleRewardFactor(survival, duration, hpRatio) {
   const period = finite(duration, 0);
   if (period <= 0) return 0;
   const ratio = clamp(finite(survival, 0) / period, 0, 1);
-  return ratio ** 2 * healthFactor(hpRatio) * (ratio >= 1 ? 1 : 0.8);
+  return (period / IDLE_REWARD_SECONDS) * ratio ** 2 * healthFactor(hpRatio) * (ratio >= 1 ? 1 : 0.8);
 }
 
 export function idleDiamondReward(stageId, survival, duration, hpRatio) {
@@ -24,7 +25,7 @@ export function idleDiamondReward(stageId, survival, duration, hpRatio) {
 }
 
 // Five directly leveled companions are one shared-growth step. Between these
-// milestones, interpolate the reference stage and required full-defense rounds.
+// milestones, interpolate the reference stage and required 90-second equivalents.
 export const GROWTH_ANCHORS = [
   { level: 1, stage: 1, rounds: 1 },
   { level: 7, stage: 6, rounds: 2 },

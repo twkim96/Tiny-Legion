@@ -63,17 +63,14 @@ test('ordinary battles use stage limits; speedrun stays at 90 seconds with autho
   }
 });
 
-test('idle full rewards use stage growth independent of duration and shorter failures earn less per cycle', () => {
+test('idle full rewards scale with duration and shorter failures earn less per cycle', () => {
   for (const stage of STAGES) {
     const period = battleDuration(stage.id);
     const full = calculateIdleReward(stage.id, period, 1, period);
-    assert.equal(full, Math.round(idleFullReward(stage.id)));
+    assert.equal(full, Math.round(idleFullReward(stage.id) * period / 90));
     for (const duration of [40, 60, 90]) {
-      assert.equal(calculateIdleReward(stage.id, duration, 1, duration), full);
-      assert.equal(
-        idleDiamondReward(stage.id, duration, duration, 1),
-        idleDiamondReward(stage.id, 90, 90, 1),
-      );
+      assert.ok(Math.abs(calculateIdleReward(stage.id, duration, 1, duration) / duration - idleFullReward(stage.id) / 90) <= 0.5 / duration);
+      assert.ok(Math.abs(idleDiamondReward(stage.id, duration, duration, 1) / duration - idleDiamondReward(stage.id, 90, 90, 1) / 90) <= 0.0005 / duration + 0.0005 / 90);
     }
     assert.equal(calculateIdleReward(stage.id, 120, 1, period), full);
     for (const seconds of [period / 6, period / 3, period / 2, period - 1]) {
@@ -86,7 +83,7 @@ test('idle full rewards use stage growth independent of duration and shorter fai
   }
 });
 
-test('a full previous stage matches a full next stage at 90 percent HP after rounding', () => {
+test('previous 100% and next 90% defenses have equal hourly income across 40/60/90-second boundaries', () => {
   for (let index = 0; index < STAGES.length - 1; index++) {
     const previous = STAGES[index];
     const next = STAGES[index + 1];
@@ -94,11 +91,11 @@ test('a full previous stage matches a full next stage at 90 percent HP after rou
     const nextDuration = battleDuration(next.id, 'idle');
     const previousGold = calculateIdleReward(previous.id, previousDuration, 1, previousDuration);
     const nextGold = calculateIdleReward(next.id, nextDuration, 0.9, nextDuration);
-    assert.ok(Math.abs(previousGold - nextGold) <= 1, `stages ${previous.id}/${next.id} acorns`);
+    assert.ok(Math.abs(previousGold / previousDuration - nextGold / nextDuration) <= 0.5 / previousDuration + 0.5 / nextDuration, `stages ${previous.id}/${next.id} acorns per second`);
 
     const previousDiamonds = idleDiamondReward(previous.id, previousDuration, previousDuration, 1);
     const nextDiamonds = idleDiamondReward(next.id, nextDuration, nextDuration, 0.9);
-    assert.ok(Math.abs(previousDiamonds - nextDiamonds) <= 0.001, `stages ${previous.id}/${next.id} diamonds`);
+    assert.ok(Math.abs(previousDiamonds / previousDuration - nextDiamonds / nextDuration) <= 0.0005 / previousDuration + 0.0005 / nextDuration, `stages ${previous.id}/${next.id} diamonds per second`);
   }
 });
 
