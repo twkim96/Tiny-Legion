@@ -87,7 +87,14 @@ test("every fifth and tenth stage fields a large boss that can be defeated norma
     for (const group of bossGroups) {
       const boss = enemyById.get(group.id), original = enemyById.get(boss.artId);
       assert.ok(boss.sizeScale >= 1.5 && boss.sizeScale <= 2);
-      assert.ok(boss.hp > original.hp);
+      if (stageId === 5) {
+        assert.equal(boss.hp, 420);
+        assert.ok(boss.hp < 850, "the fifth-stage boss trades its old 850 HP for a native gimmick");
+        assert.ok(boss.effects.attackImmunity);
+        assert.ok(boss.effects.repelPulse);
+      } else {
+        assert.ok(boss.hp > original.hp);
+      }
       assert.ok(boss.attack * stage.enemyAttack > original.attack);
     }
     const { state, bosses } = play(stageId, level);

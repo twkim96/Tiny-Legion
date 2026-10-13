@@ -1,9 +1,9 @@
 import { STAGES, STARTER_UNIT_IDS, battleDuration } from "./data.js";
 import { UNITS, getUnit, getEnemy, getCharacter } from "./characters.js";
-import { characterStats, combineStatMultipliers } from "./character-stats.js";
+import { characterStats, combineStatMultipliers, combineAttackTypeMultipliers } from "./character-stats.js";
 import { effect, effectOf, EFFECT_OVERRIDE_KEYS } from "./effects.js";
-import { COMBAT_TIMING, CANNON, applyEffect, initializeEffects, combatStat, advanceEffects, tickPeriodicEffects, queueHealing, applyHitEffects, attackSource, supportTarget } from "./combat-effects.js";
-import { resolveDamage } from "./combat-rules.js";
+import { COMBAT_TIMING, CANNON, applyEffect, initializeEffects, combatStat, advanceEffects, tickPeriodicEffects, tickRepulsion, queueHealing, applyHitEffects, attackSource, supportTarget } from "./combat-effects.js";
+import { resolveDamage, blocksAttack } from "./combat-rules.js";
 import { earlyGuideEncounter, onboardingEncounter } from "./onboarding.js";
 import { normalizeAbilities } from "./abilities.js";
 import { SPEEDRUN_LIMIT_SECONDS, SPEEDRUN_STAGES } from "./speedrun.js";
@@ -99,6 +99,7 @@ function makeUnit(state, definition, team, x, level = 1) {
     boss: definition.boss === true,
     sizeScale: definition.sizeScale ?? 1,
     role: definition.role,
+    attackType: definition.attackType,
     attribute: definition.attribute,
     specialties: [...(definition.specialties ?? [])],
     specialtyUpgradeBonus: definition.specialtyUpgradeBonus,
@@ -207,7 +208,7 @@ export function createBattle(options = {}) {
     finished: false,
     result: null,
     events: [],
-    _enemyModifiers: combineStatMultipliers(stage.enemyModifiers, enemyModifiers, { attack: stage.enemyAttack }),
+    _enemyModifiers: { ...combineStatMultipliers(stage.enemyModifiers, enemyModifiers, { attack: stage.enemyAttack }), attackTypes: combineAttackTypeMultipliers(stage.enemyModifiers, enemyModifiers) },
     _baseReward: stage.baseReward,
     _spawnSchedule: makeSpawnSchedule(stage),
     _spawnIndex: 0,
@@ -218,6 +219,7 @@ export function createBattle(options = {}) {
     _abilities: Object.fromEntries(UNITS.map((u) => [u.id, normalizeAbilities(u.id, abilities?.[u.id])])),
     _modifiers: {
       ...combineStatMultipliers(modifiers),
+      attackTypes: combineAttackTypeMultipliers(modifiers),
       goldIncome: Math.max(1, finiteNumber(modifiers.goldIncome, 1)),
       killGold: Math.max(0, finiteNumber(modifiers.killGold, 0)),
       attributeBonuses: structuredClone(modifiers.attributeBonuses ?? {}),
@@ -471,6 +473,10 @@ function advanceProjectiles(state, dt, units, batch) {
 function resolveAttacks(state, dt) {
   const units = activeUnits(state);
   const batch = damageBatch();
+  for(const unit of units)tickRepulsion(unit,dt,units,{
+    warning: spec => emit(state,{type:'repel-warning',x:unit.x,team:unit.team,radius:spec.range}),
+    pulse: spec => emit(state,{type:'repel-pulse',x:unit.x,team:unit.team,radius:spec.range}),
+  });
   for (const unit of units) tickPeriodicEffects(unit, dt, {
     damage: (amount, direction, source) => addDamage(batch, unit, amount, direction, "poison", source),
     heal: spec => queueHealing(batch, unit, spec),
@@ -574,6 +580,10 @@ function applyDamage(state, units, batch) {
     let shieldDamage = 0;
     for (const entry of hit?.hits ?? []) {
       const resolved = resolveDamage(unit, entry.amount, entry.source);
+      if(resolved.blocked) {
+        emit(state,{type:'blocked',x:unit.x,team:unit.team,uid:unit.uid});
+        continue;
+      }
       unit.shield = Math.max(0, (unit.shield ?? 0) - resolved.shieldDamage);
       shieldDamage += resolved.shieldDamage;
       damage += resolved.hpDamage;
@@ -651,9 +661,9 @@ export function fireCannon(state) {
   const enemies = activeUnits(state).filter((unit) => unit.team === "enemy");
   const batch = damageBatch();
   for (const enemy of enemies)
-    addDamage(batch, enemy, CANNON.damage, 1, "cannon", { team: "player" });
+    addDamage(batch, enemy, CANNON.damage, 1, "cannon", { team: "player", attackType: 'ranged' });
   applyDamage(state, enemies, batch);
-  for (const enemy of enemies) applyEffect(enemy, CANNON.knockback, { direction: 1, maxX: ENEMY_CASTLE_X - 10 });
+  for (const enemy of enemies) if(!blocksAttack(enemy,{attackType:'ranged'}))applyEffect(enemy, CANNON.knockback, { direction: 1, maxX: ENEMY_CASTLE_X - 10 });
   return true;
 }
 

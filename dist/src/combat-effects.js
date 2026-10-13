@@ -1,5 +1,5 @@
 import { EFFECTS, effect, effectOf, effectKey, BATTLE_ORIGIN, STAT_MINIMUMS, MIN_EFFECT_INTERVAL } from './effects.js';
-import { specializationBonus } from './combat-rules.js';
+import { specializationBonus, blocksAttack } from './combat-rules.js';
 
 const finite = (value, fallback = 0) => Number.isFinite(Number(value)) ? Number(value) : fallback;
 const nonnegative = value => Math.max(0, finite(value));
@@ -20,6 +20,8 @@ export function initializeEffects(unit, definition) {
   unit.shield=unit.maxShield=Math.round(shield);
   const regeneration=effectOf(unit,'regeneration');
   if(regeneration)unit.periodicTimers.regeneration=regeneration.interval;
+  const repulsion=effectOf(unit,'repelPulse');
+  if(repulsion)unit.periodicTimers.repelPulse=repulsion.interval;
   return unit;
 }
 
@@ -48,6 +50,7 @@ export function applyEffect(unit, spec, context = {}) {
     const tickRemaining=previous?.remaining>0 ? Math.min(previous.tickRemaining,spec.interval) : spec.interval;
     unit.statusEffects[key]={...spec,origin,remaining:spec.duration*durationMultiplier,tickRemaining,damage,direction:context.direction,source};
   } else if(spec.type==='stat') {
+    if(spec.attackType && spec.attackType!==unit.attackType)return false;
     unit.statusEffects[key]={...spec,origin,remaining:spec.duration*durationMultiplier};
   } else if(spec.type==='healing') {
     return healUnit(unit,spec)>0;
@@ -57,17 +60,24 @@ export function applyEffect(unit, spec, context = {}) {
     unit.maxShield=Math.max(unit.maxShield??0,unit.shield);
   } else if(spec.type==='knockback') {
     if(!Number.isFinite(unit.x) || !Number.isFinite(context.direction))return false;
+    const before=unit.x;
     unit.x=Math.max(context.minX??0,Math.min(context.maxX??1200,unit.x+Math.sign(context.direction)*spec.distance));
+    if(unit.x!==before && context.cancelWindup && unit.action?.phase==='windup')unit.action=null;
+    if(unit.x!==before)unit.moving=false;
   } else if(spec.type==='hitStun') {
     unit.statusEffects[key]={...spec,origin,remaining:spec.duration*durationMultiplier};
     syncHitStun(unit);
     unit.moving=false;
-  } else if (['regeneration','immunity','shieldDamageAura','areaAttack','castleDamage','shieldDamage'].includes(spec.type)) {
+  } else if (['regeneration','immunity','shieldDamageAura','areaAttack','castleDamage','shieldDamage','attackImmunity','repelPulse'].includes(spec.type)) {
     unit.effects ??= {};
     unit.effects[spec.type] = structuredClone(spec);
     if (spec.type === 'regeneration') {
       unit.periodicTimers ??= {};
       unit.periodicTimers.regeneration = spec.interval;
+    }
+    if(spec.type==='repelPulse') {
+      unit.periodicTimers ??= {};
+      unit.periodicTimers.repelPulse=spec.interval;
     }
   } else return false;
   return true;
@@ -90,7 +100,7 @@ function syncHitStun(unit) {
 }
 export function combatStat(unit,stat) {
   let value=finite(unit?.[stat]);
-  const statuses=Object.values(unit?.statusEffects??{}).filter(e=>e.type==='stat' && e.stat===stat && e.remaining>0);
+  const statuses=Object.values(unit?.statusEffects??{}).filter(e=>e.type==='stat' && e.stat===stat && e.remaining>0 && (!e.attackType || e.attackType===unit.attackType));
   value+=statuses.reduce((sum,e)=>sum+e.flat,0);
   for(const status of statuses)value*=status.multiplier;
   if(stat==='speed')value*=effectFactor(unit,'slow');
@@ -129,11 +139,30 @@ export function tickPeriodicEffects(unit,dt,{heal,damage}) {
   }
 }
 export function applyHitEffects(target,source,{hpDamage,damage,direction}) {
+  if(blocksAttack(target,source))return;
   const durationMultiplier=1+specializationBonus(source,target,'duration');
   for (const spec of Object.values(source?.effects ?? {})) {
     const contract = EFFECTS[spec?.type];
     if (contract?.trigger === 'hit' && (!contract.requiresHpDamage || hpDamage > 0)) applyEffect(target,spec,{source,damage,direction,durationMultiplier});
   }
+}
+// Team-independent periodic control: only the declared attack class is eligible.
+export function tickRepulsion(unit,dt,units,{warning,pulse} = {}) {
+  const spec=effectOf(unit,'repelPulse');
+  if(!spec || unit.dead || !Number.isFinite(dt) || !(dt>0))return;
+  unit.periodicTimers ??= {};
+  const before=unit.periodicTimers.repelPulse ?? spec.interval;
+  let remaining=before-dt;
+  if(spec.warning>0 && before>spec.warning && remaining<=spec.warning)warning?.(spec);
+  while(remaining<=EPSILON) {
+    for(const target of units) {
+      if(target.dead || target.team===unit.team || target.attackType!==spec.attackType || Math.abs(target.x-unit.x)>spec.range)continue;
+      applyEffect(target,effect('knockback',{distance:spec.distance}),{direction:Math.sign(target.x-unit.x)||(unit.team==='enemy'?-1:1),cancelWindup:true});
+    }
+    pulse?.(spec);
+    remaining+=spec.interval;
+  }
+  unit.periodicTimers.repelPulse=remaining;
 }
 export function auraBonus(source,units,type) {
   const origins=new Map();
@@ -146,7 +175,7 @@ export function auraBonus(source,units,type) {
   return [...origins.values()].reduce((sum,bonus)=>sum+bonus,0);
 }
 export function attackSource(unit,units) {
-  return {origin:unit.origin??BATTLE_ORIGIN,team:unit.team,role:unit.role,attribute:unit.attribute,specialties:[...(unit.specialties??[])],attributeBonuses:structuredClone(unit.attributeBonuses),specialtyUpgradeBonus:structuredClone(unit.specialtyUpgradeBonus),gemAttributeBonuses:structuredClone(unit.gemAttributeBonuses),effects:{...structuredClone(unit.effects??{}),shieldDamage:effect('shieldDamage',{bonus:(effectOf(unit,'shieldDamage')?.bonus??0)+auraBonus(unit,units,'shieldDamageAura')})}};
+  return {origin:unit.origin??BATTLE_ORIGIN,team:unit.team,attackType:unit.attackType,role:unit.role,attribute:unit.attribute,specialties:[...(unit.specialties??[])],attributeBonuses:structuredClone(unit.attributeBonuses),specialtyUpgradeBonus:structuredClone(unit.specialtyUpgradeBonus),gemAttributeBonuses:structuredClone(unit.gemAttributeBonuses),effects:{...structuredClone(unit.effects??{}),shieldDamage:effect('shieldDamage',{bonus:(effectOf(unit,'shieldDamage')?.bonus??0)+auraBonus(unit,units,'shieldDamageAura')})}};
 }
 export function supportTarget(source,units,spec) {
   if(!spec)return null;

@@ -1,3 +1,4 @@
+import { attackTypeName } from "./attack-types.js";
 import { getUnit, ATTRIBUTES, ROLE_SPECIALIZATION } from "./characters.js";
 import { companionStats, levelCost, growthUnlocked, ownsUnit, effectiveUnitLevel, sharedLevel, unitLevelRefund } from "./account.js";
 import { unitAbilities, normalizeAbilities, abilityCost, abilityText, markTypeFor, markName } from "./abilities.js";
@@ -43,7 +44,7 @@ export function companionPanel(account, id, nativeEffects = [], mode = "idle") {
     ...ownedGemBasics(account).map(item=>`${gemDefinition(item.type).name} Lv. ${item.level} · ${gemDescription(item)} · 보유 기본 효과`),
     ...equippedGemItems(account).flatMap(item=>item.options.map(option=>`${gemDefinition(item.type).name} · 추가옵션 ${gemOptionText(option)}`)),
   ];
-  const pairs = [[STAT_NAMES.hp, stats.hp], [STAT_NAMES.attack, stats.attack], ["초당 공격력", stats.attack / stats.attackInterval],
+  const pairs = [["공격 유형", attackTypeName(stats.attackType)], [STAT_NAMES.hp, stats.hp], [STAT_NAMES.attack, stats.attack], ["초당 공격력", stats.attack / stats.attackInterval],
     [STAT_NAMES.range, stats.range], [STAT_NAMES.speed, stats.speed], [STAT_NAMES.attackInterval, `${fmt(stats.attackInterval)}초`],
     ["소환 골드", stats.cost], ["소환 대기", `${fmt(stats.cooldown)}초`]];
   return `<div class="companion-detail"><section class="companion-summary" id="companion-summary" tabindex="0" aria-label="동료 상세 스펙과 적용 효과"><div class="companion-heading"><div class="companion-portrait">${portrait(id)}</div><div>${rarityBadge(unit)}<h3>${unit.name}</h3><span>${levelLabel}</span><p>${unit.description}</p></div></div><div class="stat-list">${pairs.map(([label, value]) => `<div class="stat-item">${label}<strong>${typeof value === "number" ? fmt(value) : value}</strong></div>`).join("")}</div><div class="companion-specialties">${stats.specialties.map(attribute).join(" · ")}<p>${bonuses.join(" · ")}</p>${nativeEffects.length ? `<p>${nativeEffects.join("<br>")}</p>` : ""}</div><h4>적용 효과</h4>${effects.length ? `<ul class="companion-effects">${effects.map((effect) => `<li>${effect}</li>`).join("")}</ul>` : '<p class="settings-note">아직 강화한 특수능력이 없어요.</p>'}<button class="primary-button" id="companion-level" ${!growthUnlocked(account) || effectiveLevel >= 100 || account.gold < levelPrice ? "disabled" : ""}>레벨 ${effectiveLevel >= 100 ? "완료" : `올리기 ${icon("acorn")}${fmt(levelPrice)}`}</button></section><section class="companion-upgrades"><div class="companion-upgrade-header"><h4>특수능력</h4><span>${markName(mark)} ${fmt(account.marks?.[mark] ?? 0)}</span></div><div class="ability-list" id="companion-abilities" tabindex="0" role="region" aria-label="특수능력 강화 목록">${unitAbilities(unit).map((ability) => {

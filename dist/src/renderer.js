@@ -15,6 +15,9 @@ const FX_LIFETIME = {
   summon: 0.44,
   spawn: 0.38,
   burst: 0.72,
+  blocked: 0.24,
+  'repel-warning': 0.35,
+  'repel-pulse': 0.45,
 };
 const SPRITES = {};
 const SPRITE_IDS = new Set(
@@ -843,7 +846,21 @@ export class Renderer {
     c.save();
     c.globalAlpha =
       fade * (fx.type === "impact" && fx.hit === false ? 0.62 : 1);
-    if (fx.type === "attack") {
+    if(fx.type==='repel-warning' || fx.type==='repel-pulse') {
+      const radius=(fx.radius/1200)*w*(fx.type==='repel-warning'?1:.2+.8*progress);
+      c.strokeStyle=fx.type==='repel-warning'?'#e9bc7d':'#f7e3b5';
+      c.lineWidth=Math.max(2,baseSize*.045);
+      if(fx.type==='repel-warning')c.setLineDash([6,5]);
+      c.beginPath();
+      c.ellipse(x,ground-baseSize*.12,radius,Math.max(4,radius*.22),0,0,Math.PI*2);
+      c.stroke();
+    } else if(fx.type==='blocked') {
+      c.strokeStyle='#e4f2ec';
+      c.lineWidth=Math.max(2,baseSize*.055);
+      c.beginPath();
+      c.arc(x+dir*baseSize*.3,y,baseSize*(.3+.1*progress),Math.PI*.55,Math.PI*1.45);
+      c.stroke();
+    } else if (fx.type === "attack") {
       if ((fx.kind ?? characterAttackKind(fx.id, fx.team)) === "melee") {
         c.translate(x, y);
         c.scale(dir, 1);

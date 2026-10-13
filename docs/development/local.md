@@ -20,6 +20,7 @@ npm run dev
 |---|---|
 | `dist/index.html`, `dist/style.css` | 화면과 반응형 스타일 |
 | `dist/src/characters.js` | 아군·적 원본 정의·속성·고유 효과·강화 배정 |
+| `dist/src/attack-types.js` | 근거리·원거리 ID와 표시명 |
 | `dist/src/character-stats.js` | 공통 능력치 스냅샷·배율 |
 | `dist/src/effects.js`, `dist/src/combat-effects.js` | 효과 용어·수치 검증·강화/설명·공통 적용/만료·주기 처리 |
 | `dist/src/data.js` | 스테이지·웨이브·모집/성장 데이터; 캐릭터 정의 재수출 |

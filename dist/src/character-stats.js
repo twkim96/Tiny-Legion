@@ -3,6 +3,7 @@ import { applyEffect, advanceEffects } from './combat-effects.js';
 export { combatStat, regenerationFactor } from './combat-effects.js';
 import { getCharacter, UNIT_LEVEL_GROWTH } from "./characters.js";
 import { applyUnitAbilities } from "./abilities.js";
+import { ATTACK_TYPES } from './attack-types.js';
 
 const finite = (value, fallback) => Number.isFinite(Number(value)) ? Number(value) : fallback;
 const factor = value => Math.max(0, finite(value, 1));
@@ -13,6 +14,9 @@ export function combineStatMultipliers(...sources) {
     sources.reduce((product, source) => product * factor(source?.[stat]), 1),
   ]));
 }
+export const combineAttackTypeMultipliers = (...sources) => Object.fromEntries(
+  Object.keys(ATTACK_TYPES).map(type => [type, combineStatMultipliers(...sources.map(source => source?.attackTypes?.[type]))]),
+);
 
 // Detached spawn/detail snapshot. Overrides are encounter mechanics, multipliers
 // are encounter strength, modifiers are equipment/team effects; none change base data.
@@ -25,11 +29,12 @@ export function characterStats(character, { team = "player", level = 1, abilitie
   }
   const result = team === "player" ? applyUnitAbilities(definition, abilities) : definition;
   result.effects = normalizeEffects(result.effects);
-  const strength = combineStatMultipliers(multipliers, overrides.statMultipliers ?? definition.statMultipliers);
+  const encounterStrength = overrides.statMultipliers ?? definition.statMultipliers;
+  const strength = combineStatMultipliers(multipliers, encounterStrength, combineAttackTypeMultipliers(multipliers, encounterStrength)[result.attackType]);
   const scale = team === "player" ? 1 + (Math.max(1, Math.min(120, Math.floor(finite(level, 1)))) - 1) * UNIT_LEVEL_GROWTH : 1;
   for (const stat of scalable) {
     const growth = stat === "hp" || stat === "attack" ? scale : 1;
-    result[stat] *= growth * factor(modifiers[stat]) * strength[stat];
+    result[stat] *= growth * factor(modifiers[stat]) * factor(modifiers.attackTypes?.[result.attackType]?.[stat]) * strength[stat];
   }
   result.hp = Math.max(STAT_MINIMUMS.hp, Math.round(result.hp));
   result.attack = Math.max(STAT_MINIMUMS.attack, Math.round(result.attack));

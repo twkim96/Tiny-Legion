@@ -1,4 +1,5 @@
 import { effect } from './effects.js';
+import { isAttackType } from './attack-types.js';
 // Character identity, base stats and native mechanics have one home.
 export const ATTRIBUTES = [
   { id: "wild", name: "야생", symbol: "♧", color: "#72b54b", ink: "#3f852e", colorName: "초록색" },
@@ -29,6 +30,7 @@ export const UNITS = [
     theme: "숲",
     name: "양 방패",
     role: "tank",
+    attackType: "melee",
     specialties: ["wild"],
     hp: 360,
     attack: 24,
@@ -48,6 +50,7 @@ export const UNITS = [
     theme: "숲",
     name: "속공 토끼",
     role: "fast",
+    attackType: "melee",
     specialties: ["wild"],
     hp: 155,
     attack: 38,
@@ -68,6 +71,7 @@ export const UNITS = [
     theme: "숲",
     name: "씨앗 다람쥐",
     role: "ranged",
+    attackType: "ranged",
     specialties: ["wild"],
     hp: 145,
     attack: 34,
@@ -88,6 +92,7 @@ export const UNITS = [
     theme: "공방",
     name: "주전자",
     role: "splash",
+    attackType: "ranged",
     specialties: ["machine"],
     hp: 215,
     attack: 46,
@@ -109,6 +114,7 @@ export const UNITS = [
     theme: "별빛",
     name: "구름",
     role: "support",
+    attackType: "ranged",
     specialties: ["spirit"],
     effects: {
       slow: effect("slow", { factor: .75, duration: 2 }),
@@ -136,6 +142,7 @@ export const UNITS = [
     theme: "숲",
     name: "등불 여우",
     role: "warrior",
+    attackType: "melee",
     specialties: ["wild"],
     hp: 265,
     attack: 39,
@@ -155,6 +162,7 @@ export const UNITS = [
     theme: "공방",
     name: "가시 고슴도치",
     role: "tank",
+    attackType: "melee",
     specialties: ["machine"],
     hp: 455,
     attack: 19,
@@ -174,6 +182,7 @@ export const UNITS = [
     theme: "숲",
     name: "폭탄 병아리",
     role: "splash",
+    attackType: "ranged",
     specialties: ["wild"],
     hp: 175,
     attack: 29,
@@ -195,6 +204,7 @@ export const UNITS = [
     theme: "별빛",
     name: "물방울 수달",
     role: "support",
+    attackType: "ranged",
     specialties: ["spirit"],
     hp: 250,
     attack: 23,
@@ -216,6 +226,7 @@ export const UNITS = [
     theme: "공방",
     name: "태엽 부엉이",
     role: "ranged",
+    attackType: "ranged",
     specialties: ["machine"],
     hp: 170,
     attack: 43,
@@ -236,6 +247,7 @@ export const UNITS = [
     theme: "별빛",
     name: "버섯 마녀",
     role: "splash",
+    attackType: "ranged",
     specialties: ["spirit"],
     hp: 215,
     attack: 36,
@@ -257,6 +269,7 @@ export const UNITS = [
     theme: "숲",
     name: "숲 사슴 기사",
     role: "warrior",
+    attackType: "melee",
     specialties: ["wild"],
     hp: 315,
     attack: 33,
@@ -277,6 +290,7 @@ export const UNITS = [
     theme: "겨울",
     name: "눈꽃 펭귄",
     role: "fast",
+    attackType: "melee",
     specialties: ["spirit"],
     hp: 185,
     attack: 31,
@@ -296,6 +310,7 @@ export const UNITS = [
     theme: "별빛",
     name: "별바다 고래",
     role: "ranged",
+    attackType: "ranged",
     specialties: ["spirit", "shadow"],
     hp: 350,
     attack: 40,
@@ -317,6 +332,7 @@ export const UNITS = [
     theme: "공방",
     name: "시계 거북",
     role: "tank",
+    attackType: "melee",
     specialties: ["machine", "wild"],
     hp: 620,
     attack: 21,
@@ -341,6 +357,7 @@ export const ENEMIES = [
     description:
       "햇볕 아래 오래 지내 털이 짙어진 너구리예요. 바랜 풀잎 옷을 걸치고 앞줄로 다가와요.",
     role: "melee",
+    attackType: "melee",
     hp: 190,
     attack: 24,
     range: 42,
@@ -357,6 +374,7 @@ export const ENEMIES = [
     description:
       "햇볕에 그을린 들판의 토끼예요. 멀리서 빛의 물결을 보내며 동료를 도와요.",
     role: "ranged",
+    attackType: "ranged",
     hp: 155,
     attack: 20,
     range: 190,
@@ -374,6 +392,7 @@ export const ENEMIES = [
     description:
       "야외 생활로 짙은 갈색이 된 멧돼지예요. 두꺼운 털과 엄니를 앞세워 전선을 밀어요.",
     role: "heavy",
+    attackType: "melee",
     hp: 420,
     attack: 52,
     range: 48,
@@ -389,6 +408,7 @@ export const ENEMIES = [
     name: "덩굴 곰",
     description: "햇볕에 그을린 큰 곰이에요. 덩굴 망토를 두르고 묵직한 앞발로 앞줄을 밀어요. 방패로 버티며 뒤에서 공격해 보세요.",
     role: "heavy",
+    attackType: "melee",
     hp: 720, attack: 68, range: 52, speed: 25,
     attackInterval: 1.9, attackWindup: 0.48, attackRecovery: 0.36,
     color: "#94633e",
@@ -399,6 +419,7 @@ export const ENEMIES = [
     name: "바람 오소리",
     description: "짙은 줄무늬와 풀잎 허리띠를 두른 오소리예요. 빠르게 다가오니 앞줄이 비지 않게 지켜 주세요.",
     role: "melee",
+    attackType: "melee",
     hp: 280, attack: 34, range: 42, speed: 78,
     attackInterval: 0.95, attackWindup: 0.18, attackRecovery: 0.16,
     color: "#9b754f",
@@ -409,6 +430,7 @@ export const ENEMIES = [
     name: "가시 호저",
     description: "그을린 털과 긴 가시를 가진 호저예요. 독씨앗을 멀리 날려 3초 동안 중독시켜요. 중독에 강한 앞줄과 원거리 동료를 준비해 보세요.",
     role: "ranged",
+    attackType: "ranged",
     hp: 330, attack: 42, range: 285, speed: 24,
     attackInterval: 1.8, attackWindup: 0.34, attackRecovery: 0.26,
     projectile: { kind: "seed", speed: 610 },
@@ -423,6 +445,7 @@ export const ENEMIES = [
       "그을린 털 위에 낡은 판금과 고글을 두른 두더지예요. 얇은 방어막은 모든 공격으로 깎을 수 있어요.",
     attribute: "machine",
     role: "melee",
+    attackType: "melee",
     effects: { shield: effect("shield", { hpRatio: .4 }) },
     hp: 230,
     attack: 26,
@@ -441,6 +464,7 @@ export const ENEMIES = [
       "햇볕에 그을린 여우가 바랜 그림자 망토를 걸쳤어요. 어둠을 빠르게 날리며 조금씩 재생해요.",
     attribute: "shadow",
     role: "ranged",
+    attackType: "ranged",
     effects: { regeneration: effect("regeneration", { hpRatio: .02, interval: 2 }) },
     hp: 125,
     attack: 17,
@@ -464,15 +488,22 @@ ENEMIES.push({
 
 // Bosses use familiar silhouettes, with their own ordinary combat stats.
 for (const [id, artId, name, attribute, hp, attack, sizeScale] of [
-  ["grove-bear", "bear", "언덕의 큰 곰", "wild", 850, 75, 1.5],
+  ["grove-bear", "bear", "언덕의 큰 곰", "wild", 420, 75, 1.5],
   ["grove-boar", "boar", "정원의 큰 멧돼지", "wild", 2200, 95, 1.8],
-  ["workshop-bear", "bear", "톱니 큰 곰", "machine", 2400, 120, 1.7],
+  ["workshop-bear", "bear", "톱니 큰 곰", "machine", 900, 120, 1.7],
   ["workshop-boar", "boar", "공방의 큰 멧돼지", "machine", 4000, 80, 2],
 ]) {
   const base = ENEMIES.find((enemy) => enemy.id === artId);
+  const mechanics = artId === "bear" ? {
+    effects: {
+      attackImmunity: effect("attackImmunity", { attackType: "ranged" }),
+      repelPulse: effect("repelPulse", { interval: 2.8, range: 165, distance: 120, warning: .35, attackType: "melee" }),
+    },
+    description: "원거리 공격을 튕겨내고 가까이 온 동료를 밀쳐내요.",
+  } : {};
   ENEMIES.push({ ...base, id, artId, name, attribute, hp, attack,
     boss: true, sizeScale, range: 65, speed: artId === "bear" ? 28 : 38,
-    description: "거대한 몸으로 길을 막아요. 앞줄을 지키며 동료를 키워 돌파해 보세요." });
+    description: "거대한 몸으로 길을 막아요. 앞줄을 지키며 동료를 키워 돌파해 보세요.", ...mechanics });
 }
 
 export const COMMON_ABILITIES = [
@@ -517,7 +548,10 @@ function freezeDefinition(value) {
 freezeDefinition(ATTRIBUTES);
 freezeDefinition(NEUTRAL_ATTRIBUTE);
 freezeDefinition(ROLE_SPECIALIZATION);
-for (const definition of [...UNITS, ...ENEMIES]) definition.effects ??= {};
+for (const definition of [...UNITS, ...ENEMIES]) {
+  if (!isAttackType(definition.attackType)) throw new TypeError(`Missing attack type: ${definition.id}`);
+  definition.effects ??= {};
+}
 freezeDefinition(UNITS);
 freezeDefinition(ENEMIES);
 freezeDefinition(SIGNATURE_ABILITIES);

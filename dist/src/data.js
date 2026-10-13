@@ -1,7 +1,7 @@
 import { UNITS, getEnemy } from "./characters.js";
 export { UNITS, ENEMIES, ATTRIBUTES, NEUTRAL_ATTRIBUTE, ROLE_SPECIALIZATION, ATTRIBUTE_BONUS_CAP, SHIELD_BONUS_CAP, stageLabel } from "./characters.js";
 // Initial tuning, subject to play acceptance. Permanent equipment/specialty bonuses add.
-export const BALANCE_VERSION = "idle-time-scaled-16";
+export const BALANCE_VERSION = "repelling-boss-17";
 export const RARITIES = [
   { id: "common", name: "일반", color: "#7b8974", rate: 0.6 },
   { id: "rare", name: "희귀", color: "#6094a4", rate: 0.28 },

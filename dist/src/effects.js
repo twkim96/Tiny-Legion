@@ -1,3 +1,4 @@
+import { isAttackType, attackTypeName } from './attack-types.js';
 // Shared vocabulary and numeric contracts. Character data owns tuning values.
 const number = value => Number(value).toLocaleString('ko-KR', { maximumFractionDigits: 2 });
 const percent = value => `${number(value * 100)}%`;
@@ -15,7 +16,7 @@ export function effectKind(spec) {
   if (spec.type !== 'stat') return spec.type;
   const directions=[Math.sign((spec.multiplier??1)-1),Math.sign(spec.flat??0)].filter(Boolean);
   const direction=directions.every(value=>value>=0) ? 'increase' : directions.every(value=>value<=0) ? 'decrease' : 'mixed';
-  return `stat:${spec.stat}:${direction}`;
+  return `stat:${spec.stat}:${direction}:${spec.attackType ?? 'all'}`;
 }
 export const effectKey = (origin, spec) => JSON.stringify([origin, effectKind(spec)]);
 export const STAT_KEYS = Object.freeze(['hp','attack','speed','range','attackInterval']);
@@ -34,8 +35,10 @@ const catalog = {
   castleDamage: { name: '성 추가 피해', fields: ['bonus'], describe: e => `+${percent(e.bonus)}` },
   shieldDamage: { name: '방어막 추가 피해', fields: ['bonus'], describe: e => `+${percent(e.bonus)}` },
   knockback: { trigger: 'hit', name: '밀어내기', fields: ['distance'], describe: e => `거리 ${number(e.distance)}` },
+  attackImmunity: { name: '공격 무효', fields: [], describe: e => `${attackTypeName(e.attackType)} 공격` },
+  repelPulse: { name: '밀쳐내기', fields: ['interval', 'range', 'distance', 'warning'], describe: e => `${number(e.interval)}초마다 ${attackTypeName(e.attackType)} · 범위 ${number(e.range)} · 거리 ${number(e.distance)}` },
   hitStun: { trigger: 'hit', name: '경직', fields: ['duration'], describe: e => `${number(e.duration)}초` },
-  stat: { trigger: 'hit', name: '능력치 변화', fields: ['multiplier', 'flat', 'duration'], describe: e => `${STAT_NAMES[e.stat]} ${[e.flat ? `${e.flat>0?'+':''}${number(e.flat)}` : '', e.multiplier!==1 ? `${number(e.multiplier)}배` : ''].filter(Boolean).join(' · ') || '변화 없음'} · ${number(e.duration)}초` },
+  stat: { trigger: 'hit', name: '능력치 변화', fields: ['multiplier', 'flat', 'duration'], describe: e => `${e.attackType ? attackTypeName(e.attackType)+' ' : ''}${STAT_NAMES[e.stat]} ${[e.flat ? `${e.flat>0?'+':''}${number(e.flat)}` : '', e.multiplier!==1 ? `${number(e.multiplier)}배` : ''].filter(Boolean).join(' · ') || '변화 없음'} · ${number(e.duration)}초` },
 };
 for (const definition of Object.values(catalog)) { Object.freeze(definition.fields); Object.freeze(definition); }
 export const EFFECTS = Object.freeze(catalog);
@@ -54,10 +57,18 @@ export function effect(type, values = {}) {
   if (type==='poison' && (!(result.duration>0) || !Number.isFinite(result.ratio))) throw new TypeError('Invalid poison');
   if (['healing','regeneration','shield'].includes(type) && !((result.amount??0)>0 || (result.hpRatio??0)>0)) throw new TypeError(`Invalid ${type} amount`);
   if (type==='immunity' && !EFFECTS[result.effect]) throw new TypeError('Invalid immunity');
+  if (['attackImmunity','repelPulse'].includes(type) && !isAttackType(result.attackType)) throw new TypeError('Invalid attack type');
+  if (type==='repelPulse') {
+    if (!(result.interval>0) || !Number.isFinite(result.range) || !Number.isFinite(result.distance)) throw new TypeError('Invalid repelPulse');
+    result.interval=Math.max(MIN_EFFECT_INTERVAL,result.interval);
+    result.warning ??= 0;
+    if (result.warning>=result.interval) throw new TypeError('Invalid repelPulse.warning');
+  }
   if (type==='healingSuppression' && result.scope!=null && !['all','regeneration'].includes(result.scope)) throw new TypeError('Invalid healing scope');
   if (type==='healing' && !Number.isFinite(result.range)) throw new TypeError('Invalid healing range');
   if (['areaAttack','knockback','castleDamage','shieldDamage','shieldDamageAura','hitStun'].includes(type) && definition.fields.some(field=>!Number.isFinite(result[field]))) throw new TypeError(`Invalid ${type}`);
   if (type==='stat') {
+    if (result.attackType!=null && !isAttackType(result.attackType)) throw new TypeError('Invalid stat attack type');
     result.multiplier ??= 1;
     result.flat ??= 0;
     if (!STAT_NAMES[result.stat] || result.stat==='hp' || !(result.duration>0)) throw new TypeError('Invalid stat effect');

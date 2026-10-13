@@ -264,9 +264,10 @@ test("a fully grown forest lineup can clear other regions without mandatory coun
       mode: "challenge",
       stageId: stage.id,
       sequence: [],
-      levels: { squirrel: 100 },
+      levels: { squirrel: 100, rabbit: 100 },
     });
     for (let i = 0; i < 3600 && !state.finished; i++) {
+      summonUnit(state, "rabbit");
       summonUnit(state, "squirrel");
       stepBattle(state, tick);
     }
@@ -274,7 +275,7 @@ test("a fully grown forest lineup can clear other regions without mandatory coun
     assert.ok(
       state.units
         .filter((u) => u.team === "player")
-        .every((u) => u.id === "squirrel"),
+        .every((u) => ["squirrel", "rabbit"].includes(u.id)),
     );
   }
 });

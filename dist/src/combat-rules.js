@@ -19,6 +19,7 @@ export function specializationBonus(source, target, kind) {
 }
 
 export function resolveDamage(target, rawDamage, source = {}) {
+  if (blocksAttack(target, source)) return { hpDamage: 0, shieldDamage: 0, blocked: true };
   let damage = Math.max(0, rawDamage);
   if (source.team === "player" && target.team === "enemy")
     damage *= 1 + specializationBonus(source, target, "attack");
@@ -33,3 +34,7 @@ export function resolveDamage(target, rawDamage, source = {}) {
     shieldDamage: absorbedBase * shieldMultiplier,
   };
 }
+export const blocksAttack = (target, source = {}) => {
+  const immunity = effectOf(target, 'attackImmunity');
+  return !!immunity && immunity.attackType === source.attackType;
+};
