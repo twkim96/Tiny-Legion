@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { effect, effectText, effectLines, applyChanges, effectOrigin, BATTLE_ORIGIN } from '../dist/src/effects.js';
-import { initializeEffects, activeEffects, remainingEffect, applyHitEffects, applyEffect, advanceEffects, combatStat, healingFactor, healUnit, queueHealing, tickPeriodicEffects, attackSource, statusMarks, supportTarget } from '../dist/src/combat-effects.js';
+import { effect, effectText, effectLines, applyChanges, effectOrigin, BATTLE_ORIGIN, EFFECTS, EFFECT_KEYWORDS, effectInfo, effectKeywords, hasEffectKeyword } from '../dist/src/effects.js';
+import { initializeEffects, activeEffects, remainingEffect, applyHitEffects, applyEffect, advanceEffects, combatStat, healingFactor, healUnit, queueHealing, tickPeriodicEffects, attackSource, statusMarks, supportTarget, tickRepulsion } from '../dist/src/combat-effects.js';
 import { getUnit, getEnemy, UNITS, ENEMIES } from '../dist/src/characters.js';
 import { unitAbilities, abilityText, applyUnitAbilities } from '../dist/src/abilities.js';
 import { characterStats } from '../dist/src/character-stats.js';
@@ -250,4 +250,47 @@ test('battle attack buffs and attack debuffs are different kinds, while another 
   near(combatStat(target,'attack'),44);
   advanceEffects(target,1);assert.equal(combatStat(target,'attack'),40);
   advanceEffects(target,1);assert.equal(combatStat(target,'attack'),80);
+});
+
+
+test('native mechanics and buffs share keyword identities with detached tuning values', () => {
+  for (const definition of Object.values(EFFECTS)) assert.ok(EFFECT_KEYWORDS[definition.keyword]);
+  const boss = getEnemy('grove-bear');
+  const infos = effectKeywords(boss);
+  assert.deepEqual(infos.map(info => info.label), ['공격 무효(원거리)', '밀쳐내기']);
+  const pulse = infos.find(info => info.keyword === 'knockback');
+  assert.equal(pulse.values.range, boss.effects.repelPulse.range);
+  pulse.values.range = 88;
+  assert.notEqual(boss.effects.repelPulse.range, 88);
+  const tuned = effectInfo(effect('repelPulse', { ...pulse.values, interval: 4, range: 88 }));
+  assert.match(tuned.details, /4초마다 · 대상 근거리 · 범위 88/);
+  assert.equal(effectInfo(effect('knockback', { distance: 50 })).keyword, tuned.keyword);
+  assert.equal(hasEffectKeyword(boss, 'knockback'), true);
+  assert.equal(hasEffectKeyword(boss, 'slow'), false);
+  for (const team of ['player', 'enemy']) {
+    const target = unit(team);
+    applyEffect(target, effect('slow', { factor: .7, duration: 2 }));
+    assert.equal(hasEffectKeyword(target, 'slow'), true);
+    advanceEffects(target, 2);
+    assert.equal(hasEffectKeyword(target, 'slow'), false);
+  }
+  assert.equal(effectInfo(effect('stat', { stat: 'attack', multiplier: 1.1, duration: 5, attackType: 'melee' })).label, '공격력 증가(근거리)');
+});
+
+
+test('attack immunity and periodic knockback are reusable on either team with independent values', () => {
+  for (const team of ['player', 'enemy']) {
+    const caster = unit(team);
+    const target = unit(team === 'player' ? 'enemy' : 'player');
+    target.x = 140; target.attackType = 'melee';
+    assert.equal(applyEffect(caster, effect('attackImmunity', { attackType: 'ranged' })), true);
+    assert.deepEqual(resolveDamage(caster, 30, { team: target.team, attackType: 'ranged' }), { hpDamage: 0, shieldDamage: 0, blocked: true });
+    assert.equal(resolveDamage(caster, 30, { team: target.team, attackType: 'melee' }).hpDamage, 30);
+    assert.equal(applyEffect(caster, effect('repelPulse', { attackType: 'melee', interval: 1, range: 50, distance: 25, warning: .2 })), true);
+    tickRepulsion(caster, .9, [caster, target]);
+    assert.equal(target.x, 140);
+    tickRepulsion(caster, .1, [caster, target]);
+    assert.equal(target.x, 165);
+    assert.equal(effectInfo(caster.effects.repelPulse).values.range, 50);
+  }
 });

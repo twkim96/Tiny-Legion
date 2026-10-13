@@ -536,7 +536,8 @@ export class Renderer {
       const life =
         event?.type === "hit" && event.kind === "cannon"
           ? 0.58
-          : FX_LIFETIME[event?.type];
+          : event?.type === "repel-warning" && Number.isFinite(event.duration) && event.duration > 0
+            ? event.duration : FX_LIFETIME[event?.type];
       if (!life || !Number.isFinite(event.x)) continue;
       this.addFx({
         ...event,

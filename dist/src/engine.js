@@ -474,7 +474,7 @@ function resolveAttacks(state, dt) {
   const units = activeUnits(state);
   const batch = damageBatch();
   for(const unit of units)tickRepulsion(unit,dt,units,{
-    warning: spec => emit(state,{type:'repel-warning',x:unit.x,team:unit.team,radius:spec.range}),
+    warning: spec => emit(state,{type:'repel-warning',x:unit.x,team:unit.team,radius:spec.range,duration:spec.warning}),
     pulse: spec => emit(state,{type:'repel-pulse',x:unit.x,team:unit.team,radius:spec.range}),
   });
   for (const unit of units) tickPeriodicEffects(unit, dt, {

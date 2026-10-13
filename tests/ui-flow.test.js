@@ -1,3 +1,5 @@
+import { effectMarkup } from '../dist/src/effects-ui.js';
+import { getEnemy } from '../dist/src/characters.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -1116,4 +1118,16 @@ test('fullscreen exit during a pending orientation lock cannot leave the screen 
   const result = await pending;
   assert.equal(result.fullscreen, false);
   assert.equal(unlocked, 1);
+});
+
+
+test('shared keyword presentation separates mechanic names and tuning details in character panels', () => {
+  const markup = effectMarkup(getEnemy('grove-bear'));
+  assert.match(markup, /<dt>공격 무효\(원거리\)<\/dt>/);
+  assert.match(markup, /data-effect-keyword="knockback"><dt>밀쳐내기<\/dt><dd>2.8초마다 · 대상 근거리 · 범위 165 · 거리 120<\/dd>/);
+  const account = newAccount(); account.owned.cloud = true;
+  const panel = companionPanel(account, 'cloud');
+  assert.match(panel, /<dt>둔화<\/dt>/);
+  assert.match(panel, /<dt>회복 억제<\/dt>/);
+  assert.match(panel, /이동속도 25% 감소 · 2초/);
 });

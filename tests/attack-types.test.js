@@ -245,3 +245,19 @@ test("stage and wave attack-type multipliers compose for spawned enemies without
     assert.equal(original.attack, Math.round(getEnemy(enemy.id).attack * baseline._enemyModifiers.attack));
   }
 });
+
+
+test("a non-boss enemy reuses the mechanics and emits its configured warning duration", () => {
+  const state = battleWithEnemies([{ id: "beetle", x: 600, overrides: { effects: {
+    attackImmunity: effect("attackImmunity", { attackType: "ranged" }),
+    repelPulse: effect("repelPulse", { attackType: "melee", interval: 1, range: 150, distance: 60, warning: .6 }),
+  } } }]);
+  const ally = summonNear(state, "rabbit", 500);
+  ally.speed = 0; ally.attackTimer = 1000;
+  const enemy = state.units.find(unit => unit.id === "beetle");
+  advanceUntil(state, () => state.events.some(event => event.type === "repel-warning"));
+  assert.equal(state.events.find(event => event.type === "repel-warning").duration, .6);
+  advanceUntil(state, () => state.events.some(event => event.type === "repel-pulse"));
+  assert.equal(ally.x, 440);
+  assert.equal(enemy.effects.attackImmunity.attackType, "ranged");
+});

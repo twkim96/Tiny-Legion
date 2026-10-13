@@ -3846,3 +3846,8 @@ html:fullscreen .game {
 }
 
 .menu-speed[aria-pressed="true"] [data-icon="forward"] path { fill: #111; stroke: #111; }
+
+/* Shared native effect keywords in companion details and the codex. */
+.effect-keywords { margin: 8px 0; display: grid; gap: 7px; font-size: 12px; line-height: 1.5; }
+.effect-keywords dt { margin: 0; color: #424938; font-weight: 700; }
+.effect-keywords dd { margin: 2px 0 0; color: #6c745d; overflow-wrap: anywhere; }

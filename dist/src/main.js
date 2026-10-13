@@ -7,6 +7,7 @@ import { signInPath, signInIntent, entryPanel, accountIdentityPanel } from "./si
 import { testLoginPanel, bindTestLogin, adminPanel } from "./test-access-ui.js";
 import { UNITS, ENEMIES, ATTRIBUTES, NEUTRAL_ATTRIBUTE, ROLE_SPECIALIZATION, getEnemy } from "./characters.js";
 import { effectLines } from "./effects.js";
+import { effectMarkup } from "./effects-ui.js";
 import { attackTypeName } from "./attack-types.js";
 import {
   STAGES,
@@ -1716,7 +1717,7 @@ function renderUnitDetail(id) {
   const summaryScroll = $("companion-summary")?.scrollTop ?? 0;
   const stats = companionStats(account, id, mode);
   if (!stats || !ownsUnit(account, id)) return;
-  $("modal-content").innerHTML = companionPanel(account, id, unitAbilityLines(stats), mode);
+  $("modal-content").innerHTML = companionPanel(account, id, mode);
   $("companion-abilities").scrollTop = abilityScroll;
   $("companion-summary").scrollTop = summaryScroll;
   $("companions-back").onclick = () => returnModal("동료", "growth", renderGrowth);
@@ -1925,15 +1926,14 @@ function renderCollection() {
 function renderCodexDetail(id, enemy) {
   const u = enemy ? getEnemy(id) : companionStats(account, id, mode),
     scale = 1,
-    gimmicks = enemyGimmicks(u),
     detailLines = enemy
       ? [
           u.attribute ? `속성 · ${attributeName(u.attribute)}` : "",
-          ...gimmicks.lines,
+          ...(u.boss ? ["거대 적"] : []),
         ].filter(Boolean)
-      : [unitSpecialtyText(u, true), ...unitAbilityLines(u)];
+      : [unitSpecialtyText(u, true)];
   $("modal-content").innerHTML =
-    `<div class="codex-layout"><div class="codex-art ${!enemy && !ownsUnit(account, id) ? "unowned" : ""}">${portrait(id)}</div><div class="codex-info">${enemy ? "" : rarityBadge(u)}<h3>${u.name}</h3>${!enemy ? `<span class="collection-state">${ownsUnit(account, id) ? `보유 · Lv. ${effectiveUnitLevel(account, id)}` : "미보유 · 모집에서 획득"} · ${u.theme || "숲"}</span>` : ""}<span class="role-label">${roles[u.role]}</span><p>${u.description || "전투 특성을 살펴보세요."}</p>${detailLines.length ? `<p class="settings-note"><strong>${enemy ? "속성과 특성" : "속성 특성"}</strong><br>${detailLines.join("<br>")}</p>` : ""}<div class="stat-list">${[
+    `<div class="codex-layout"><div class="codex-art ${!enemy && !ownsUnit(account, id) ? "unowned" : ""}">${portrait(id)}</div><div class="codex-info">${enemy ? "" : rarityBadge(u)}<h3>${u.name}</h3>${!enemy ? `<span class="collection-state">${ownsUnit(account, id) ? `보유 · Lv. ${effectiveUnitLevel(account, id)}` : "미보유 · 모집에서 획득"} · ${u.theme || "숲"}</span>` : ""}<span class="role-label">${roles[u.role]}</span><p>${u.description || "전투 특성을 살펴보세요."}</p>${detailLines.length ? `<p class="settings-note"><strong>${enemy ? "속성과 특성" : "속성 특성"}</strong><br>${detailLines.join("<br>")}</p>` : ""}${effectMarkup(u)}<div class="stat-list">${[
       ["공격 유형", attackTypeName(u.attackType)],
       ["체력", Math.round(u.hp * scale)],
       ["공격력", Math.round(u.attack * scale)],
