@@ -9,9 +9,14 @@
     "check": "node scripts/check-source.mjs",
     "build": "node scripts/build-server.mjs",
     "db:generate": "drizzle-kit generate",
-    "dev:server": "npm run build && node scripts/dev-server.mjs"
+    "dev:server": "npm run build && node scripts/dev-server.mjs",
+    "unity:export": "node scripts/unity/export-catalog.mjs && node scripts/unity/export-art.mjs && node scripts/unity/export-scenery.mjs && node scripts/unity/generate-meta.mjs",
+    "unity:build": "node scripts/unity/build.mjs",
+    "unity:check-source": "node scripts/unity/check-unity-source.mjs"
   },
   "devDependencies": {
+    "@napi-rs/canvas": "0.1.80",
+    "@resvg/resvg-js": "2.6.2",
     "drizzle-kit": "^0.31.10",
     "drizzle-orm": "^0.45.2",
     "esbuild": "^0.25.12"

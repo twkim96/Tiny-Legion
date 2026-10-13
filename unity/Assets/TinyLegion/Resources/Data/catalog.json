@@ -1,0 +1,7014 @@
+{
+  "schemaVersion": 1,
+  "balanceVersion": "combat-traits-20",
+  "animationPoses": {
+    "sheep": {
+      "windup": {
+        "phase": "windup",
+        "progress": 1,
+        "kind": null,
+        "offsetX": -0.05,
+        "offsetY": 0.025,
+        "bob": 0,
+        "rotation": -0.07,
+        "scaleX": 1.04,
+        "scaleY": 0.88,
+        "alpha": 1
+      },
+      "recovery": {
+        "phase": "recovery",
+        "progress": 0,
+        "kind": null,
+        "offsetX": 0.1,
+        "offsetY": -0.01,
+        "bob": 0,
+        "rotation": 0.1,
+        "scaleX": 1.05,
+        "scaleY": 0.985,
+        "alpha": 1
+      }
+    },
+    "rabbit": {
+      "windup": {
+        "phase": "windup",
+        "progress": 1,
+        "kind": null,
+        "offsetX": -0.07,
+        "offsetY": 0.01,
+        "bob": 0,
+        "rotation": -0.17,
+        "scaleX": 1.035,
+        "scaleY": 0.9299999999999999,
+        "alpha": 1
+      },
+      "recovery": {
+        "phase": "recovery",
+        "progress": 0,
+        "kind": null,
+        "offsetX": 0.11,
+        "offsetY": -0.025,
+        "bob": 0,
+        "rotation": 0.21,
+        "scaleX": 1.045,
+        "scaleY": 0.975,
+        "alpha": 1
+      }
+    },
+    "squirrel": {
+      "windup": {
+        "phase": "windup",
+        "progress": 1,
+        "kind": null,
+        "offsetX": -0.055,
+        "offsetY": 0.005,
+        "bob": 0,
+        "rotation": -0.12,
+        "scaleX": 1.045,
+        "scaleY": 0.9299999999999999,
+        "alpha": 1
+      },
+      "recovery": {
+        "phase": "recovery",
+        "progress": 0,
+        "kind": null,
+        "offsetX": 0.055,
+        "offsetY": -0.005,
+        "bob": 0,
+        "rotation": 0.08,
+        "scaleX": 1.035,
+        "scaleY": 0.985,
+        "alpha": 1
+      }
+    },
+    "teapot": {
+      "windup": {
+        "phase": "windup",
+        "progress": 1,
+        "kind": null,
+        "offsetX": -0.045,
+        "offsetY": 0.01,
+        "bob": 0,
+        "rotation": -0.18,
+        "scaleX": 1.035,
+        "scaleY": 0.945,
+        "alpha": 1
+      },
+      "recovery": {
+        "phase": "recovery",
+        "progress": 0,
+        "kind": null,
+        "offsetX": 0.055,
+        "offsetY": -0.015,
+        "bob": 0,
+        "rotation": 0.23,
+        "scaleX": 1.035,
+        "scaleY": 0.99,
+        "alpha": 1
+      }
+    },
+    "cloud": {
+      "windup": {
+        "phase": "windup",
+        "progress": 1,
+        "kind": null,
+        "offsetX": -0.025,
+        "offsetY": -0.025,
+        "bob": 0,
+        "rotation": -0.06,
+        "scaleX": 1.09,
+        "scaleY": 0.975,
+        "alpha": 1
+      },
+      "recovery": {
+        "phase": "recovery",
+        "progress": 0,
+        "kind": null,
+        "offsetX": 0.045,
+        "offsetY": -0.035,
+        "bob": 0,
+        "rotation": 0.06,
+        "scaleX": 1.1,
+        "scaleY": 1.015,
+        "alpha": 1
+      }
+    },
+    "fox": {
+      "windup": {
+        "phase": "windup",
+        "progress": 1,
+        "kind": null,
+        "offsetX": -0.055,
+        "offsetY": 0.02,
+        "bob": 0,
+        "rotation": -0.12,
+        "scaleX": 1.035,
+        "scaleY": 0.91,
+        "alpha": 1
+      },
+      "recovery": {
+        "phase": "recovery",
+        "progress": 0,
+        "kind": null,
+        "offsetX": 0.075,
+        "offsetY": -0.025,
+        "bob": 0,
+        "rotation": 0.12,
+        "scaleX": 1.045,
+        "scaleY": 0.975,
+        "alpha": 1
+      }
+    },
+    "hedgehog": {
+      "windup": {
+        "phase": "windup",
+        "progress": 1,
+        "kind": null,
+        "offsetX": -0.055,
+        "offsetY": 0.02,
+        "bob": 0,
+        "rotation": -0.12,
+        "scaleX": 1.035,
+        "scaleY": 0.91,
+        "alpha": 1
+      },
+      "recovery": {
+        "phase": "recovery",
+        "progress": 0,
+        "kind": null,
+        "offsetX": 0.075,
+        "offsetY": -0.025,
+        "bob": 0,
+        "rotation": 0.12,
+        "scaleX": 1.045,
+        "scaleY": 0.975,
+        "alpha": 1
+      }
+    },
+    "chick": {
+      "windup": {
+        "phase": "windup",
+        "progress": 1,
+        "kind": null,
+        "offsetX": -0.055,
+        "offsetY": 0.02,
+        "bob": 0,
+        "rotation": -0.12,
+        "scaleX": 1.035,
+        "scaleY": 0.91,
+        "alpha": 1
+      },
+      "recovery": {
+        "phase": "recovery",
+        "progress": 0,
+        "kind": null,
+        "offsetX": 0.075,
+        "offsetY": -0.025,
+        "bob": 0,
+        "rotation": 0.12,
+        "scaleX": 1.045,
+        "scaleY": 0.975,
+        "alpha": 1
+      }
+    },
+    "otter": {
+      "windup": {
+        "phase": "windup",
+        "progress": 1,
+        "kind": null,
+        "offsetX": -0.055,
+        "offsetY": 0.02,
+        "bob": 0,
+        "rotation": -0.12,
+        "scaleX": 1.035,
+        "scaleY": 0.91,
+        "alpha": 1
+      },
+      "recovery": {
+        "phase": "recovery",
+        "progress": 0,
+        "kind": null,
+        "offsetX": 0.075,
+        "offsetY": -0.025,
+        "bob": 0,
+        "rotation": 0.12,
+        "scaleX": 1.045,
+        "scaleY": 0.975,
+        "alpha": 1
+      }
+    },
+    "owl": {
+      "windup": {
+        "phase": "windup",
+        "progress": 1,
+        "kind": null,
+        "offsetX": -0.055,
+        "offsetY": 0.02,
+        "bob": 0,
+        "rotation": -0.12,
+        "scaleX": 1.035,
+        "scaleY": 0.91,
+        "alpha": 1
+      },
+      "recovery": {
+        "phase": "recovery",
+        "progress": 0,
+        "kind": null,
+        "offsetX": 0.075,
+        "offsetY": -0.025,
+        "bob": 0,
+        "rotation": 0.12,
+        "scaleX": 1.045,
+        "scaleY": 0.975,
+        "alpha": 1
+      }
+    },
+    "mushroom-witch": {
+      "windup": {
+        "phase": "windup",
+        "progress": 1,
+        "kind": null,
+        "offsetX": -0.055,
+        "offsetY": 0.02,
+        "bob": 0,
+        "rotation": -0.12,
+        "scaleX": 1.035,
+        "scaleY": 0.91,
+        "alpha": 1
+      },
+      "recovery": {
+        "phase": "recovery",
+        "progress": 0,
+        "kind": null,
+        "offsetX": 0.075,
+        "offsetY": -0.025,
+        "bob": 0,
+        "rotation": 0.12,
+        "scaleX": 1.045,
+        "scaleY": 0.975,
+        "alpha": 1
+      }
+    },
+    "deer": {
+      "windup": {
+        "phase": "windup",
+        "progress": 1,
+        "kind": null,
+        "offsetX": -0.055,
+        "offsetY": 0.02,
+        "bob": 0,
+        "rotation": -0.12,
+        "scaleX": 1.035,
+        "scaleY": 0.91,
+        "alpha": 1
+      },
+      "recovery": {
+        "phase": "recovery",
+        "progress": 0,
+        "kind": null,
+        "offsetX": 0.075,
+        "offsetY": -0.025,
+        "bob": 0,
+        "rotation": 0.12,
+        "scaleX": 1.045,
+        "scaleY": 0.975,
+        "alpha": 1
+      }
+    },
+    "penguin": {
+      "windup": {
+        "phase": "windup",
+        "progress": 1,
+        "kind": null,
+        "offsetX": -0.055,
+        "offsetY": 0.02,
+        "bob": 0,
+        "rotation": -0.12,
+        "scaleX": 1.035,
+        "scaleY": 0.91,
+        "alpha": 1
+      },
+      "recovery": {
+        "phase": "recovery",
+        "progress": 0,
+        "kind": null,
+        "offsetX": 0.075,
+        "offsetY": -0.025,
+        "bob": 0,
+        "rotation": 0.12,
+        "scaleX": 1.045,
+        "scaleY": 0.975,
+        "alpha": 1
+      }
+    },
+    "whale": {
+      "windup": {
+        "phase": "windup",
+        "progress": 1,
+        "kind": null,
+        "offsetX": -0.055,
+        "offsetY": 0.02,
+        "bob": 0,
+        "rotation": -0.12,
+        "scaleX": 1.035,
+        "scaleY": 0.91,
+        "alpha": 1
+      },
+      "recovery": {
+        "phase": "recovery",
+        "progress": 0,
+        "kind": null,
+        "offsetX": 0.075,
+        "offsetY": -0.025,
+        "bob": 0,
+        "rotation": 0.12,
+        "scaleX": 1.045,
+        "scaleY": 0.975,
+        "alpha": 1
+      }
+    },
+    "turtle": {
+      "windup": {
+        "phase": "windup",
+        "progress": 1,
+        "kind": null,
+        "offsetX": -0.055,
+        "offsetY": 0.02,
+        "bob": 0,
+        "rotation": -0.12,
+        "scaleX": 1.035,
+        "scaleY": 0.91,
+        "alpha": 1
+      },
+      "recovery": {
+        "phase": "recovery",
+        "progress": 0,
+        "kind": null,
+        "offsetX": 0.075,
+        "offsetY": -0.025,
+        "bob": 0,
+        "rotation": 0.12,
+        "scaleX": 1.045,
+        "scaleY": 0.975,
+        "alpha": 1
+      }
+    },
+    "beetle": {
+      "windup": {
+        "phase": "windup",
+        "progress": 1,
+        "kind": null,
+        "offsetX": -0.045,
+        "offsetY": 0.015,
+        "bob": 0,
+        "rotation": -0.11,
+        "scaleX": 1.025,
+        "scaleY": 0.9,
+        "alpha": 1
+      },
+      "recovery": {
+        "phase": "recovery",
+        "progress": 0,
+        "kind": null,
+        "offsetX": 0.075,
+        "offsetY": -0.005,
+        "bob": 0,
+        "rotation": 0.1,
+        "scaleX": 1.035,
+        "scaleY": 0.98,
+        "alpha": 1
+      }
+    },
+    "mushroom": {
+      "windup": {
+        "phase": "windup",
+        "progress": 1,
+        "kind": null,
+        "offsetX": -0.035,
+        "offsetY": 0.015,
+        "bob": 0,
+        "rotation": -0.08,
+        "scaleX": 1.045,
+        "scaleY": 0.84,
+        "alpha": 1
+      },
+      "recovery": {
+        "phase": "recovery",
+        "progress": 0,
+        "kind": null,
+        "offsetX": 0.055,
+        "offsetY": -0.005,
+        "bob": 0,
+        "rotation": 0.08,
+        "scaleX": 1.035,
+        "scaleY": 1.045,
+        "alpha": 1
+      }
+    },
+    "boar": {
+      "windup": {
+        "phase": "windup",
+        "progress": 1,
+        "kind": null,
+        "offsetX": -0.1,
+        "offsetY": 0.035,
+        "bob": 0,
+        "rotation": -0.15,
+        "scaleX": 1.085,
+        "scaleY": 0.87,
+        "alpha": 1
+      },
+      "recovery": {
+        "phase": "recovery",
+        "progress": 0,
+        "kind": null,
+        "offsetX": 0.14,
+        "offsetY": -0.035,
+        "bob": 0,
+        "rotation": 0.16,
+        "scaleX": 1.075,
+        "scaleY": 0.975,
+        "alpha": 1
+      }
+    },
+    "bear": {
+      "windup": {
+        "phase": "windup",
+        "progress": 1,
+        "kind": null,
+        "offsetX": -0.055,
+        "offsetY": 0.02,
+        "bob": 0,
+        "rotation": -0.12,
+        "scaleX": 1.035,
+        "scaleY": 0.91,
+        "alpha": 1
+      },
+      "recovery": {
+        "phase": "recovery",
+        "progress": 0,
+        "kind": null,
+        "offsetX": 0.075,
+        "offsetY": -0.025,
+        "bob": 0,
+        "rotation": 0.12,
+        "scaleX": 1.045,
+        "scaleY": 0.975,
+        "alpha": 1
+      }
+    },
+    "badger": {
+      "windup": {
+        "phase": "windup",
+        "progress": 1,
+        "kind": null,
+        "offsetX": -0.055,
+        "offsetY": 0.02,
+        "bob": 0,
+        "rotation": -0.12,
+        "scaleX": 1.035,
+        "scaleY": 0.91,
+        "alpha": 1
+      },
+      "recovery": {
+        "phase": "recovery",
+        "progress": 0,
+        "kind": null,
+        "offsetX": 0.075,
+        "offsetY": -0.025,
+        "bob": 0,
+        "rotation": 0.12,
+        "scaleX": 1.045,
+        "scaleY": 0.975,
+        "alpha": 1
+      }
+    },
+    "porcupine": {
+      "windup": {
+        "phase": "windup",
+        "progress": 1,
+        "kind": null,
+        "offsetX": -0.055,
+        "offsetY": 0.02,
+        "bob": 0,
+        "rotation": -0.12,
+        "scaleX": 1.035,
+        "scaleY": 0.91,
+        "alpha": 1
+      },
+      "recovery": {
+        "phase": "recovery",
+        "progress": 0,
+        "kind": null,
+        "offsetX": 0.075,
+        "offsetY": -0.025,
+        "bob": 0,
+        "rotation": 0.12,
+        "scaleX": 1.045,
+        "scaleY": 0.975,
+        "alpha": 1
+      }
+    },
+    "clock-beetle": {
+      "windup": {
+        "phase": "windup",
+        "progress": 1,
+        "kind": null,
+        "offsetX": -0.055,
+        "offsetY": 0.02,
+        "bob": 0,
+        "rotation": -0.12,
+        "scaleX": 1.035,
+        "scaleY": 0.91,
+        "alpha": 1
+      },
+      "recovery": {
+        "phase": "recovery",
+        "progress": 0,
+        "kind": null,
+        "offsetX": 0.075,
+        "offsetY": -0.025,
+        "bob": 0,
+        "rotation": 0.12,
+        "scaleX": 1.045,
+        "scaleY": 0.975,
+        "alpha": 1
+      }
+    },
+    "shadow-mushroom": {
+      "windup": {
+        "phase": "windup",
+        "progress": 1,
+        "kind": null,
+        "offsetX": -0.055,
+        "offsetY": 0.02,
+        "bob": 0,
+        "rotation": -0.12,
+        "scaleX": 1.035,
+        "scaleY": 0.91,
+        "alpha": 1
+      },
+      "recovery": {
+        "phase": "recovery",
+        "progress": 0,
+        "kind": null,
+        "offsetX": 0.075,
+        "offsetY": -0.025,
+        "bob": 0,
+        "rotation": 0.12,
+        "scaleX": 1.045,
+        "scaleY": 0.975,
+        "alpha": 1
+      }
+    },
+    "spirit-rabbit": {
+      "windup": {
+        "phase": "windup",
+        "progress": 1,
+        "kind": null,
+        "offsetX": -0.055,
+        "offsetY": 0.02,
+        "bob": 0,
+        "rotation": -0.12,
+        "scaleX": 1.035,
+        "scaleY": 0.91,
+        "alpha": 1
+      },
+      "recovery": {
+        "phase": "recovery",
+        "progress": 0,
+        "kind": null,
+        "offsetX": 0.075,
+        "offsetY": -0.025,
+        "bob": 0,
+        "rotation": 0.12,
+        "scaleX": 1.045,
+        "scaleY": 0.975,
+        "alpha": 1
+      }
+    },
+    "grove-bear": {
+      "windup": {
+        "phase": "windup",
+        "progress": 1,
+        "kind": null,
+        "offsetX": -0.055,
+        "offsetY": 0.02,
+        "bob": 0,
+        "rotation": -0.12,
+        "scaleX": 1.035,
+        "scaleY": 0.91,
+        "alpha": 1
+      },
+      "recovery": {
+        "phase": "recovery",
+        "progress": 0,
+        "kind": null,
+        "offsetX": 0.075,
+        "offsetY": -0.025,
+        "bob": 0,
+        "rotation": 0.12,
+        "scaleX": 1.045,
+        "scaleY": 0.975,
+        "alpha": 1
+      }
+    },
+    "grove-boar": {
+      "windup": {
+        "phase": "windup",
+        "progress": 1,
+        "kind": null,
+        "offsetX": -0.055,
+        "offsetY": 0.02,
+        "bob": 0,
+        "rotation": -0.12,
+        "scaleX": 1.035,
+        "scaleY": 0.91,
+        "alpha": 1
+      },
+      "recovery": {
+        "phase": "recovery",
+        "progress": 0,
+        "kind": null,
+        "offsetX": 0.075,
+        "offsetY": -0.025,
+        "bob": 0,
+        "rotation": 0.12,
+        "scaleX": 1.045,
+        "scaleY": 0.975,
+        "alpha": 1
+      }
+    },
+    "workshop-bear": {
+      "windup": {
+        "phase": "windup",
+        "progress": 1,
+        "kind": null,
+        "offsetX": -0.055,
+        "offsetY": 0.02,
+        "bob": 0,
+        "rotation": -0.12,
+        "scaleX": 1.035,
+        "scaleY": 0.91,
+        "alpha": 1
+      },
+      "recovery": {
+        "phase": "recovery",
+        "progress": 0,
+        "kind": null,
+        "offsetX": 0.075,
+        "offsetY": -0.025,
+        "bob": 0,
+        "rotation": 0.12,
+        "scaleX": 1.045,
+        "scaleY": 0.975,
+        "alpha": 1
+      }
+    },
+    "workshop-boar": {
+      "windup": {
+        "phase": "windup",
+        "progress": 1,
+        "kind": null,
+        "offsetX": -0.055,
+        "offsetY": 0.02,
+        "bob": 0,
+        "rotation": -0.12,
+        "scaleX": 1.035,
+        "scaleY": 0.91,
+        "alpha": 1
+      },
+      "recovery": {
+        "phase": "recovery",
+        "progress": 0,
+        "kind": null,
+        "offsetX": 0.075,
+        "offsetY": -0.025,
+        "bob": 0,
+        "rotation": 0.12,
+        "scaleX": 1.045,
+        "scaleY": 0.975,
+        "alpha": 1
+      }
+    }
+  },
+  "units": [
+    {
+      "id": "sheep",
+      "rarity": "common",
+      "theme": "숲",
+      "family": "forest",
+      "attribute": "wild",
+      "name": "양 방패",
+      "role": "tank",
+      "attackType": "melee",
+      "specialties": [],
+      "hp": 540,
+      "attack": 24,
+      "range": 42,
+      "speed": 34,
+      "cost": 255,
+      "cooldown": 3.4,
+      "attackInterval": 1.25,
+      "attackWindup": 0.24,
+      "attackRecovery": 0.22,
+      "description": "튼튼한 앞줄 수호자예요.",
+      "color": "#eee5cb",
+      "effects": {}
+    },
+    {
+      "id": "rabbit",
+      "rarity": "common",
+      "theme": "숲",
+      "family": "forest",
+      "attribute": "wild",
+      "name": "속공 토끼",
+      "role": "fast",
+      "attackType": "melee",
+      "specialties": [
+        "wild"
+      ],
+      "hp": 155,
+      "attack": 38,
+      "effects": {
+        "devastating": {
+          "attribute": [
+            "wild"
+          ],
+          "type": "devastating",
+          "attackType": "all",
+          "family": "all",
+          "bonus": 0.5
+        },
+        "castleDamage": {
+          "bonus": 4,
+          "type": "castleDamage",
+          "attackType": "all",
+          "family": "all",
+          "attribute": "all"
+        }
+      },
+      "range": 48,
+      "speed": 115,
+      "cost": 270,
+      "cooldown": 2.6,
+      "attackInterval": 0.82,
+      "attackWindup": 0.16,
+      "attackRecovery": 0.2,
+      "description": "빠르게 달려들고 적 성에 큰 피해를 줘요.",
+      "color": "#dca68b"
+    },
+    {
+      "id": "squirrel",
+      "rarity": "common",
+      "theme": "숲",
+      "family": "forest",
+      "attribute": "wild",
+      "name": "씨앗 다람쥐",
+      "role": "ranged",
+      "attackType": "ranged",
+      "specialties": [],
+      "hp": 145,
+      "attack": 51,
+      "range": 250,
+      "speed": 44,
+      "cost": 520,
+      "cooldown": 4,
+      "attackInterval": 1.1,
+      "attackWindup": 0.22,
+      "attackRecovery": 0.2,
+      "projectile": {
+        "kind": "seed",
+        "speed": 680
+      },
+      "description": "안전한 거리에서 씨앗을 날려요.",
+      "color": "#c88755",
+      "effects": {}
+    },
+    {
+      "id": "teapot",
+      "rarity": "common",
+      "theme": "공방",
+      "family": "workshop",
+      "attribute": "machine",
+      "name": "주전자",
+      "role": "splash",
+      "attackType": "ranged",
+      "specialties": [
+        "machine"
+      ],
+      "hp": 215,
+      "attack": 46,
+      "range": 165,
+      "speed": 35,
+      "cost": 775,
+      "cooldown": 5,
+      "attackInterval": 1.6,
+      "attackWindup": 0.34,
+      "attackRecovery": 0.28,
+      "projectile": {
+        "kind": "water",
+        "speed": 480
+      },
+      "effects": {
+        "devastating": {
+          "attribute": [
+            "machine"
+          ],
+          "type": "devastating",
+          "attackType": "all",
+          "family": "all",
+          "bonus": 0.5
+        },
+        "areaAttack": {
+          "radius": 105,
+          "type": "areaAttack",
+          "attackType": "all",
+          "family": "all",
+          "attribute": "all"
+        }
+      },
+      "description": "가까이 모인 적에게 뜨거운 물을 퍼부어요.",
+      "color": "#df8669"
+    },
+    {
+      "id": "cloud",
+      "rarity": "common",
+      "theme": "별빛",
+      "family": "starlight",
+      "attribute": "spirit",
+      "name": "구름",
+      "role": "support",
+      "attackType": "ranged",
+      "specialties": [
+        "spirit"
+      ],
+      "effects": {
+        "strong": {
+          "attribute": [
+            "spirit"
+          ],
+          "type": "strong",
+          "attackType": "all",
+          "family": "all",
+          "effectiveHp": 0.3,
+          "bonus": 0.2
+        },
+        "slow": {
+          "factor": 0.75,
+          "duration": 2,
+          "type": "slow",
+          "attackType": "all",
+          "family": "all",
+          "attribute": "all"
+        },
+        "healingSuppression": {
+          "factor": 0.5,
+          "duration": 3,
+          "scope": "regeneration",
+          "type": "healingSuppression",
+          "attackType": "all",
+          "family": "all",
+          "attribute": "all"
+        },
+        "shieldDamageAura": {
+          "bonus": 1,
+          "range": 230,
+          "type": "shieldDamageAura",
+          "attackType": "all",
+          "family": "all",
+          "attribute": "all"
+        },
+        "healing": {
+          "amount": 28,
+          "range": 230,
+          "type": "healing",
+          "attackType": "all",
+          "family": "all",
+          "attribute": "all"
+        }
+      },
+      "hp": 235,
+      "attack": 23,
+      "range": 300,
+      "speed": 24,
+      "cost": 560,
+      "cooldown": 4.8,
+      "attackInterval": 1.5,
+      "attackWindup": 0.3,
+      "attackRecovery": 0.24,
+      "projectile": {
+        "kind": "bolt",
+        "speed": 1000
+      },
+      "description": "가까운 동료를 회복하고 방어막 공격을 도와요. 번개는 적을 늦추고 재생을 억제해요.",
+      "color": "#c4cf9e"
+    },
+    {
+      "id": "fox",
+      "rarity": "rare",
+      "theme": "숲",
+      "family": "forest",
+      "attribute": "wild",
+      "name": "등불 여우",
+      "role": "warrior",
+      "attackType": "melee",
+      "effects": {
+        "strong": {
+          "attribute": [
+            "wild"
+          ],
+          "type": "strong",
+          "attackType": "all",
+          "family": "all",
+          "effectiveHp": 0.3,
+          "bonus": 0.2
+        }
+      },
+      "specialties": [
+        "wild"
+      ],
+      "hp": 265,
+      "attack": 39,
+      "range": 52,
+      "speed": 64,
+      "cost": 430,
+      "cooldown": 3.6,
+      "attackInterval": 1.18,
+      "attackWindup": 0.22,
+      "attackRecovery": 0.22,
+      "description": "작은 등불을 들고 숲길의 앞줄을 지켜요.",
+      "color": "#c9774e"
+    },
+    {
+      "id": "hedgehog",
+      "rarity": "rare",
+      "theme": "공방",
+      "family": "workshop",
+      "attribute": "machine",
+      "name": "가시 고슴도치",
+      "role": "tank",
+      "attackType": "melee",
+      "effects": {
+        "sturdy": {
+          "attribute": [
+            "machine"
+          ],
+          "type": "sturdy",
+          "attackType": "all",
+          "family": "all",
+          "effectiveHp": 0.5
+        }
+      },
+      "specialties": [
+        "machine"
+      ],
+      "hp": 455,
+      "attack": 19,
+      "range": 40,
+      "speed": 27,
+      "cost": 415,
+      "cooldown": 4.8,
+      "attackInterval": 1.42,
+      "attackWindup": 0.3,
+      "attackRecovery": 0.26,
+      "description": "톱니 방패와 뾰족한 가시로 동료 앞을 막아요.",
+      "color": "#aa8260"
+    },
+    {
+      "id": "chick",
+      "rarity": "rare",
+      "theme": "숲",
+      "family": "forest",
+      "attribute": "wild",
+      "name": "폭탄 병아리",
+      "role": "splash",
+      "attackType": "ranged",
+      "specialties": [
+        "wild"
+      ],
+      "hp": 175,
+      "attack": 29,
+      "range": 155,
+      "speed": 40,
+      "cost": 510,
+      "cooldown": 4.5,
+      "attackInterval": 1.5,
+      "attackWindup": 0.28,
+      "attackRecovery": 0.24,
+      "projectile": {
+        "kind": "seed",
+        "speed": 580
+      },
+      "effects": {
+        "devastating": {
+          "attribute": [
+            "wild"
+          ],
+          "type": "devastating",
+          "attackType": "all",
+          "family": "all",
+          "bonus": 0.5
+        },
+        "areaAttack": {
+          "radius": 78,
+          "type": "areaAttack",
+          "attackType": "all",
+          "family": "all",
+          "attribute": "all"
+        }
+      },
+      "description": "작은 폭탄을 통통 던져 모인 적을 함께 맞혀요.",
+      "color": "#e8c858"
+    },
+    {
+      "id": "otter",
+      "rarity": "rare",
+      "theme": "별빛",
+      "family": "starlight",
+      "attribute": "spirit",
+      "name": "물방울 수달",
+      "role": "support",
+      "attackType": "ranged",
+      "specialties": [
+        "spirit"
+      ],
+      "hp": 250,
+      "attack": 23,
+      "range": 245,
+      "speed": 34,
+      "cost": 600,
+      "cooldown": 4.8,
+      "attackInterval": 1.55,
+      "attackWindup": 0.3,
+      "attackRecovery": 0.24,
+      "projectile": {
+        "kind": "bolt",
+        "speed": 900
+      },
+      "effects": {
+        "strong": {
+          "attribute": [
+            "spirit"
+          ],
+          "type": "strong",
+          "attackType": "all",
+          "family": "all",
+          "effectiveHp": 0.3,
+          "bonus": 0.2
+        },
+        "healing": {
+          "amount": 24,
+          "range": 190,
+          "type": "healing",
+          "attackType": "all",
+          "family": "all",
+          "attribute": "all"
+        }
+      },
+      "description": "반짝이는 물방울을 나누어 가까운 동료를 보살펴요.",
+      "color": "#78aebe"
+    },
+    {
+      "id": "owl",
+      "rarity": "epic",
+      "theme": "공방",
+      "family": "workshop",
+      "attribute": "machine",
+      "name": "태엽 부엉이",
+      "role": "ranged",
+      "attackType": "ranged",
+      "effects": {
+        "devastating": {
+          "attribute": [
+            "machine"
+          ],
+          "type": "devastating",
+          "attackType": "all",
+          "family": "all",
+          "bonus": 0.5
+        }
+      },
+      "specialties": [
+        "machine"
+      ],
+      "hp": 170,
+      "attack": 43,
+      "range": 315,
+      "speed": 29,
+      "cost": 690,
+      "cooldown": 5.2,
+      "attackInterval": 1.2,
+      "attackWindup": 0.24,
+      "attackRecovery": 0.2,
+      "projectile": {
+        "kind": "seed",
+        "speed": 760
+      },
+      "description": "태엽 망원경으로 먼 곳의 적을 정확히 겨눠요.",
+      "color": "#a98b6a"
+    },
+    {
+      "id": "mushroom-witch",
+      "rarity": "epic",
+      "theme": "별빛",
+      "family": "starlight",
+      "attribute": "spirit",
+      "name": "버섯 마녀",
+      "role": "splash",
+      "attackType": "ranged",
+      "specialties": [
+        "spirit"
+      ],
+      "hp": 215,
+      "attack": 36,
+      "range": 180,
+      "speed": 30,
+      "cost": 730,
+      "cooldown": 5.3,
+      "attackInterval": 1.68,
+      "attackWindup": 0.34,
+      "attackRecovery": 0.28,
+      "projectile": {
+        "kind": "water",
+        "speed": 460
+      },
+      "effects": {
+        "devastating": {
+          "attribute": [
+            "spirit"
+          ],
+          "type": "devastating",
+          "attackType": "all",
+          "family": "all",
+          "bonus": 0.5
+        },
+        "areaAttack": {
+          "radius": 92,
+          "type": "areaAttack",
+          "attackType": "all",
+          "family": "all",
+          "attribute": "all"
+        }
+      },
+      "description": "별가루 물약을 터뜨려 한곳에 모인 적을 공격해요.",
+      "color": "#9874a9"
+    },
+    {
+      "id": "deer",
+      "rarity": "epic",
+      "theme": "숲",
+      "family": "forest",
+      "attribute": "wild",
+      "name": "숲 사슴 기사",
+      "role": "warrior",
+      "attackType": "melee",
+      "specialties": [
+        "wild"
+      ],
+      "hp": 315,
+      "attack": 33,
+      "range": 54,
+      "speed": 55,
+      "cost": 700,
+      "cooldown": 3.8,
+      "attackInterval": 1.28,
+      "attackWindup": 0.26,
+      "attackRecovery": 0.23,
+      "effects": {
+        "strong": {
+          "attribute": [
+            "wild"
+          ],
+          "type": "strong",
+          "attackType": "all",
+          "family": "all",
+          "effectiveHp": 0.3,
+          "bonus": 0.2
+        },
+        "areaAttack": {
+          "radius": 65,
+          "type": "areaAttack",
+          "attackType": "all",
+          "family": "all",
+          "attribute": "all"
+        }
+      },
+      "description": "잎사귀 방패로 버티며 나무 창을 크게 휘둘러 모인 적을 함께 공격해요.",
+      "color": "#ac9169"
+    },
+    {
+      "id": "penguin",
+      "rarity": "epic",
+      "theme": "겨울",
+      "family": "winter",
+      "attribute": "spirit",
+      "name": "눈꽃 펭귄",
+      "role": "fast",
+      "attackType": "melee",
+      "effects": {
+        "devastating": {
+          "attribute": [
+            "spirit"
+          ],
+          "type": "devastating",
+          "attackType": "all",
+          "family": "all",
+          "bonus": 0.5
+        }
+      },
+      "specialties": [
+        "spirit"
+      ],
+      "hp": 185,
+      "attack": 31,
+      "range": 48,
+      "speed": 124,
+      "cost": 670,
+      "cooldown": 3.1,
+      "attackInterval": 0.74,
+      "attackWindup": 0.14,
+      "attackRecovery": 0.18,
+      "description": "눈꽃 망토를 휘날리며 얼음 위를 쏜살같이 달려요.",
+      "color": "#719bb1"
+    },
+    {
+      "id": "whale",
+      "rarity": "legendary",
+      "theme": "별빛",
+      "family": "starlight",
+      "attribute": "spirit",
+      "name": "별바다 고래",
+      "role": "ranged",
+      "attackType": "ranged",
+      "specialties": [
+        "spirit",
+        "shadow"
+      ],
+      "hp": 350,
+      "attack": 40,
+      "range": 335,
+      "speed": 22,
+      "cost": 920,
+      "cooldown": 6.6,
+      "attackInterval": 1.46,
+      "attackWindup": 0.34,
+      "attackRecovery": 0.28,
+      "projectile": {
+        "kind": "bolt",
+        "speed": 720
+      },
+      "effects": {
+        "devastating": {
+          "attribute": [
+            "shadow",
+            "spirit"
+          ],
+          "type": "devastating",
+          "attackType": "all",
+          "family": "all",
+          "bonus": 0.5
+        },
+        "slow": {
+          "factor": 0.9,
+          "duration": 0.8,
+          "type": "slow",
+          "attackType": "all",
+          "family": "all",
+          "attribute": "all"
+        }
+      },
+      "description": "별빛 물결을 보내 먼 적의 걸음을 잠시 늦춰요.",
+      "color": "#7194b5"
+    },
+    {
+      "id": "turtle",
+      "rarity": "legendary",
+      "theme": "공방",
+      "family": "workshop",
+      "attribute": "machine",
+      "name": "시계 거북",
+      "role": "tank",
+      "attackType": "melee",
+      "specialties": [
+        "machine",
+        "wild"
+      ],
+      "hp": 620,
+      "attack": 21,
+      "range": 44,
+      "speed": 20,
+      "cost": 970,
+      "cooldown": 7,
+      "attackInterval": 1.62,
+      "attackWindup": 0.36,
+      "attackRecovery": 0.3,
+      "effects": {
+        "sturdy": {
+          "attribute": [
+            "machine",
+            "wild"
+          ],
+          "type": "sturdy",
+          "attackType": "all",
+          "family": "all",
+          "effectiveHp": 0.5
+        },
+        "shieldDamageAura": {
+          "bonus": 0.25,
+          "range": 140,
+          "type": "shieldDamageAura",
+          "attackType": "all",
+          "family": "all",
+          "attribute": "all"
+        }
+      },
+      "description": "태엽 등껍질의 힘으로 가까운 동료의 방어막 공격을 도와요.",
+      "color": "#7e9b78"
+    }
+  ],
+  "enemies": [
+    {
+      "id": "beetle",
+      "attribute": "wild",
+      "family": "forest",
+      "name": "들판 너구리",
+      "description": "햇볕 아래 오래 지내 털이 짙어진 너구리예요. 바랜 풀잎 옷을 걸치고 앞줄로 다가와요.",
+      "role": "melee",
+      "attackType": "melee",
+      "hp": 190,
+      "attack": 24,
+      "range": 42,
+      "speed": 36,
+      "attackInterval": 1.35,
+      "attackWindup": 0.22,
+      "attackRecovery": 0.2,
+      "color": "#b78b5e",
+      "effects": {}
+    },
+    {
+      "id": "mushroom",
+      "attribute": "wild",
+      "family": "forest",
+      "name": "햇살 토끼",
+      "description": "햇볕에 그을린 들판의 토끼예요. 멀리서 빛의 물결을 보내며 동료를 도와요.",
+      "role": "ranged",
+      "attackType": "ranged",
+      "hp": 155,
+      "attack": 20,
+      "range": 190,
+      "speed": 27,
+      "attackInterval": 1.55,
+      "attackWindup": 0.32,
+      "attackRecovery": 0.24,
+      "projectile": {
+        "kind": "spore",
+        "speed": 430
+      },
+      "color": "#bb915f",
+      "effects": {}
+    },
+    {
+      "id": "boar",
+      "attribute": "wild",
+      "family": "forest",
+      "name": "덤불 멧돼지",
+      "description": "야외 생활로 짙은 갈색이 된 멧돼지예요. 두꺼운 털과 엄니를 앞세워 전선을 밀어요.",
+      "role": "heavy",
+      "attackType": "melee",
+      "hp": 420,
+      "attack": 52,
+      "range": 48,
+      "speed": 43,
+      "attackInterval": 1.65,
+      "attackWindup": 0.38,
+      "attackRecovery": 0.3,
+      "color": "#a27649",
+      "effects": {}
+    },
+    {
+      "id": "bear",
+      "attribute": "wild",
+      "family": "forest",
+      "name": "덩굴 곰",
+      "description": "햇볕에 그을린 큰 곰이에요. 덩굴 망토를 두르고 묵직한 앞발로 앞줄을 밀어요. 방패로 버티며 뒤에서 공격해 보세요.",
+      "role": "heavy",
+      "attackType": "melee",
+      "hp": 720,
+      "attack": 68,
+      "range": 52,
+      "speed": 25,
+      "attackInterval": 1.9,
+      "attackWindup": 0.48,
+      "attackRecovery": 0.36,
+      "color": "#94633e",
+      "effects": {}
+    },
+    {
+      "id": "badger",
+      "attribute": "wild",
+      "family": "forest",
+      "name": "바람 오소리",
+      "description": "짙은 줄무늬와 풀잎 허리띠를 두른 오소리예요. 빠르게 다가오니 앞줄이 비지 않게 지켜 주세요.",
+      "role": "melee",
+      "attackType": "melee",
+      "hp": 280,
+      "attack": 34,
+      "range": 42,
+      "speed": 78,
+      "attackInterval": 0.95,
+      "attackWindup": 0.18,
+      "attackRecovery": 0.16,
+      "color": "#9b754f",
+      "effects": {}
+    },
+    {
+      "id": "porcupine",
+      "attribute": "wild",
+      "family": "forest",
+      "name": "가시 호저",
+      "description": "그을린 털과 긴 가시를 가진 호저예요. 독씨앗을 멀리 날려 3초 동안 중독시켜요. 중독에 강한 앞줄과 원거리 동료를 준비해 보세요.",
+      "role": "ranged",
+      "attackType": "ranged",
+      "hp": 330,
+      "attack": 42,
+      "range": 285,
+      "speed": 24,
+      "attackInterval": 1.8,
+      "attackWindup": 0.34,
+      "attackRecovery": 0.26,
+      "projectile": {
+        "kind": "seed",
+        "speed": 610
+      },
+      "effects": {
+        "poison": {
+          "ratio": 0.04,
+          "duration": 3,
+          "interval": 1,
+          "type": "poison",
+          "attackType": "all",
+          "family": "all",
+          "attribute": "all"
+        }
+      },
+      "color": "#986849"
+    },
+    {
+      "id": "clock-beetle",
+      "artId": "beetle",
+      "name": "고철 두더지",
+      "description": "그을린 털 위에 낡은 판금과 고글을 두른 두더지예요. 얇은 방어막은 모든 공격으로 깎을 수 있어요.",
+      "attribute": "machine",
+      "family": "workshop",
+      "role": "melee",
+      "attackType": "melee",
+      "effects": {
+        "shield": {
+          "hpRatio": 0.4,
+          "type": "shield",
+          "attackType": "all",
+          "family": "all",
+          "attribute": "all"
+        }
+      },
+      "hp": 230,
+      "attack": 26,
+      "range": 42,
+      "speed": 30,
+      "attackInterval": 1.5,
+      "attackWindup": 0.28,
+      "attackRecovery": 0.24,
+      "color": "#a9794e"
+    },
+    {
+      "id": "shadow-mushroom",
+      "artId": "mushroom",
+      "name": "그늘 여우",
+      "description": "햇볕에 그을린 여우가 바랜 그림자 망토를 걸쳤어요. 어둠을 빠르게 날리며 조금씩 재생해요.",
+      "attribute": "shadow",
+      "family": "starlight",
+      "role": "ranged",
+      "attackType": "ranged",
+      "effects": {
+        "regeneration": {
+          "hpRatio": 0.02,
+          "interval": 2,
+          "type": "regeneration",
+          "attackType": "all",
+          "family": "all",
+          "attribute": "all"
+        }
+      },
+      "hp": 125,
+      "attack": 17,
+      "range": 215,
+      "speed": 32,
+      "attackInterval": 1.2,
+      "attackWindup": 0.24,
+      "attackRecovery": 0.2,
+      "projectile": {
+        "kind": "spore",
+        "speed": 480
+      },
+      "color": "#a3714d"
+    },
+    {
+      "id": "spirit-rabbit",
+      "attribute": "spirit",
+      "family": "starlight",
+      "name": "빛샘 토끼",
+      "description": "빛의 물결을 보내고 정령의 힘으로 상처를 회복해요.",
+      "role": "ranged",
+      "attackType": "ranged",
+      "hp": 155,
+      "attack": 20,
+      "range": 190,
+      "speed": 27,
+      "attackInterval": 1.55,
+      "attackWindup": 0.32,
+      "attackRecovery": 0.24,
+      "projectile": {
+        "kind": "spore",
+        "speed": 430
+      },
+      "color": "#bb915f",
+      "artId": "mushroom",
+      "effects": {
+        "regeneration": {
+          "hpRatio": 0.025,
+          "interval": 2,
+          "type": "regeneration",
+          "attackType": "all",
+          "family": "all",
+          "attribute": "all"
+        }
+      }
+    },
+    {
+      "id": "grove-bear",
+      "attribute": "wild",
+      "family": "forest",
+      "name": "언덕의 큰 곰",
+      "description": "원거리 공격을 튕겨내고 가까이 온 동료를 밀쳐내요.",
+      "role": "heavy",
+      "attackType": "melee",
+      "hp": 420,
+      "attack": 75,
+      "range": 65,
+      "speed": 28,
+      "attackInterval": 1.9,
+      "attackWindup": 0.48,
+      "attackRecovery": 0.36,
+      "color": "#94633e",
+      "artId": "bear",
+      "boss": true,
+      "sizeScale": 1.5,
+      "effects": {
+        "attackImmunity": {
+          "attackType": "ranged",
+          "family": "all",
+          "attribute": "all",
+          "type": "attackImmunity"
+        },
+        "repelPulse": {
+          "interval": 2.8,
+          "range": 165,
+          "distance": 120,
+          "warning": 0.35,
+          "attackType": "melee",
+          "type": "repelPulse",
+          "family": "all",
+          "attribute": "all"
+        }
+      }
+    },
+    {
+      "id": "grove-boar",
+      "attribute": "wild",
+      "family": "forest",
+      "name": "정원의 큰 멧돼지",
+      "description": "거대한 몸으로 길을 막아요. 앞줄을 지키며 동료를 키워 돌파해 보세요.",
+      "role": "heavy",
+      "attackType": "melee",
+      "hp": 2200,
+      "attack": 95,
+      "range": 65,
+      "speed": 38,
+      "attackInterval": 1.65,
+      "attackWindup": 0.38,
+      "attackRecovery": 0.3,
+      "color": "#a27649",
+      "artId": "boar",
+      "boss": true,
+      "sizeScale": 1.8,
+      "effects": {}
+    },
+    {
+      "id": "workshop-bear",
+      "attribute": "machine",
+      "family": "workshop",
+      "name": "톱니 큰 곰",
+      "description": "원거리 공격을 튕겨내고 가까이 온 동료를 밀쳐내요.",
+      "role": "heavy",
+      "attackType": "melee",
+      "hp": 900,
+      "attack": 120,
+      "range": 65,
+      "speed": 28,
+      "attackInterval": 1.9,
+      "attackWindup": 0.48,
+      "attackRecovery": 0.36,
+      "color": "#94633e",
+      "artId": "bear",
+      "boss": true,
+      "sizeScale": 1.7,
+      "effects": {
+        "attackImmunity": {
+          "attackType": "ranged",
+          "family": "all",
+          "attribute": "all",
+          "type": "attackImmunity"
+        },
+        "repelPulse": {
+          "interval": 2.8,
+          "range": 165,
+          "distance": 120,
+          "warning": 0.35,
+          "attackType": "melee",
+          "type": "repelPulse",
+          "family": "all",
+          "attribute": "all"
+        }
+      }
+    },
+    {
+      "id": "workshop-boar",
+      "attribute": "machine",
+      "family": "workshop",
+      "name": "공방의 큰 멧돼지",
+      "description": "거대한 몸으로 길을 막아요. 앞줄을 지키며 동료를 키워 돌파해 보세요.",
+      "role": "heavy",
+      "attackType": "melee",
+      "hp": 4000,
+      "attack": 80,
+      "range": 65,
+      "speed": 38,
+      "attackInterval": 1.65,
+      "attackWindup": 0.38,
+      "attackRecovery": 0.3,
+      "color": "#a27649",
+      "artId": "boar",
+      "boss": true,
+      "sizeScale": 2,
+      "effects": {}
+    }
+  ],
+  "stages": [
+    {
+      "id": 1,
+      "name": "첫 숲길",
+      "description": "작은 숲길에서 첫 무리를 막아 봐요.",
+      "baseReward": 100,
+      "enemyHp": 1200,
+      "enemyAttack": 1,
+      "waves": [
+        {
+          "time": 0.6,
+          "enemies": [
+            {
+              "id": "beetle",
+              "count": 2,
+              "interval": 1.2999999999999998,
+              "effects": {
+                "shield": false,
+                "regeneration": false
+              }
+            }
+          ]
+        },
+        {
+          "time": 8,
+          "enemies": [
+            {
+              "id": "mushroom",
+              "count": 2,
+              "interval": 1.5,
+              "effects": {
+                "shield": false,
+                "regeneration": false
+              }
+            }
+          ]
+        },
+        {
+          "time": 20,
+          "enemies": [
+            {
+              "id": "boar",
+              "count": 1,
+              "effects": {
+                "shield": false,
+                "regeneration": false
+              }
+            },
+            {
+              "id": "beetle",
+              "count": 2,
+              "interval": 1.1999999999999993,
+              "effects": {
+                "shield": false,
+                "regeneration": false
+              }
+            }
+          ]
+        }
+      ],
+      "region": 1,
+      "regionName": "초원",
+      "enemyModifiers": {
+        "hp": 1
+      }
+    },
+    {
+      "id": 2,
+      "name": "버섯 오솔길",
+      "description": "원거리 버섯 무리가 숲길을 지켜요.",
+      "baseReward": 120,
+      "enemyHp": 1320,
+      "enemyAttack": 1.05,
+      "waves": [
+        {
+          "time": 1,
+          "enemies": [
+            {
+              "id": "beetle",
+              "count": 2,
+              "interval": 1.2,
+              "effects": {
+                "shield": false,
+                "regeneration": false
+              }
+            }
+          ]
+        },
+        {
+          "time": 2,
+          "enemies": [
+            {
+              "id": "boar",
+              "count": 4,
+              "interval": 1.5,
+              "statMultipliers": {
+                "hp": 1.7,
+                "attack": 2.4,
+                "speed": 0.8,
+                "attackInterval": 1.15
+              },
+              "effects": {
+                "shield": false,
+                "regeneration": false
+              }
+            }
+          ]
+        }
+      ],
+      "region": 1,
+      "regionName": "초원",
+      "enemyModifiers": {
+        "hp": 1
+      }
+    },
+    {
+      "id": 3,
+      "name": "돌다리",
+      "description": "튼튼한 돌다리 위로 무거운 적이 다가와요.",
+      "baseReward": 145,
+      "enemyHp": 1470,
+      "enemyAttack": 1.1,
+      "waves": [
+        {
+          "time": 0.6,
+          "enemies": [
+            {
+              "id": "beetle",
+              "count": 2,
+              "interval": 1,
+              "effects": {
+                "shield": false,
+                "regeneration": false
+              }
+            }
+          ]
+        },
+        {
+          "time": 8,
+          "enemies": [
+            {
+              "id": "boar",
+              "count": 2,
+              "interval": 1.8000000000000007,
+              "effects": {
+                "shield": false,
+                "regeneration": false
+              }
+            }
+          ]
+        },
+        {
+          "time": 20,
+          "enemies": [
+            {
+              "id": "mushroom",
+              "count": 3,
+              "interval": 1.2999999999999996,
+              "effects": {
+                "shield": false,
+                "regeneration": false
+              }
+            },
+            {
+              "id": "beetle",
+              "count": 2,
+              "interval": 1,
+              "effects": {
+                "shield": false,
+                "regeneration": false
+              }
+            }
+          ]
+        }
+      ],
+      "missionReward": {
+        "gold": 900,
+        "diamonds": 30
+      },
+      "region": 1,
+      "regionName": "초원",
+      "enemyModifiers": {
+        "hp": 0.3
+      }
+    },
+    {
+      "id": 4,
+      "name": "달빛 초원",
+      "description": "덩굴 곰이 앞줄을 막아요. 방패와 원거리 동료를 키워 돌파해 보세요.",
+      "baseReward": 170,
+      "enemyHp": 1620,
+      "enemyAttack": 1.15,
+      "waves": [
+        {
+          "time": 0.6,
+          "enemies": [
+            {
+              "id": "beetle",
+              "count": 2,
+              "interval": 1,
+              "effects": {
+                "shield": false,
+                "regeneration": false
+              }
+            }
+          ]
+        },
+        {
+          "time": 12,
+          "enemies": [
+            {
+              "id": "bear",
+              "count": 1,
+              "effects": {
+                "shield": false,
+                "regeneration": false
+              }
+            },
+            {
+              "id": "mushroom",
+              "count": 2,
+              "interval": 1.5,
+              "effects": {
+                "shield": false,
+                "regeneration": false
+              }
+            }
+          ]
+        },
+        {
+          "time": 26,
+          "enemies": [
+            {
+              "id": "boar",
+              "count": 1,
+              "effects": {
+                "shield": false,
+                "regeneration": false
+              }
+            },
+            {
+              "id": "beetle",
+              "count": 2,
+              "interval": 1.1999999999999993,
+              "effects": {
+                "shield": false,
+                "regeneration": false
+              }
+            }
+          ]
+        }
+      ],
+      "missionReward": {
+        "gold": 1200,
+        "diamonds": 30
+      },
+      "region": 1,
+      "regionName": "초원",
+      "enemyModifiers": {
+        "hp": 0.7
+      }
+    },
+    {
+      "id": 5,
+      "name": "풍차 언덕",
+      "description": "거대한 우두머리가 길을 막아요. 동료를 키워 함께 돌파해 보세요.",
+      "baseReward": 200,
+      "enemyHp": 1800,
+      "enemyAttack": 1.2,
+      "waves": [
+        {
+          "time": 0.6,
+          "enemies": [
+            {
+              "id": "beetle",
+              "count": 1,
+              "interval": 0.9,
+              "effects": {
+                "shield": false,
+                "regeneration": false
+              }
+            },
+            {
+              "id": "grove-bear",
+              "count": 1,
+              "effects": {
+                "shield": false,
+                "regeneration": false
+              }
+            }
+          ]
+        },
+        {
+          "time": 12,
+          "enemies": [
+            {
+              "id": "mushroom",
+              "count": 2,
+              "interval": 1.0999999999999996,
+              "effects": {
+                "shield": false,
+                "regeneration": false
+              }
+            },
+            {
+              "id": "boar",
+              "count": 2,
+              "interval": 1.6000000000000014,
+              "effects": {
+                "shield": false,
+                "regeneration": false
+              }
+            }
+          ]
+        },
+        {
+          "time": 26,
+          "enemies": []
+        }
+      ],
+      "missionReward": {
+        "gold": 1400,
+        "diamonds": 30
+      },
+      "region": 1,
+      "regionName": "초원",
+      "enemyModifiers": {
+        "hp": 0.3
+      }
+    },
+    {
+      "id": 6,
+      "name": "잿빛 늪",
+      "description": "바람 오소리가 빠르게 파고들어요. 앞줄을 지켜 주세요.",
+      "baseReward": 235,
+      "enemyHp": 2010,
+      "enemyAttack": 1.125,
+      "waves": [
+        {
+          "time": 0.6,
+          "enemies": [
+            {
+              "id": "beetle",
+              "count": 3,
+              "interval": 0.8500000000000001,
+              "effects": {
+                "shield": false,
+                "regeneration": false
+              }
+            }
+          ]
+        },
+        {
+          "time": 12,
+          "enemies": [
+            {
+              "id": "badger",
+              "count": 2,
+              "interval": 1.3999999999999986,
+              "effects": {
+                "shield": false,
+                "regeneration": false
+              }
+            },
+            {
+              "id": "mushroom",
+              "count": 2,
+              "interval": 1.0999999999999996,
+              "effects": {
+                "shield": false,
+                "regeneration": false
+              }
+            }
+          ]
+        },
+        {
+          "time": 26,
+          "enemies": [
+            {
+              "id": "mushroom",
+              "count": 3,
+              "interval": 0.9499999999999993,
+              "effects": {
+                "shield": false,
+                "regeneration": false
+              }
+            }
+          ]
+        }
+      ],
+      "missionReward": {
+        "gold": 1600,
+        "diamonds": 30
+      },
+      "region": 1,
+      "regionName": "초원",
+      "enemyModifiers": {
+        "hp": 1
+      }
+    },
+    {
+      "id": 7,
+      "name": "종탑 앞",
+      "description": "종탑을 지키는 무리가 끝없이 이어져요.",
+      "baseReward": 275,
+      "enemyHp": 2250,
+      "enemyAttack": 1.3,
+      "waves": [
+        {
+          "time": 0.6,
+          "enemies": [
+            {
+              "id": "beetle",
+              "count": 3,
+              "interval": 0.8,
+              "effects": {
+                "shield": false,
+                "regeneration": false
+              }
+            }
+          ]
+        },
+        {
+          "time": 12,
+          "enemies": [
+            {
+              "id": "mushroom",
+              "count": 4,
+              "interval": 0.95,
+              "effects": {
+                "shield": false,
+                "regeneration": false
+              }
+            },
+            {
+              "id": "boar",
+              "count": 2,
+              "interval": 1.3000000000000007,
+              "effects": {
+                "shield": false,
+                "regeneration": false
+              }
+            }
+          ]
+        },
+        {
+          "time": 26,
+          "enemies": [
+            {
+              "id": "bear",
+              "count": 2,
+              "interval": 1.1000000000000014,
+              "effects": {
+                "shield": false,
+                "regeneration": false
+              }
+            },
+            {
+              "id": "beetle",
+              "count": 3,
+              "interval": 0.8000000000000007,
+              "effects": {
+                "shield": false,
+                "regeneration": false
+              }
+            }
+          ]
+        }
+      ],
+      "region": 1,
+      "regionName": "초원",
+      "enemyModifiers": {
+        "hp": 0.85
+      }
+    },
+    {
+      "id": 8,
+      "name": "수정 동굴",
+      "description": "가시 호저가 멀리서 씨앗을 날려요. 앞줄과 뒷줄을 함께 준비해 보세요.",
+      "baseReward": 320,
+      "enemyHp": 2520,
+      "enemyAttack": 1.35,
+      "waves": [
+        {
+          "time": 0.6,
+          "enemies": [
+            {
+              "id": "beetle",
+              "count": 4,
+              "interval": 0.75,
+              "effects": {
+                "shield": false,
+                "regeneration": false
+              }
+            }
+          ]
+        },
+        {
+          "time": 12,
+          "enemies": [
+            {
+              "id": "porcupine",
+              "count": 5,
+              "interval": 0.8500000000000002,
+              "effects": {
+                "shield": false,
+                "regeneration": false
+              }
+            },
+            {
+              "id": "boar",
+              "count": 2,
+              "interval": 1.1999999999999993,
+              "effects": {
+                "shield": false,
+                "regeneration": false
+              }
+            }
+          ]
+        },
+        {
+          "time": 26,
+          "enemies": [
+            {
+              "id": "bear",
+              "count": 2,
+              "interval": 1,
+              "effects": {
+                "shield": false,
+                "regeneration": false
+              }
+            },
+            {
+              "id": "beetle",
+              "count": 3,
+              "interval": 0.75,
+              "effects": {
+                "shield": false,
+                "regeneration": false
+              }
+            }
+          ]
+        }
+      ],
+      "region": 1,
+      "regionName": "초원",
+      "enemyModifiers": {
+        "hp": 0.85
+      }
+    },
+    {
+      "id": 9,
+      "name": "폭풍 능선",
+      "description": "폭풍 속에서도 끝까지 진형을 지켜요.",
+      "baseReward": 370,
+      "enemyHp": 2820,
+      "enemyAttack": 1.4,
+      "waves": [
+        {
+          "time": 0.6,
+          "enemies": [
+            {
+              "id": "beetle",
+              "count": 4,
+              "interval": 0.7,
+              "effects": {
+                "shield": false,
+                "regeneration": false
+              }
+            }
+          ]
+        },
+        {
+          "time": 12,
+          "enemies": [
+            {
+              "id": "porcupine",
+              "count": 5,
+              "interval": 0.75,
+              "effects": {
+                "shield": false,
+                "regeneration": false
+              }
+            },
+            {
+              "id": "boar",
+              "count": 3,
+              "interval": 1,
+              "effects": {
+                "shield": false,
+                "regeneration": false
+              }
+            }
+          ]
+        },
+        {
+          "time": 26,
+          "enemies": [
+            {
+              "id": "bear",
+              "count": 3,
+              "interval": 0.8499999999999991,
+              "effects": {
+                "shield": false,
+                "regeneration": false
+              }
+            },
+            {
+              "id": "beetle",
+              "count": 4,
+              "interval": 0.7,
+              "effects": {
+                "shield": false,
+                "regeneration": false
+              }
+            }
+          ]
+        }
+      ],
+      "region": 1,
+      "regionName": "초원",
+      "enemyModifiers": {
+        "hp": 0.7
+      }
+    },
+    {
+      "id": 10,
+      "name": "마지막 정원",
+      "description": "거대한 우두머리가 길을 막아요. 동료를 키워 함께 돌파해 보세요.",
+      "baseReward": 430,
+      "enemyHp": 4505,
+      "enemyAttack": 1.45,
+      "waves": [
+        {
+          "time": 0.6,
+          "enemies": [
+            {
+              "id": "beetle",
+              "count": 3,
+              "interval": 0.7,
+              "effects": {
+                "shield": false,
+                "regeneration": false
+              }
+            },
+            {
+              "id": "grove-boar",
+              "count": 1,
+              "effects": {
+                "shield": false,
+                "regeneration": false
+              }
+            }
+          ]
+        },
+        {
+          "time": 12,
+          "enemies": [
+            {
+              "id": "porcupine",
+              "count": 3,
+              "interval": 0.7,
+              "effects": {
+                "shield": false,
+                "regeneration": false
+              }
+            },
+            {
+              "id": "boar",
+              "count": 2,
+              "interval": 0.9000000000000004,
+              "effects": {
+                "shield": false,
+                "regeneration": false
+              }
+            }
+          ]
+        },
+        {
+          "time": 26,
+          "enemies": [
+            {
+              "id": "bear",
+              "count": 2,
+              "interval": 0.75,
+              "effects": {
+                "shield": false,
+                "regeneration": false
+              }
+            },
+            {
+              "id": "beetle",
+              "count": 3,
+              "interval": 0.7,
+              "effects": {
+                "shield": false,
+                "regeneration": false
+              }
+            }
+          ]
+        }
+      ],
+      "region": 1,
+      "regionName": "초원",
+      "enemyModifiers": {
+        "hp": 0.3
+      }
+    },
+    {
+      "id": 11,
+      "name": "공방 입구",
+      "description": "공방 입구에서 쉬어 가요. 적은 무리를 막으며 도토리를 모아 보세요.",
+      "baseReward": 480,
+      "enemyHp": 3600,
+      "enemyAttack": 1.1,
+      "waves": [
+        {
+          "time": 1,
+          "enemies": [
+            {
+              "id": "beetle",
+              "count": 2,
+              "interval": 2
+            }
+          ]
+        },
+        {
+          "time": 28,
+          "enemies": [
+            {
+              "id": "clock-beetle",
+              "count": 2,
+              "interval": 3
+            }
+          ]
+        },
+        {
+          "time": 56,
+          "enemies": [
+            {
+              "id": "boar",
+              "count": 1
+            }
+          ]
+        },
+        {
+          "time": 85,
+          "enemies": [
+            {
+              "id": "clock-beetle",
+              "count": 2,
+              "interval": 3
+            }
+          ]
+        }
+      ],
+      "region": 2,
+      "regionName": "오래된 공방"
+    },
+    {
+      "id": 12,
+      "name": "녹슨 길",
+      "description": "기계 무리가 더 거세게 몰려와요. 보석으로 골드 수급을 늘리고 동료를 키워 보세요.",
+      "baseReward": 525,
+      "enemyHp": 7500,
+      "enemyAttack": 9.1,
+      "waves": [
+        {
+          "time": 1,
+          "enemies": [
+            {
+              "id": "clock-beetle",
+              "count": 8,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 17,
+          "enemies": [
+            {
+              "id": "mushroom",
+              "count": 10,
+              "interval": 1.3000000000000003
+            }
+          ]
+        },
+        {
+          "time": 38,
+          "enemies": [
+            {
+              "id": "boar",
+              "count": 5,
+              "interval": 2
+            },
+            {
+              "id": "clock-beetle",
+              "count": 8,
+              "interval": 1.1000000000000003
+            }
+          ]
+        },
+        {
+          "time": 63,
+          "enemies": [
+            {
+              "id": "mushroom",
+              "count": 13,
+              "interval": 1.2999999999999996
+            }
+          ]
+        },
+        {
+          "time": 85.34285714285714,
+          "enemies": [
+            {
+              "id": "boar",
+              "count": 8,
+              "interval": 0.20571428571428538
+            },
+            {
+              "id": "mushroom",
+              "count": 8,
+              "interval": 0.17142857142857185
+            }
+          ]
+        },
+        {
+          "time": 87.62857142857143,
+          "enemies": [
+            {
+              "id": "beetle",
+              "count": 13,
+              "interval": 0.11428571428571388
+            }
+          ]
+        }
+      ],
+      "region": 2,
+      "regionName": "오래된 공방",
+      "enemyModifiers": {
+        "speed": 1.1
+      }
+    },
+    {
+      "id": 13,
+      "name": "작은 작업장",
+      "description": "야생과 은색 기계 무리가 함께 나타나요.",
+      "baseReward": 570,
+      "enemyHp": 9500,
+      "enemyAttack": 5.04,
+      "waves": [
+        {
+          "time": 1,
+          "enemies": [
+            {
+              "id": "clock-beetle",
+              "count": 8,
+              "interval": 1
+            }
+          ]
+        },
+        {
+          "time": 18,
+          "enemies": [
+            {
+              "id": "boar",
+              "count": 5,
+              "interval": 1.7999999999999998
+            }
+          ]
+        },
+        {
+          "time": 38,
+          "enemies": [
+            {
+              "id": "mushroom",
+              "count": 10,
+              "interval": 1.3000000000000003
+            },
+            {
+              "id": "clock-beetle",
+              "count": 8,
+              "interval": 1
+            }
+          ]
+        },
+        {
+          "time": 62,
+          "enemies": [
+            {
+              "id": "boar",
+              "count": 8,
+              "interval": 1.7000000000000008
+            }
+          ]
+        },
+        {
+          "time": 85.11560693641619,
+          "enemies": [
+            {
+              "id": "mushroom",
+              "count": 13,
+              "interval": 0.13872832369942265
+            },
+            {
+              "id": "boar",
+              "count": 5,
+              "interval": 0.20809248554913395
+            }
+          ]
+        },
+        {
+          "time": 87.54335260115607,
+          "enemies": [
+            {
+              "id": "beetle",
+              "count": 15,
+              "interval": 0.10404624277456621
+            }
+          ]
+        }
+      ],
+      "region": 2,
+      "regionName": "오래된 공방"
+    },
+    {
+      "id": 14,
+      "name": "빛의 샘",
+      "description": "여러 색의 적을 보고 알맞은 동료를 골라 보세요.",
+      "baseReward": 615,
+      "enemyHp": 10000,
+      "enemyAttack": 5.08,
+      "waves": [
+        {
+          "time": 1,
+          "enemies": [
+            {
+              "id": "clock-beetle",
+              "count": 8,
+              "interval": 1
+            }
+          ]
+        },
+        {
+          "time": 17,
+          "enemies": [
+            {
+              "id": "bear",
+              "count": 3
+            },
+            {
+              "id": "spirit-rabbit",
+              "count": 5,
+              "interval": 1.5
+            }
+          ]
+        },
+        {
+          "time": 39,
+          "enemies": [
+            {
+              "id": "boar",
+              "count": 3
+            },
+            {
+              "id": "clock-beetle",
+              "count": 8,
+              "interval": 1.1999999999999997
+            }
+          ]
+        },
+        {
+          "time": 65,
+          "enemies": [
+            {
+              "id": "bear",
+              "count": 3
+            },
+            {
+              "id": "spirit-rabbit",
+              "count": 5,
+              "interval": 1.5
+            }
+          ]
+        },
+        {
+          "time": 85.52173913043478,
+          "enemies": [
+            {
+              "id": "boar",
+              "count": 5,
+              "interval": 0.3478260869565233
+            },
+            {
+              "id": "clock-beetle",
+              "count": 8,
+              "interval": 0.20869565217391337
+            }
+          ]
+        },
+        {
+          "time": 89,
+          "enemies": [
+            {
+              "id": "bear",
+              "count": 3
+            }
+          ]
+        }
+      ],
+      "region": 2,
+      "regionName": "오래된 공방"
+    },
+    {
+      "id": 15,
+      "name": "톱니 언덕",
+      "description": "여러 색의 적을 보고 알맞은 동료를 골라 보세요.",
+      "baseReward": 660,
+      "enemyHp": 10500,
+      "enemyAttack": 5.12,
+      "waves": [
+        {
+          "time": 1,
+          "enemies": [
+            {
+              "id": "clock-beetle",
+              "count": 3,
+              "interval": 0.8999999999999999
+            },
+            {
+              "id": "workshop-bear",
+              "count": 1
+            }
+          ]
+        },
+        {
+          "time": 17,
+          "enemies": [
+            {
+              "id": "spirit-rabbit",
+              "count": 8,
+              "interval": 1.1000000000000003
+            },
+            {
+              "id": "boar",
+              "count": 5,
+              "interval": 1.5999999999999996
+            }
+          ]
+        },
+        {
+          "time": 40,
+          "enemies": []
+        },
+        {
+          "time": 65,
+          "enemies": [
+            {
+              "id": "spirit-rabbit",
+              "count": 10,
+              "interval": 1
+            },
+            {
+              "id": "beetle",
+              "count": 8,
+              "interval": 0.8999999999999996
+            }
+          ]
+        },
+        {
+          "time": 85.49079754601227,
+          "enemies": [
+            {
+              "id": "boar",
+              "count": 8,
+              "interval": 0.15950920245398745
+            },
+            {
+              "id": "spirit-rabbit",
+              "count": 8,
+              "interval": 0.13496932515337384
+            }
+          ]
+        },
+        {
+          "time": 87.82208588957056,
+          "enemies": [
+            {
+              "id": "beetle",
+              "count": 13,
+              "interval": 0.09815950920245342
+            }
+          ]
+        }
+      ],
+      "region": 2,
+      "regionName": "오래된 공방"
+    },
+    {
+      "id": 16,
+      "name": "그늘 통로",
+      "description": "여러 색의 적을 보고 알맞은 동료를 골라 보세요.",
+      "baseReward": 705,
+      "enemyHp": 11000,
+      "enemyAttack": 5.16,
+      "waves": [
+        {
+          "time": 1,
+          "enemies": [
+            {
+              "id": "clock-beetle",
+              "count": 12,
+              "interval": 0.85
+            }
+          ]
+        },
+        {
+          "time": 18,
+          "enemies": [
+            {
+              "id": "badger",
+              "count": 5,
+              "interval": 1.4000000000000004
+            },
+            {
+              "id": "spirit-rabbit",
+              "count": 8,
+              "interval": 1.1000000000000003
+            }
+          ]
+        },
+        {
+          "time": 41,
+          "enemies": [
+            {
+              "id": "shadow-mushroom",
+              "count": 12,
+              "interval": 0.9500000000000003
+            }
+          ]
+        },
+        {
+          "time": 66,
+          "enemies": [
+            {
+              "id": "boar",
+              "count": 8,
+              "interval": 1.2000000000000008
+            },
+            {
+              "id": "badger",
+              "count": 8,
+              "interval": 0.8500000000000004
+            }
+          ]
+        },
+        {
+          "time": 85.5925925925926,
+          "enemies": [
+            {
+              "id": "shadow-mushroom",
+              "count": 12,
+              "interval": 0.10666666666666655
+            },
+            {
+              "id": "boar",
+              "count": 5,
+              "interval": 0.15407407407407447
+            }
+          ]
+        },
+        {
+          "time": 87.84444444444445,
+          "enemies": [
+            {
+              "id": "badger",
+              "count": 14,
+              "interval": 0.08888888888888857
+            }
+          ]
+        }
+      ],
+      "region": 2,
+      "regionName": "오래된 공방"
+    },
+    {
+      "id": 17,
+      "name": "은빛 마당",
+      "description": "여러 색의 적을 보고 알맞은 동료를 골라 보세요.",
+      "baseReward": 750,
+      "enemyHp": 11500,
+      "enemyAttack": 5.2,
+      "waves": [
+        {
+          "time": 1,
+          "enemies": [
+            {
+              "id": "clock-beetle",
+              "count": 3,
+              "interval": 0.8
+            }
+          ]
+        },
+        {
+          "time": 17,
+          "enemies": [
+            {
+              "id": "spirit-rabbit",
+              "count": 4,
+              "interval": 0.9500000000000005
+            },
+            {
+              "id": "boar",
+              "count": 2,
+              "interval": 1.3000000000000007
+            }
+          ]
+        },
+        {
+          "time": 40,
+          "enemies": [
+            {
+              "id": "bear",
+              "count": 2,
+              "interval": 1.1000000000000014
+            },
+            {
+              "id": "clock-beetle",
+              "count": 3,
+              "interval": 0.8000000000000007
+            }
+          ]
+        },
+        {
+          "time": 65,
+          "enemies": [
+            {
+              "id": "spirit-rabbit",
+              "count": 5,
+              "interval": 0.8500000000000014
+            }
+          ]
+        },
+        {
+          "time": 85.60377358490567,
+          "enemies": [
+            {
+              "id": "boar",
+              "count": 3,
+              "interval": 0.15094339622640973
+            },
+            {
+              "id": "shadow-mushroom",
+              "count": 4,
+              "interval": 0.1358490566037697
+            }
+          ]
+        },
+        {
+          "time": 88.47169811320755,
+          "enemies": [
+            {
+              "id": "badger",
+              "count": 6,
+              "interval": 0.10566037735848965
+            }
+          ]
+        }
+      ],
+      "region": 2,
+      "regionName": "오래된 공방"
+    },
+    {
+      "id": 18,
+      "name": "뒤섞인 숲",
+      "description": "여러 색의 적을 보고 알맞은 동료를 골라 보세요.",
+      "baseReward": 795,
+      "enemyHp": 12000,
+      "enemyAttack": 5.24,
+      "waves": [
+        {
+          "time": 1,
+          "enemies": [
+            {
+              "id": "clock-beetle",
+              "count": 4,
+              "interval": 0.75
+            }
+          ]
+        },
+        {
+          "time": 17,
+          "enemies": [
+            {
+              "id": "porcupine",
+              "count": 5,
+              "interval": 0.8499999999999996
+            },
+            {
+              "id": "boar",
+              "count": 2,
+              "interval": 1.1999999999999993
+            }
+          ]
+        },
+        {
+          "time": 40,
+          "enemies": [
+            {
+              "id": "bear",
+              "count": 2,
+              "interval": 1
+            },
+            {
+              "id": "clock-beetle",
+              "count": 3,
+              "interval": 0.75
+            }
+          ]
+        },
+        {
+          "time": 65,
+          "enemies": [
+            {
+              "id": "porcupine",
+              "count": 6,
+              "interval": 0.75
+            }
+          ]
+        },
+        {
+          "time": 85.59479553903346,
+          "enemies": [
+            {
+              "id": "boar",
+              "count": 4,
+              "interval": 0.13382899628252667
+            },
+            {
+              "id": "shadow-mushroom",
+              "count": 5,
+              "interval": 0.11895910780669183
+            }
+          ]
+        },
+        {
+          "time": 88.42007434944237,
+          "enemies": [
+            {
+              "id": "badger",
+              "count": 7,
+              "interval": 0.09665427509293778
+            }
+          ]
+        }
+      ],
+      "region": 2,
+      "regionName": "오래된 공방"
+    },
+    {
+      "id": 19,
+      "name": "깊은 공방",
+      "description": "여러 색의 적을 보고 알맞은 동료를 골라 보세요.",
+      "baseReward": 840,
+      "enemyHp": 12500,
+      "enemyAttack": 5.28,
+      "waves": [
+        {
+          "time": 1,
+          "enemies": [
+            {
+              "id": "clock-beetle",
+              "count": 4,
+              "interval": 0.6999999999999998
+            }
+          ]
+        },
+        {
+          "time": 16,
+          "enemies": [
+            {
+              "id": "porcupine",
+              "count": 5,
+              "interval": 0.75
+            },
+            {
+              "id": "boar",
+              "count": 3,
+              "interval": 1
+            }
+          ]
+        },
+        {
+          "time": 39,
+          "enemies": [
+            {
+              "id": "bear",
+              "count": 3,
+              "interval": 0.8500000000000014
+            },
+            {
+              "id": "clock-beetle",
+              "count": 4,
+              "interval": 0.7000000000000005
+            }
+          ]
+        },
+        {
+          "time": 64,
+          "enemies": [
+            {
+              "id": "porcupine",
+              "count": 6,
+              "interval": 0.7
+            }
+          ]
+        },
+        {
+          "time": 85.44117647058823,
+          "enemies": [
+            {
+              "id": "boar",
+              "count": 5,
+              "interval": 0.117647058823529
+            },
+            {
+              "id": "shadow-mushroom",
+              "count": 5,
+              "interval": 0.10294117647059053
+            }
+          ]
+        },
+        {
+          "time": 88.38235294117646,
+          "enemies": [
+            {
+              "id": "badger",
+              "count": 8,
+              "interval": 0.08823529411764801
+            }
+          ]
+        }
+      ],
+      "region": 2,
+      "regionName": "오래된 공방"
+    },
+    {
+      "id": 20,
+      "name": "공방의 문",
+      "description": "여러 색의 적을 보고 알맞은 동료를 골라 보세요.",
+      "baseReward": 885,
+      "enemyHp": 13000,
+      "enemyAttack": 5.32,
+      "waves": [
+        {
+          "time": 1,
+          "enemies": [
+            {
+              "id": "clock-beetle",
+              "count": 3,
+              "interval": 0.6499999999999999
+            },
+            {
+              "id": "workshop-boar",
+              "count": 1
+            }
+          ]
+        },
+        {
+          "time": 16,
+          "enemies": [
+            {
+              "id": "porcupine",
+              "count": 4,
+              "interval": 0.6499999999999998
+            },
+            {
+              "id": "boar",
+              "count": 2,
+              "interval": 0.8999999999999986
+            }
+          ]
+        },
+        {
+          "time": 39,
+          "enemies": [
+            {
+              "id": "bear",
+              "count": 2,
+              "interval": 0.75
+            },
+            {
+              "id": "clock-beetle",
+              "count": 3,
+              "interval": 0.6499999999999986
+            }
+          ]
+        },
+        {
+          "time": 64,
+          "enemies": [
+            {
+              "id": "porcupine",
+              "count": 5,
+              "interval": 0.6000000000000014
+            }
+          ]
+        },
+        {
+          "time": 85.49586776859505,
+          "enemies": [
+            {
+              "id": "boar",
+              "count": 4,
+              "interval": 0.11570247933884066
+            },
+            {
+              "id": "shadow-mushroom",
+              "count": 4,
+              "interval": 0.10743801652892178
+            }
+          ]
+        },
+        {
+          "time": 88.63636363636364,
+          "enemies": [
+            {
+              "id": "badger",
+              "count": 5,
+              "interval": 0.09090909090908994
+            },
+            {
+              "id": "boar",
+              "count": 2,
+              "interval": 0.14876033057851146
+            }
+          ]
+        }
+      ],
+      "region": 2,
+      "regionName": "오래된 공방"
+    }
+  ],
+  "speedrunStages": [
+    {
+      "id": 1,
+      "name": "여울길",
+      "regionName": "여울길",
+      "scene": "creek",
+      "enemyHp": 1800,
+      "enemyAttack": 0.8,
+      "enemyModifiers": {
+        "hp": 1
+      },
+      "baseReward": 0,
+      "waves": [
+        {
+          "time": 0.6,
+          "enemies": [
+            {
+              "id": "badger",
+              "count": 2,
+              "interval": 2
+            }
+          ]
+        },
+        {
+          "time": 10,
+          "enemies": [
+            {
+              "id": "mushroom",
+              "count": 2,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 22,
+          "enemies": [
+            {
+              "id": "beetle",
+              "count": 3,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 36,
+          "enemies": [
+            {
+              "id": "boar",
+              "count": 1,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 55,
+          "enemies": [
+            {
+              "id": "badger",
+              "count": 4,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 74,
+          "enemies": [
+            {
+              "id": "mushroom",
+              "count": 3,
+              "interval": 1.2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "갈대 언덕",
+      "regionName": "갈대 언덕",
+      "scene": "creek",
+      "enemyHp": 2100,
+      "enemyAttack": 0.85,
+      "enemyModifiers": {
+        "hp": 1.1
+      },
+      "baseReward": 0,
+      "waves": [
+        {
+          "time": 0.6,
+          "enemies": [
+            {
+              "id": "mushroom",
+              "count": 3,
+              "interval": 2
+            }
+          ]
+        },
+        {
+          "time": 9,
+          "enemies": [
+            {
+              "id": "beetle",
+              "count": 2,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 24,
+          "enemies": [
+            {
+              "id": "porcupine",
+              "count": 1,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 40,
+          "enemies": [
+            {
+              "id": "badger",
+              "count": 3,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 60,
+          "enemies": [
+            {
+              "id": "mushroom",
+              "count": 3,
+              "interval": 1.2
+            },
+            {
+              "id": "boar",
+              "count": 1,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 78,
+          "enemies": [
+            {
+              "id": "beetle",
+              "count": 3,
+              "interval": 1.2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "징검다리",
+      "regionName": "징검다리",
+      "scene": "creek",
+      "enemyHp": 2300,
+      "enemyAttack": 0.9,
+      "enemyModifiers": {
+        "hp": 1.2
+      },
+      "baseReward": 0,
+      "waves": [
+        {
+          "time": 0.6,
+          "enemies": [
+            {
+              "id": "boar",
+              "count": 1,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 8,
+          "enemies": [
+            {
+              "id": "badger",
+              "count": 3,
+              "interval": 0.8
+            }
+          ]
+        },
+        {
+          "time": 26,
+          "enemies": [
+            {
+              "id": "boar",
+              "count": 2,
+              "interval": 3
+            }
+          ]
+        },
+        {
+          "time": 42,
+          "enemies": [
+            {
+              "id": "mushroom",
+              "count": 2,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 58,
+          "enemies": [
+            {
+              "id": "badger",
+              "count": 5,
+              "interval": 0.7
+            }
+          ]
+        },
+        {
+          "time": 77,
+          "enemies": [
+            {
+              "id": "boar",
+              "count": 2,
+              "interval": 1.2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "name": "덩굴 둑",
+      "regionName": "덩굴 둑",
+      "scene": "creek",
+      "enemyHp": 2600,
+      "enemyAttack": 0.95,
+      "enemyModifiers": {
+        "hp": 1.3
+      },
+      "baseReward": 0,
+      "waves": [
+        {
+          "time": 0.6,
+          "enemies": [
+            {
+              "id": "bear",
+              "count": 1,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 12,
+          "enemies": [
+            {
+              "id": "porcupine",
+              "count": 2,
+              "interval": 2
+            }
+          ]
+        },
+        {
+          "time": 30,
+          "enemies": [
+            {
+              "id": "beetle",
+              "count": 3,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 46,
+          "enemies": [
+            {
+              "id": "bear",
+              "count": 1,
+              "interval": 1.2
+            },
+            {
+              "id": "mushroom",
+              "count": 2,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 68,
+          "enemies": [
+            {
+              "id": "badger",
+              "count": 4,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 82,
+          "enemies": [
+            {
+              "id": "porcupine",
+              "count": 1,
+              "interval": 1.2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "name": "여울의 파수꾼",
+      "regionName": "여울의 파수꾼",
+      "scene": "creek",
+      "enemyHp": 3000,
+      "enemyAttack": 1,
+      "enemyModifiers": {
+        "hp": 1.4
+      },
+      "baseReward": 0,
+      "waves": [
+        {
+          "time": 0.6,
+          "enemies": [
+            {
+              "id": "beetle",
+              "count": 2,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 12,
+          "enemies": [
+            {
+              "id": "grove-bear",
+              "count": 1,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 26,
+          "enemies": [
+            {
+              "id": "badger",
+              "count": 3,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 44,
+          "enemies": [
+            {
+              "id": "porcupine",
+              "count": 2,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 64,
+          "enemies": [
+            {
+              "id": "boar",
+              "count": 2,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 82,
+          "enemies": [
+            {
+              "id": "mushroom",
+              "count": 3,
+              "interval": 1.2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "name": "자갈길",
+      "regionName": "자갈길",
+      "scene": "quarry",
+      "enemyHp": 3200,
+      "enemyAttack": 1,
+      "enemyModifiers": {
+        "hp": 1.5
+      },
+      "baseReward": 0,
+      "waves": [
+        {
+          "time": 0.6,
+          "enemies": [
+            {
+              "id": "clock-beetle",
+              "count": 3,
+              "interval": 2
+            }
+          ]
+        },
+        {
+          "time": 15,
+          "enemies": [
+            {
+              "id": "badger",
+              "count": 2,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 31,
+          "enemies": [
+            {
+              "id": "clock-beetle",
+              "count": 3,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 48,
+          "enemies": [
+            {
+              "id": "mushroom",
+              "count": 3,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 67,
+          "enemies": [
+            {
+              "id": "boar",
+              "count": 2,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 82,
+          "enemies": [
+            {
+              "id": "clock-beetle",
+              "count": 3,
+              "interval": 1.2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "name": "철조각 고개",
+      "regionName": "철조각 고개",
+      "scene": "quarry",
+      "enemyHp": 3600,
+      "enemyAttack": 1.05,
+      "enemyModifiers": {
+        "hp": 1.7
+      },
+      "baseReward": 0,
+      "waves": [
+        {
+          "time": 0.6,
+          "enemies": [
+            {
+              "id": "badger",
+              "count": 4,
+              "interval": 0.7
+            }
+          ]
+        },
+        {
+          "time": 10,
+          "enemies": [
+            {
+              "id": "clock-beetle",
+              "count": 2,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 26,
+          "enemies": [
+            {
+              "id": "badger",
+              "count": 4,
+              "interval": 0.7
+            }
+          ]
+        },
+        {
+          "time": 43,
+          "enemies": [
+            {
+              "id": "clock-beetle",
+              "count": 4,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 63,
+          "enemies": [
+            {
+              "id": "porcupine",
+              "count": 2,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 81,
+          "enemies": [
+            {
+              "id": "badger",
+              "count": 4,
+              "interval": 1.2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "name": "바위 회랑",
+      "regionName": "바위 회랑",
+      "scene": "quarry",
+      "enemyHp": 4000,
+      "enemyAttack": 1.1,
+      "enemyModifiers": {
+        "hp": 1.9
+      },
+      "baseReward": 0,
+      "waves": [
+        {
+          "time": 0.6,
+          "enemies": [
+            {
+              "id": "bear",
+              "count": 1,
+              "interval": 1.2
+            },
+            {
+              "id": "clock-beetle",
+              "count": 2,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 18,
+          "enemies": [
+            {
+              "id": "porcupine",
+              "count": 2,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 34,
+          "enemies": [
+            {
+              "id": "boar",
+              "count": 2,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 52,
+          "enemies": [
+            {
+              "id": "clock-beetle",
+              "count": 4,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 74,
+          "enemies": [
+            {
+              "id": "bear",
+              "count": 2,
+              "interval": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "name": "톱니 다리",
+      "regionName": "톱니 다리",
+      "scene": "quarry",
+      "enemyHp": 4400,
+      "enemyAttack": 1.15,
+      "enemyModifiers": {
+        "hp": 2
+      },
+      "baseReward": 0,
+      "waves": [
+        {
+          "time": 0.6,
+          "enemies": [
+            {
+              "id": "clock-beetle",
+              "count": 4,
+              "interval": 1
+            }
+          ]
+        },
+        {
+          "time": 13,
+          "enemies": [
+            {
+              "id": "mushroom",
+              "count": 3,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 29,
+          "enemies": [
+            {
+              "id": "badger",
+              "count": 4,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 45,
+          "enemies": [
+            {
+              "id": "clock-beetle",
+              "count": 4,
+              "interval": 1.2
+            },
+            {
+              "id": "porcupine",
+              "count": 1,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 68,
+          "enemies": [
+            {
+              "id": "boar",
+              "count": 3,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 82,
+          "enemies": [
+            {
+              "id": "mushroom",
+              "count": 3,
+              "interval": 1.2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "name": "채석장 문지기",
+      "regionName": "채석장 문지기",
+      "scene": "quarry",
+      "enemyHp": 5000,
+      "enemyAttack": 1.2,
+      "enemyModifiers": {
+        "hp": 2.1
+      },
+      "baseReward": 0,
+      "waves": [
+        {
+          "time": 0.6,
+          "enemies": [
+            {
+              "id": "clock-beetle",
+              "count": 2,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 9,
+          "enemies": [
+            {
+              "id": "workshop-bear",
+              "count": 1,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 25,
+          "enemies": [
+            {
+              "id": "porcupine",
+              "count": 2,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 44,
+          "enemies": [
+            {
+              "id": "badger",
+              "count": 4,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 65,
+          "enemies": [
+            {
+              "id": "clock-beetle",
+              "count": 4,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 82,
+          "enemies": [
+            {
+              "id": "bear",
+              "count": 1,
+              "interval": 1.2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "name": "달빛 오솔길",
+      "regionName": "달빛 오솔길",
+      "scene": "moon",
+      "enemyHp": 5300,
+      "enemyAttack": 1.2,
+      "enemyModifiers": {
+        "hp": 2.2
+      },
+      "baseReward": 0,
+      "waves": [
+        {
+          "time": 0.6,
+          "enemies": [
+            {
+              "id": "spirit-rabbit",
+              "count": 3,
+              "interval": 2
+            }
+          ]
+        },
+        {
+          "time": 11,
+          "enemies": [
+            {
+              "id": "beetle",
+              "count": 3,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 27,
+          "enemies": [
+            {
+              "id": "shadow-mushroom",
+              "count": 3,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 45,
+          "enemies": [
+            {
+              "id": "bear",
+              "count": 1,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 64,
+          "enemies": [
+            {
+              "id": "spirit-rabbit",
+              "count": 4,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 81,
+          "enemies": [
+            {
+              "id": "badger",
+              "count": 3,
+              "interval": 1.2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "name": "빛샘 연못",
+      "regionName": "빛샘 연못",
+      "scene": "moon",
+      "enemyHp": 5800,
+      "enemyAttack": 1.25,
+      "enemyModifiers": {
+        "hp": 2.4
+      },
+      "baseReward": 0,
+      "waves": [
+        {
+          "time": 0.6,
+          "enemies": [
+            {
+              "id": "spirit-rabbit",
+              "count": 4,
+              "interval": 1
+            }
+          ]
+        },
+        {
+          "time": 13,
+          "enemies": [
+            {
+              "id": "boar",
+              "count": 2,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 31,
+          "enemies": [
+            {
+              "id": "spirit-rabbit",
+              "count": 4,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 49,
+          "enemies": [
+            {
+              "id": "porcupine",
+              "count": 2,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 69,
+          "enemies": [
+            {
+              "id": "spirit-rabbit",
+              "count": 4,
+              "interval": 1.2
+            },
+            {
+              "id": "bear",
+              "count": 1,
+              "interval": 1.2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "name": "그림자 갈림길",
+      "regionName": "그림자 갈림길",
+      "scene": "moon",
+      "enemyHp": 6200,
+      "enemyAttack": 1.3,
+      "enemyModifiers": {
+        "hp": 2.6
+      },
+      "baseReward": 0,
+      "waves": [
+        {
+          "time": 0.6,
+          "enemies": [
+            {
+              "id": "shadow-mushroom",
+              "count": 4,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 10,
+          "enemies": [
+            {
+              "id": "badger",
+              "count": 3,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 28,
+          "enemies": [
+            {
+              "id": "shadow-mushroom",
+              "count": 4,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 46,
+          "enemies": [
+            {
+              "id": "boar",
+              "count": 3,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 65,
+          "enemies": [
+            {
+              "id": "shadow-mushroom",
+              "count": 4,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 82,
+          "enemies": [
+            {
+              "id": "porcupine",
+              "count": 2,
+              "interval": 1.2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "name": "반딧불 둔덕",
+      "regionName": "반딧불 둔덕",
+      "scene": "moon",
+      "enemyHp": 6700,
+      "enemyAttack": 1.35,
+      "enemyModifiers": {
+        "hp": 2.8
+      },
+      "baseReward": 0,
+      "waves": [
+        {
+          "time": 0.6,
+          "enemies": [
+            {
+              "id": "spirit-rabbit",
+              "count": 2,
+              "interval": 1.2
+            },
+            {
+              "id": "shadow-mushroom",
+              "count": 2,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 16,
+          "enemies": [
+            {
+              "id": "bear",
+              "count": 2,
+              "interval": 3
+            }
+          ]
+        },
+        {
+          "time": 34,
+          "enemies": [
+            {
+              "id": "spirit-rabbit",
+              "count": 3,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 51,
+          "enemies": [
+            {
+              "id": "shadow-mushroom",
+              "count": 4,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 73,
+          "enemies": [
+            {
+              "id": "badger",
+              "count": 5,
+              "interval": 1.2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "name": "달빛의 큰 엄니",
+      "regionName": "달빛의 큰 엄니",
+      "scene": "moon",
+      "enemyHp": 7300,
+      "enemyAttack": 1.4,
+      "enemyModifiers": {
+        "hp": 3
+      },
+      "baseReward": 0,
+      "waves": [
+        {
+          "time": 0.6,
+          "enemies": [
+            {
+              "id": "spirit-rabbit",
+              "count": 2,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 10,
+          "enemies": [
+            {
+              "id": "grove-boar",
+              "count": 1,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 26,
+          "enemies": [
+            {
+              "id": "shadow-mushroom",
+              "count": 3,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 45,
+          "enemies": [
+            {
+              "id": "porcupine",
+              "count": 2,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 64,
+          "enemies": [
+            {
+              "id": "spirit-rabbit",
+              "count": 3,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 82,
+          "enemies": [
+            {
+              "id": "boar",
+              "count": 2,
+              "interval": 1.2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 16,
+      "name": "노을 고갯길",
+      "regionName": "노을 고갯길",
+      "scene": "sunset",
+      "enemyHp": 7800,
+      "enemyAttack": 1.45,
+      "enemyModifiers": {
+        "hp": 3.2
+      },
+      "baseReward": 0,
+      "waves": [
+        {
+          "time": 0.6,
+          "enemies": [
+            {
+              "id": "badger",
+              "count": 5,
+              "interval": 0.6
+            }
+          ]
+        },
+        {
+          "time": 12,
+          "enemies": [
+            {
+              "id": "clock-beetle",
+              "count": 3,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 29,
+          "enemies": [
+            {
+              "id": "spirit-rabbit",
+              "count": 3,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 47,
+          "enemies": [
+            {
+              "id": "boar",
+              "count": 3,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 67,
+          "enemies": [
+            {
+              "id": "shadow-mushroom",
+              "count": 4,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 82,
+          "enemies": [
+            {
+              "id": "badger",
+              "count": 4,
+              "interval": 1.2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 17,
+      "name": "붉은 바람길",
+      "regionName": "붉은 바람길",
+      "scene": "sunset",
+      "enemyHp": 8400,
+      "enemyAttack": 1.5,
+      "enemyModifiers": {
+        "hp": 3.4
+      },
+      "baseReward": 0,
+      "waves": [
+        {
+          "time": 0.6,
+          "enemies": [
+            {
+              "id": "porcupine",
+              "count": 3,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 11,
+          "enemies": [
+            {
+              "id": "bear",
+              "count": 2,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 28,
+          "enemies": [
+            {
+              "id": "shadow-mushroom",
+              "count": 4,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 46,
+          "enemies": [
+            {
+              "id": "clock-beetle",
+              "count": 4,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 67,
+          "enemies": [
+            {
+              "id": "porcupine",
+              "count": 3,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 82,
+          "enemies": [
+            {
+              "id": "badger",
+              "count": 4,
+              "interval": 1.2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 18,
+      "name": "오래된 수문",
+      "regionName": "오래된 수문",
+      "scene": "sunset",
+      "enemyHp": 9000,
+      "enemyAttack": 1.55,
+      "enemyModifiers": {
+        "hp": 3.6
+      },
+      "baseReward": 0,
+      "waves": [
+        {
+          "time": 0.6,
+          "enemies": [
+            {
+              "id": "clock-beetle",
+              "count": 5,
+              "interval": 1
+            }
+          ]
+        },
+        {
+          "time": 15,
+          "enemies": [
+            {
+              "id": "spirit-rabbit",
+              "count": 3,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 32,
+          "enemies": [
+            {
+              "id": "bear",
+              "count": 2,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 50,
+          "enemies": [
+            {
+              "id": "clock-beetle",
+              "count": 5,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 70,
+          "enemies": [
+            {
+              "id": "shadow-mushroom",
+              "count": 4,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 83,
+          "enemies": [
+            {
+              "id": "boar",
+              "count": 2,
+              "interval": 1.2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 19,
+      "name": "황혼의 능선",
+      "regionName": "황혼의 능선",
+      "scene": "sunset",
+      "enemyHp": 9700,
+      "enemyAttack": 1.6,
+      "enemyModifiers": {
+        "hp": 3.8
+      },
+      "baseReward": 0,
+      "waves": [
+        {
+          "time": 0.6,
+          "enemies": [
+            {
+              "id": "bear",
+              "count": 2,
+              "interval": 1.2
+            },
+            {
+              "id": "shadow-mushroom",
+              "count": 2,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 17,
+          "enemies": [
+            {
+              "id": "badger",
+              "count": 5,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 34,
+          "enemies": [
+            {
+              "id": "porcupine",
+              "count": 3,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 52,
+          "enemies": [
+            {
+              "id": "spirit-rabbit",
+              "count": 4,
+              "interval": 1.2
+            },
+            {
+              "id": "clock-beetle",
+              "count": 3,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 75,
+          "enemies": [
+            {
+              "id": "boar",
+              "count": 3,
+              "interval": 1.2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 20,
+      "name": "노을의 거인",
+      "regionName": "노을의 거인",
+      "scene": "sunset",
+      "enemyHp": 10500,
+      "enemyAttack": 1.65,
+      "enemyModifiers": {
+        "hp": 4
+      },
+      "baseReward": 0,
+      "waves": [
+        {
+          "time": 0.6,
+          "enemies": [
+            {
+              "id": "clock-beetle",
+              "count": 2,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 9,
+          "enemies": [
+            {
+              "id": "workshop-boar",
+              "count": 1,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 25,
+          "enemies": [
+            {
+              "id": "spirit-rabbit",
+              "count": 3,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 43,
+          "enemies": [
+            {
+              "id": "porcupine",
+              "count": 3,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 62,
+          "enemies": [
+            {
+              "id": "shadow-mushroom",
+              "count": 4,
+              "interval": 1.2
+            }
+          ]
+        },
+        {
+          "time": 80,
+          "enemies": [
+            {
+              "id": "bear",
+              "count": 2,
+              "interval": 1.2
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "abilitiesByUnit": {
+    "sheep": [
+      {
+        "id": "hp",
+        "name": "체력",
+        "max": 10,
+        "changes": [
+          {
+            "op": "multiply",
+            "path": "hp",
+            "amount": 0.01
+          }
+        ]
+      },
+      {
+        "id": "attack",
+        "name": "공격력",
+        "max": 10,
+        "changes": [
+          {
+            "op": "multiply",
+            "path": "attack",
+            "amount": 0.01
+          }
+        ]
+      },
+      {
+        "id": "signature",
+        "max": 1,
+        "name": "독에 강한 양털",
+        "changes": [
+          {
+            "op": "effect",
+            "value": {
+              "effect": "poison",
+              "type": "immunity",
+              "attackType": "all",
+              "family": "all",
+              "attribute": "all"
+            }
+          }
+        ]
+      }
+    ],
+    "rabbit": [
+      {
+        "id": "hp",
+        "name": "체력",
+        "max": 10,
+        "changes": [
+          {
+            "op": "multiply",
+            "path": "hp",
+            "amount": 0.01
+          }
+        ]
+      },
+      {
+        "id": "attack",
+        "name": "공격력",
+        "max": 10,
+        "changes": [
+          {
+            "op": "multiply",
+            "path": "attack",
+            "amount": 0.01
+          }
+        ]
+      },
+      {
+        "id": "counter",
+        "name": "속성 숙련",
+        "max": 10,
+        "changes": [
+          {
+            "op": "counter",
+            "amount": 0.01,
+            "fields": [
+              "bonus"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "move",
+        "name": "가벼운 발걸음",
+        "max": 5,
+        "changes": [
+          {
+            "op": "multiply",
+            "path": "speed",
+            "amount": 0.02
+          }
+        ]
+      },
+      {
+        "id": "signature",
+        "max": 1,
+        "name": "성 파괴",
+        "changes": [
+          {
+            "op": "add",
+            "path": "effects.castleDamage.bonus",
+            "amount": 0.5
+          }
+        ]
+      },
+      {
+        "id": "extra",
+        "name": "새로운 특화",
+        "max": 1,
+        "changes": [
+          {
+            "op": "specialty",
+            "attribute": "machine"
+          }
+        ],
+        "attribute": "machine",
+        "unlock": 10
+      }
+    ],
+    "squirrel": [
+      {
+        "id": "hp",
+        "name": "체력",
+        "max": 10,
+        "changes": [
+          {
+            "op": "multiply",
+            "path": "hp",
+            "amount": 0.01
+          }
+        ]
+      },
+      {
+        "id": "attack",
+        "name": "공격력",
+        "max": 10,
+        "changes": [
+          {
+            "op": "multiply",
+            "path": "attack",
+            "amount": 0.01
+          }
+        ]
+      },
+      {
+        "id": "signature",
+        "max": 1,
+        "name": "빠른 씨앗",
+        "changes": [
+          {
+            "op": "add",
+            "path": "attackInterval",
+            "amount": -0.1,
+            "min": 0.2
+          }
+        ]
+      }
+    ],
+    "teapot": [
+      {
+        "id": "hp",
+        "name": "체력",
+        "max": 10,
+        "changes": [
+          {
+            "op": "multiply",
+            "path": "hp",
+            "amount": 0.01
+          }
+        ]
+      },
+      {
+        "id": "attack",
+        "name": "공격력",
+        "max": 10,
+        "changes": [
+          {
+            "op": "multiply",
+            "path": "attack",
+            "amount": 0.01
+          }
+        ]
+      },
+      {
+        "id": "counter",
+        "name": "속성 숙련",
+        "max": 10,
+        "changes": [
+          {
+            "op": "counter",
+            "amount": 0.01,
+            "fields": [
+              "bonus"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "signature",
+        "max": 1,
+        "name": "끓는 물",
+        "changes": [
+          {
+            "op": "effect",
+            "value": {
+              "bonus": 1,
+              "type": "shieldDamage",
+              "attackType": "all",
+              "family": "all",
+              "attribute": "all"
+            }
+          }
+        ]
+      },
+      {
+        "id": "extra",
+        "name": "새로운 특화",
+        "max": 1,
+        "changes": [
+          {
+            "op": "specialty",
+            "attribute": "wild"
+          }
+        ],
+        "attribute": "wild",
+        "unlock": 10
+      }
+    ],
+    "cloud": [
+      {
+        "id": "hp",
+        "name": "체력",
+        "max": 10,
+        "changes": [
+          {
+            "op": "multiply",
+            "path": "hp",
+            "amount": 0.01
+          }
+        ]
+      },
+      {
+        "id": "attack",
+        "name": "공격력",
+        "max": 10,
+        "changes": [
+          {
+            "op": "multiply",
+            "path": "attack",
+            "amount": 0.01
+          }
+        ]
+      },
+      {
+        "id": "counter",
+        "name": "속성 숙련",
+        "max": 10,
+        "changes": [
+          {
+            "op": "counter",
+            "amount": 0.01,
+            "fields": [
+              "effectiveHp",
+              "bonus"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "signature",
+        "max": 1,
+        "name": "차가운 번개",
+        "changes": [
+          {
+            "op": "add",
+            "path": "effects.slow.duration",
+            "amount": 1
+          }
+        ]
+      },
+      {
+        "id": "extra",
+        "name": "새로운 특화",
+        "max": 1,
+        "changes": [
+          {
+            "op": "specialty",
+            "attribute": "machine"
+          }
+        ],
+        "attribute": "machine",
+        "unlock": 10
+      }
+    ],
+    "fox": [
+      {
+        "id": "hp",
+        "name": "체력",
+        "max": 10,
+        "changes": [
+          {
+            "op": "multiply",
+            "path": "hp",
+            "amount": 0.01
+          }
+        ]
+      },
+      {
+        "id": "attack",
+        "name": "공격력",
+        "max": 10,
+        "changes": [
+          {
+            "op": "multiply",
+            "path": "attack",
+            "amount": 0.01
+          }
+        ]
+      },
+      {
+        "id": "counter",
+        "name": "속성 숙련",
+        "max": 10,
+        "changes": [
+          {
+            "op": "counter",
+            "amount": 0.01,
+            "fields": [
+              "effectiveHp",
+              "bonus"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "move",
+        "name": "가벼운 발걸음",
+        "max": 5,
+        "changes": [
+          {
+            "op": "multiply",
+            "path": "speed",
+            "amount": 0.02
+          }
+        ]
+      },
+      {
+        "id": "signature",
+        "max": 1,
+        "name": "등불의 온기",
+        "changes": [
+          {
+            "op": "effect",
+            "value": {
+              "hpRatio": 0.01,
+              "interval": 2,
+              "type": "regeneration",
+              "attackType": "all",
+              "family": "all",
+              "attribute": "all"
+            }
+          }
+        ]
+      },
+      {
+        "id": "extra",
+        "name": "새로운 특화",
+        "max": 1,
+        "changes": [
+          {
+            "op": "specialty",
+            "attribute": "shadow"
+          }
+        ],
+        "attribute": "shadow",
+        "unlock": 10
+      }
+    ],
+    "hedgehog": [
+      {
+        "id": "hp",
+        "name": "체력",
+        "max": 10,
+        "changes": [
+          {
+            "op": "multiply",
+            "path": "hp",
+            "amount": 0.01
+          }
+        ]
+      },
+      {
+        "id": "attack",
+        "name": "공격력",
+        "max": 10,
+        "changes": [
+          {
+            "op": "multiply",
+            "path": "attack",
+            "amount": 0.01
+          }
+        ]
+      },
+      {
+        "id": "counter",
+        "name": "속성 숙련",
+        "max": 10,
+        "changes": [
+          {
+            "op": "counter",
+            "amount": 0.01,
+            "fields": [
+              "effectiveHp"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "signature",
+        "max": 1,
+        "name": "밀폐 갑옷",
+        "changes": [
+          {
+            "op": "effect",
+            "value": {
+              "effect": "poison",
+              "type": "immunity",
+              "attackType": "all",
+              "family": "all",
+              "attribute": "all"
+            }
+          }
+        ]
+      },
+      {
+        "id": "extra",
+        "name": "새로운 특화",
+        "max": 1,
+        "changes": [
+          {
+            "op": "specialty",
+            "attribute": "wild"
+          }
+        ],
+        "attribute": "wild",
+        "unlock": 10
+      }
+    ],
+    "chick": [
+      {
+        "id": "hp",
+        "name": "체력",
+        "max": 10,
+        "changes": [
+          {
+            "op": "multiply",
+            "path": "hp",
+            "amount": 0.01
+          }
+        ]
+      },
+      {
+        "id": "attack",
+        "name": "공격력",
+        "max": 10,
+        "changes": [
+          {
+            "op": "multiply",
+            "path": "attack",
+            "amount": 0.01
+          }
+        ]
+      },
+      {
+        "id": "counter",
+        "name": "속성 숙련",
+        "max": 10,
+        "changes": [
+          {
+            "op": "counter",
+            "amount": 0.01,
+            "fields": [
+              "bonus"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "signature",
+        "max": 1,
+        "name": "큰 폭탄",
+        "changes": [
+          {
+            "op": "add",
+            "path": "effects.areaAttack.radius",
+            "amount": 24
+          }
+        ]
+      },
+      {
+        "id": "extra",
+        "name": "새로운 특화",
+        "max": 1,
+        "changes": [
+          {
+            "op": "specialty",
+            "attribute": "machine"
+          }
+        ],
+        "attribute": "machine",
+        "unlock": 10
+      }
+    ],
+    "otter": [
+      {
+        "id": "hp",
+        "name": "체력",
+        "max": 10,
+        "changes": [
+          {
+            "op": "multiply",
+            "path": "hp",
+            "amount": 0.01
+          }
+        ]
+      },
+      {
+        "id": "attack",
+        "name": "공격력",
+        "max": 10,
+        "changes": [
+          {
+            "op": "multiply",
+            "path": "attack",
+            "amount": 0.01
+          }
+        ]
+      },
+      {
+        "id": "counter",
+        "name": "속성 숙련",
+        "max": 10,
+        "changes": [
+          {
+            "op": "counter",
+            "amount": 0.01,
+            "fields": [
+              "effectiveHp",
+              "bonus"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "signature",
+        "max": 1,
+        "name": "넉넉한 물방울",
+        "changes": [
+          {
+            "op": "multiply",
+            "path": "effects.healing.amount",
+            "amount": 0.2
+          }
+        ]
+      },
+      {
+        "id": "extra",
+        "name": "새로운 특화",
+        "max": 1,
+        "changes": [
+          {
+            "op": "specialty",
+            "attribute": "shadow"
+          }
+        ],
+        "attribute": "shadow",
+        "unlock": 10
+      }
+    ],
+    "owl": [
+      {
+        "id": "hp",
+        "name": "체력",
+        "max": 10,
+        "changes": [
+          {
+            "op": "multiply",
+            "path": "hp",
+            "amount": 0.01
+          }
+        ]
+      },
+      {
+        "id": "attack",
+        "name": "공격력",
+        "max": 10,
+        "changes": [
+          {
+            "op": "multiply",
+            "path": "attack",
+            "amount": 0.01
+          }
+        ]
+      },
+      {
+        "id": "counter",
+        "name": "속성 숙련",
+        "max": 10,
+        "changes": [
+          {
+            "op": "counter",
+            "amount": 0.01,
+            "fields": [
+              "bonus"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "signature",
+        "max": 1,
+        "name": "빠른 태엽",
+        "changes": [
+          {
+            "op": "add",
+            "path": "attackInterval",
+            "amount": -0.1,
+            "min": 0.2
+          }
+        ]
+      },
+      {
+        "id": "extra",
+        "name": "새로운 특화",
+        "max": 1,
+        "changes": [
+          {
+            "op": "specialty",
+            "attribute": "wild"
+          }
+        ],
+        "attribute": "wild",
+        "unlock": 10
+      }
+    ],
+    "mushroom-witch": [
+      {
+        "id": "hp",
+        "name": "체력",
+        "max": 10,
+        "changes": [
+          {
+            "op": "multiply",
+            "path": "hp",
+            "amount": 0.01
+          }
+        ]
+      },
+      {
+        "id": "attack",
+        "name": "공격력",
+        "max": 10,
+        "changes": [
+          {
+            "op": "multiply",
+            "path": "attack",
+            "amount": 0.01
+          }
+        ]
+      },
+      {
+        "id": "counter",
+        "name": "속성 숙련",
+        "max": 10,
+        "changes": [
+          {
+            "op": "counter",
+            "amount": 0.01,
+            "fields": [
+              "bonus"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "signature",
+        "max": 1,
+        "name": "독버섯 물약",
+        "changes": [
+          {
+            "op": "effect",
+            "value": {
+              "ratio": 0.08,
+              "duration": 3,
+              "interval": 1,
+              "type": "poison",
+              "attackType": "all",
+              "family": "all",
+              "attribute": "all"
+            }
+          }
+        ]
+      },
+      {
+        "id": "extra",
+        "name": "새로운 특화",
+        "max": 1,
+        "changes": [
+          {
+            "op": "specialty",
+            "attribute": "shadow"
+          }
+        ],
+        "attribute": "shadow",
+        "unlock": 10
+      }
+    ],
+    "deer": [
+      {
+        "id": "hp",
+        "name": "체력",
+        "max": 10,
+        "changes": [
+          {
+            "op": "multiply",
+            "path": "hp",
+            "amount": 0.01
+          }
+        ]
+      },
+      {
+        "id": "attack",
+        "name": "공격력",
+        "max": 10,
+        "changes": [
+          {
+            "op": "multiply",
+            "path": "attack",
+            "amount": 0.01
+          }
+        ]
+      },
+      {
+        "id": "counter",
+        "name": "속성 숙련",
+        "max": 10,
+        "changes": [
+          {
+            "op": "counter",
+            "amount": 0.01,
+            "fields": [
+              "effectiveHp",
+              "bonus"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "move",
+        "name": "가벼운 발걸음",
+        "max": 5,
+        "changes": [
+          {
+            "op": "multiply",
+            "path": "speed",
+            "amount": 0.02
+          }
+        ]
+      },
+      {
+        "id": "signature",
+        "max": 1,
+        "name": "잎사귀 갑옷",
+        "changes": [
+          {
+            "op": "effect",
+            "value": {
+              "hpRatio": 0.15,
+              "type": "shield",
+              "attackType": "all",
+              "family": "all",
+              "attribute": "all"
+            }
+          }
+        ]
+      },
+      {
+        "id": "extra",
+        "name": "새로운 특화",
+        "max": 1,
+        "changes": [
+          {
+            "op": "specialty",
+            "attribute": "spirit"
+          }
+        ],
+        "attribute": "spirit",
+        "unlock": 10
+      }
+    ],
+    "penguin": [
+      {
+        "id": "hp",
+        "name": "체력",
+        "max": 10,
+        "changes": [
+          {
+            "op": "multiply",
+            "path": "hp",
+            "amount": 0.01
+          }
+        ]
+      },
+      {
+        "id": "attack",
+        "name": "공격력",
+        "max": 10,
+        "changes": [
+          {
+            "op": "multiply",
+            "path": "attack",
+            "amount": 0.01
+          }
+        ]
+      },
+      {
+        "id": "counter",
+        "name": "속성 숙련",
+        "max": 10,
+        "changes": [
+          {
+            "op": "counter",
+            "amount": 0.01,
+            "fields": [
+              "bonus"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "move",
+        "name": "가벼운 발걸음",
+        "max": 5,
+        "changes": [
+          {
+            "op": "multiply",
+            "path": "speed",
+            "amount": 0.02
+          }
+        ]
+      },
+      {
+        "id": "signature",
+        "max": 1,
+        "name": "얼음 발자국",
+        "changes": [
+          {
+            "op": "effect",
+            "value": {
+              "factor": 0.8,
+              "duration": 2,
+              "type": "slow",
+              "attackType": "all",
+              "family": "all",
+              "attribute": "all"
+            }
+          }
+        ]
+      },
+      {
+        "id": "extra",
+        "name": "새로운 특화",
+        "max": 1,
+        "changes": [
+          {
+            "op": "specialty",
+            "attribute": "shadow"
+          }
+        ],
+        "attribute": "shadow",
+        "unlock": 10
+      }
+    ],
+    "whale": [
+      {
+        "id": "hp",
+        "name": "체력",
+        "max": 10,
+        "changes": [
+          {
+            "op": "multiply",
+            "path": "hp",
+            "amount": 0.01
+          }
+        ]
+      },
+      {
+        "id": "attack",
+        "name": "공격력",
+        "max": 10,
+        "changes": [
+          {
+            "op": "multiply",
+            "path": "attack",
+            "amount": 0.01
+          }
+        ]
+      },
+      {
+        "id": "counter",
+        "name": "속성 숙련",
+        "max": 10,
+        "changes": [
+          {
+            "op": "counter",
+            "amount": 0.01,
+            "fields": [
+              "bonus"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "range",
+        "name": "긴 사거리",
+        "max": 5,
+        "changes": [
+          {
+            "op": "add",
+            "path": "range",
+            "amount": 4
+          }
+        ]
+      },
+      {
+        "id": "signature",
+        "max": 1,
+        "name": "넓은 물결",
+        "changes": [
+          {
+            "op": "effect",
+            "value": {
+              "radius": 45,
+              "type": "areaAttack",
+              "attackType": "all",
+              "family": "all",
+              "attribute": "all"
+            }
+          }
+        ]
+      },
+      {
+        "id": "extra",
+        "name": "새로운 특화",
+        "max": 1,
+        "changes": [
+          {
+            "op": "specialty",
+            "attribute": "wild"
+          }
+        ],
+        "attribute": "wild",
+        "unlock": 10
+      }
+    ],
+    "turtle": [
+      {
+        "id": "hp",
+        "name": "체력",
+        "max": 10,
+        "changes": [
+          {
+            "op": "multiply",
+            "path": "hp",
+            "amount": 0.01
+          }
+        ]
+      },
+      {
+        "id": "attack",
+        "name": "공격력",
+        "max": 10,
+        "changes": [
+          {
+            "op": "multiply",
+            "path": "attack",
+            "amount": 0.01
+          }
+        ]
+      },
+      {
+        "id": "counter",
+        "name": "속성 숙련",
+        "max": 10,
+        "changes": [
+          {
+            "op": "counter",
+            "amount": 0.01,
+            "fields": [
+              "effectiveHp"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "signature",
+        "max": 1,
+        "name": "튼튼한 등껍질",
+        "changes": [
+          {
+            "op": "effect",
+            "value": {
+              "effect": "poison",
+              "type": "immunity",
+              "attackType": "all",
+              "family": "all",
+              "attribute": "all"
+            }
+          }
+        ]
+      },
+      {
+        "id": "extra",
+        "name": "새로운 특화",
+        "max": 1,
+        "changes": [
+          {
+            "op": "specialty",
+            "attribute": "spirit"
+          }
+        ],
+        "attribute": "spirit",
+        "unlock": 10
+      }
+    ]
+  },
+  "effects": {
+    "sturdy": {
+      "name": "단단함",
+      "keyword": "sturdy",
+      "fields": [
+        "effectiveHp"
+      ],
+      "trigger": null,
+      "requiresHpDamage": false,
+      "color": null,
+      "defaults": {
+        "effectiveHp": 0.5
+      }
+    },
+    "strong": {
+      "name": "강함",
+      "keyword": "strong",
+      "fields": [
+        "effectiveHp",
+        "bonus"
+      ],
+      "trigger": null,
+      "requiresHpDamage": false,
+      "color": null,
+      "defaults": {
+        "effectiveHp": 0.3,
+        "bonus": 0.2
+      }
+    },
+    "devastating": {
+      "name": "매서움",
+      "keyword": "devastating",
+      "fields": [
+        "bonus"
+      ],
+      "trigger": null,
+      "requiresHpDamage": false,
+      "color": null,
+      "defaults": {
+        "bonus": 0.5
+      }
+    },
+    "slow": {
+      "name": "둔화",
+      "keyword": "slow",
+      "fields": [
+        "factor",
+        "duration"
+      ],
+      "trigger": "hit",
+      "requiresHpDamage": false,
+      "color": "#78a9b7",
+      "defaults": {}
+    },
+    "healingSuppression": {
+      "name": "회복 억제",
+      "keyword": "healingSuppression",
+      "fields": [
+        "factor",
+        "duration"
+      ],
+      "trigger": "hit",
+      "requiresHpDamage": false,
+      "color": "#bb8b81",
+      "defaults": {}
+    },
+    "healing": {
+      "name": "회복",
+      "keyword": "healing",
+      "fields": [
+        "amount",
+        "hpRatio",
+        "range"
+      ],
+      "trigger": null,
+      "requiresHpDamage": false,
+      "color": null,
+      "defaults": {}
+    },
+    "regeneration": {
+      "name": "재생",
+      "keyword": "regeneration",
+      "fields": [
+        "amount",
+        "hpRatio",
+        "interval"
+      ],
+      "trigger": null,
+      "requiresHpDamage": false,
+      "color": "#8da574",
+      "defaults": {}
+    },
+    "shield": {
+      "name": "방어막",
+      "keyword": "shield",
+      "fields": [
+        "amount",
+        "hpRatio"
+      ],
+      "trigger": null,
+      "requiresHpDamage": false,
+      "color": null,
+      "defaults": {}
+    },
+    "poison": {
+      "name": "중독",
+      "keyword": "poison",
+      "fields": [
+        "ratio",
+        "duration",
+        "interval"
+      ],
+      "trigger": "hit",
+      "requiresHpDamage": true,
+      "color": "#7b9a45",
+      "defaults": {}
+    },
+    "immunity": {
+      "name": "면역",
+      "keyword": "immunity",
+      "fields": [],
+      "trigger": null,
+      "requiresHpDamage": false,
+      "color": null,
+      "defaults": {}
+    },
+    "shieldDamageAura": {
+      "name": "방어막 공격 지원",
+      "keyword": "shieldDamageAura",
+      "fields": [
+        "bonus",
+        "range"
+      ],
+      "trigger": null,
+      "requiresHpDamage": false,
+      "color": null,
+      "defaults": {}
+    },
+    "areaAttack": {
+      "name": "범위 공격",
+      "keyword": "areaAttack",
+      "fields": [
+        "radius"
+      ],
+      "trigger": null,
+      "requiresHpDamage": false,
+      "color": null,
+      "defaults": {}
+    },
+    "castleDamage": {
+      "name": "성 추가 피해",
+      "keyword": "castleDamage",
+      "fields": [
+        "bonus"
+      ],
+      "trigger": null,
+      "requiresHpDamage": false,
+      "color": null,
+      "defaults": {}
+    },
+    "shieldDamage": {
+      "name": "방어막 추가 피해",
+      "keyword": "shieldDamage",
+      "fields": [
+        "bonus"
+      ],
+      "trigger": null,
+      "requiresHpDamage": false,
+      "color": null,
+      "defaults": {}
+    },
+    "knockback": {
+      "name": "밀쳐내기",
+      "keyword": "knockback",
+      "fields": [
+        "distance"
+      ],
+      "trigger": "hit",
+      "requiresHpDamage": false,
+      "color": null,
+      "defaults": {}
+    },
+    "attackImmunity": {
+      "name": "공격 무효",
+      "keyword": "attackImmunity",
+      "fields": [],
+      "trigger": null,
+      "requiresHpDamage": false,
+      "color": null,
+      "defaults": {}
+    },
+    "repelPulse": {
+      "name": "밀쳐내기",
+      "keyword": "knockback",
+      "fields": [
+        "interval",
+        "range",
+        "distance",
+        "warning"
+      ],
+      "trigger": null,
+      "requiresHpDamage": false,
+      "color": null,
+      "defaults": {}
+    },
+    "hitStun": {
+      "name": "경직",
+      "keyword": "hitStun",
+      "fields": [
+        "duration"
+      ],
+      "trigger": "hit",
+      "requiresHpDamage": false,
+      "color": null,
+      "defaults": {}
+    },
+    "stat": {
+      "name": "능력치 변화",
+      "keyword": "stat",
+      "fields": [
+        "multiplier",
+        "flat",
+        "duration"
+      ],
+      "trigger": "hit",
+      "requiresHpDamage": false,
+      "color": null,
+      "defaults": {}
+    }
+  },
+  "effectKeywords": {
+    "sturdy": {
+      "name": "단단함"
+    },
+    "strong": {
+      "name": "강함"
+    },
+    "devastating": {
+      "name": "매서움"
+    },
+    "slow": {
+      "name": "둔화"
+    },
+    "healingSuppression": {
+      "name": "회복 억제"
+    },
+    "healing": {
+      "name": "회복"
+    },
+    "regeneration": {
+      "name": "재생"
+    },
+    "shield": {
+      "name": "방어막"
+    },
+    "poison": {
+      "name": "중독"
+    },
+    "immunity": {
+      "name": "면역"
+    },
+    "shieldDamageAura": {
+      "name": "방어막 공격 지원"
+    },
+    "areaAttack": {
+      "name": "범위 공격"
+    },
+    "castleDamage": {
+      "name": "성 추가 피해"
+    },
+    "shieldDamage": {
+      "name": "방어막 추가 피해"
+    },
+    "knockback": {
+      "name": "밀쳐내기"
+    },
+    "attackImmunity": {
+      "name": "공격 무효"
+    },
+    "hitStun": {
+      "name": "경직"
+    },
+    "stat": {
+      "name": "능력치 변화"
+    }
+  },
+  "statNames": {
+    "hp": "체력",
+    "attack": "공격력",
+    "speed": "이동속도",
+    "range": "사거리",
+    "attackInterval": "공격 간격"
+  },
+  "attributes": [
+    {
+      "id": "wild",
+      "name": "야생",
+      "symbol": "♧",
+      "color": "#72b54b",
+      "ink": "#3f852e",
+      "colorName": "초록색"
+    },
+    {
+      "id": "machine",
+      "name": "기계",
+      "symbol": "⚙",
+      "color": "#a8b5c5",
+      "ink": "#667487",
+      "colorName": "은색"
+    },
+    {
+      "id": "spirit",
+      "name": "정령",
+      "symbol": "◇",
+      "color": "#69c8ed",
+      "ink": "#287f9e",
+      "colorName": "하늘색"
+    },
+    {
+      "id": "shadow",
+      "name": "그림자",
+      "symbol": "☾",
+      "color": "#9a69cf",
+      "ink": "#7845ab",
+      "colorName": "보라색"
+    }
+  ],
+  "neutralAttribute": {
+    "id": "normal",
+    "name": "무속성",
+    "color": "#f2f1e8",
+    "colorName": "흰색"
+  },
+  "families": {
+    "forest": {
+      "name": "숲"
+    },
+    "workshop": {
+      "name": "공방"
+    },
+    "starlight": {
+      "name": "별빛"
+    },
+    "winter": {
+      "name": "겨울"
+    }
+  },
+  "attackTypes": {
+    "melee": {
+      "name": "근거리"
+    },
+    "ranged": {
+      "name": "원거리"
+    }
+  },
+  "rarities": [
+    {
+      "id": "common",
+      "name": "일반",
+      "color": "#7b8974",
+      "rate": 0.6
+    },
+    {
+      "id": "rare",
+      "name": "희귀",
+      "color": "#6094a4",
+      "rate": 0.28
+    },
+    {
+      "id": "epic",
+      "name": "영웅",
+      "color": "#9676ad",
+      "rate": 0.1
+    },
+    {
+      "id": "legendary",
+      "name": "전설",
+      "color": "#c79b55",
+      "rate": 0.02
+    }
+  ],
+  "banners": [
+    {
+      "id": "forest",
+      "name": "숲속 친구들",
+      "attribute": "wild",
+      "unlock": 0,
+      "units": [
+        "sheep",
+        "rabbit",
+        "squirrel",
+        "fox",
+        "chick",
+        "deer"
+      ],
+      "featured": [
+        "fox",
+        "deer",
+        "chick"
+      ],
+      "rates": {
+        "common": 0.6,
+        "rare": 0.28,
+        "epic": 0.12
+      }
+    },
+    {
+      "id": "workshop",
+      "name": "공방 친구들",
+      "attribute": "machine",
+      "unlock": 10,
+      "units": [
+        "teapot",
+        "hedgehog",
+        "owl",
+        "turtle"
+      ],
+      "featured": [
+        "hedgehog",
+        "turtle",
+        "owl"
+      ]
+    },
+    {
+      "id": "starlight",
+      "name": "별빛 친구들",
+      "attribute": "spirit",
+      "unlock": 10,
+      "units": [
+        "cloud",
+        "otter",
+        "mushroom-witch",
+        "penguin",
+        "whale"
+      ],
+      "featured": [
+        "otter",
+        "whale",
+        "mushroom-witch"
+      ]
+    }
+  ],
+  "starterUnitIds": [
+    "sheep",
+    "rabbit",
+    "squirrel",
+    "teapot",
+    "cloud"
+  ],
+  "gemTypes": [
+    {
+      "id": "income",
+      "name": "햇살",
+      "color": "#c3ad78",
+      "effect": "goldIncome",
+      "base": 0.1,
+      "description": "초당 전투 골드"
+    },
+    {
+      "id": "capacity",
+      "name": "주머니",
+      "color": "#91a7b0",
+      "effect": "goldCapacity",
+      "base": 0.15,
+      "description": "전투 골드 최대량"
+    },
+    {
+      "id": "harvest",
+      "name": "도토리",
+      "color": "#a68e72",
+      "effect": "acorn",
+      "base": 0.15,
+      "description": "방치 도토리 수익"
+    },
+    {
+      "id": "bounty",
+      "name": "발자국",
+      "color": "#a395b4",
+      "effect": "killGold",
+      "base": 0.2,
+      "description": "적 처치 전투 골드"
+    },
+    {
+      "id": "attack",
+      "name": "용기",
+      "color": "#c49172",
+      "effect": "attack",
+      "base": 0.1,
+      "description": "모든 동료 공격력",
+      "legacy": true
+    },
+    {
+      "id": "hp",
+      "name": "온기",
+      "color": "#90a877",
+      "effect": "hp",
+      "base": 0.15,
+      "description": "모든 동료 체력",
+      "legacy": true
+    },
+    {
+      "id": "gold",
+      "name": "풍요",
+      "color": "#b7a25d",
+      "effect": "acorn",
+      "base": 0.15,
+      "description": "방치 도토리 수익",
+      "legacy": true
+    }
+  ],
+  "gemBanners": [
+    {
+      "id": "treasure",
+      "name": "숲의 보물",
+      "description": "햇살·주머니·도토리·발자국을 같은 확률로 만납니다.",
+      "types": [
+        "income",
+        "capacity",
+        "harvest",
+        "bounty"
+      ]
+    }
+  ],
+  "gemOptions": [
+    {
+      "id": "attack",
+      "name": "공격력",
+      "min": 0.01,
+      "max": 0.03
+    },
+    {
+      "id": "hp",
+      "name": "체력",
+      "min": 0.01,
+      "max": 0.03
+    },
+    {
+      "id": "speed",
+      "name": "이동속도",
+      "min": 0.01,
+      "max": 0.03
+    },
+    {
+      "id": "wildAttack",
+      "name": "야생 상대 공격력",
+      "min": 0.05,
+      "max": 0.1
+    },
+    {
+      "id": "machineAttack",
+      "name": "기계 상대 공격력",
+      "min": 0.05,
+      "max": 0.1
+    },
+    {
+      "id": "spiritAttack",
+      "name": "정령 상대 공격력",
+      "min": 0.05,
+      "max": 0.1
+    },
+    {
+      "id": "shadowAttack",
+      "name": "그림자 상대 공격력",
+      "min": 0.05,
+      "max": 0.1
+    },
+    {
+      "id": "wildDefense",
+      "name": "야생 상대 유효 체력",
+      "min": 0.05,
+      "max": 0.1
+    },
+    {
+      "id": "goldIncome",
+      "name": "초당 전투 골드",
+      "min": 0.01,
+      "max": 0.03
+    },
+    {
+      "id": "acorn",
+      "name": "방치 도토리 수익",
+      "min": 0.01,
+      "max": 0.03
+    }
+  ],
+  "gemOptionTiers": [
+    {
+      "id": "normal",
+      "name": "일반",
+      "lines": 1,
+      "cost": 100,
+      "promotionChance": 0.1
+    },
+    {
+      "id": "rare",
+      "name": "레어",
+      "lines": 1,
+      "cost": 300,
+      "promotionChance": 0.07
+    },
+    {
+      "id": "epic",
+      "name": "에픽",
+      "lines": 2,
+      "cost": 1000,
+      "promotionChance": 0.04
+    },
+    {
+      "id": "unique",
+      "name": "유니크",
+      "lines": 3,
+      "cost": 3000,
+      "promotionChance": 0.02
+    },
+    {
+      "id": "legendary",
+      "name": "레전더리",
+      "lines": 3,
+      "cost": 10000,
+      "promotionChance": 0
+    }
+  ],
+  "markTypes": [
+    {
+      "id": "wild",
+      "name": "숲의 징표",
+      "color": "#3f852e"
+    },
+    {
+      "id": "machine",
+      "name": "공방의 징표",
+      "color": "#667487"
+    },
+    {
+      "id": "spirit",
+      "name": "별빛의 징표",
+      "color": "#287f9e"
+    },
+    {
+      "id": "shadow",
+      "name": "그늘의 징표",
+      "color": "#7845ab"
+    }
+  ],
+  "duplicateMarks": {
+    "common": 2,
+    "rare": 5,
+    "epic": 12,
+    "legendary": 30
+  },
+  "constants": {
+    "battlefield": {
+      "ENEMY_CASTLE_X": 1120,
+      "ENEMY_SPAWN_X": 1132,
+      "PLAYER_CASTLE_X": 80,
+      "PLAYER_SPAWN_X": 122,
+      "WORLD_MAX": 1200,
+      "WORLD_MIN": 0
+    },
+    "combatTiming": {
+      "step": 0.03333333333333333,
+      "hitFlash": 0.18,
+      "hitStun": 0.18,
+      "heavyHitStun": 0.24,
+      "heavyHitRatio": 0.2,
+      "stunCooldown": 0.65,
+      "death": 0.32
+    },
+    "cannon": {
+      "damage": 110,
+      "knockback": {
+        "distance": 75,
+        "type": "knockback",
+        "attackType": "all",
+        "family": "all",
+        "attribute": "all"
+      }
+    },
+    "levelGrowth": 0.12,
+    "shieldBonusCap": 1,
+    "statMinimums": {
+      "hp": 1,
+      "attack": 1,
+      "speed": 0,
+      "range": 0,
+      "attackInterval": 0.2
+    },
+    "statKeys": [
+      "hp",
+      "attack",
+      "speed",
+      "range",
+      "attackInterval"
+    ],
+    "gemOptionLimit": 3,
+    "audioDefaults": {
+      "musicEnabled": true,
+      "sfxEnabled": true,
+      "musicVolume": 0.3,
+      "sfxVolume": 0.6
+    },
+    "speedrun": {
+      "stageCount": 20,
+      "targetSeconds": 60,
+      "limitSeconds": 90,
+      "maxReward": 10
+    }
+  },
+  "onboarding": {
+    "intro": {
+      "id": 0,
+      "name": "첫 출정",
+      "enemyHp": 24,
+      "enemyAttack": 1,
+      "baseReward": 0,
+      "duration": 40,
+      "waves": [
+        {
+          "time": 0.6,
+          "enemies": [
+            {
+              "id": "beetle",
+              "count": 1
+            }
+          ]
+        }
+      ]
+    },
+    "first-battle": {
+      "id": 1,
+      "name": "첫 숲길",
+      "enemyHp": 220,
+      "enemyAttack": 1,
+      "baseReward": 0,
+      "duration": 40,
+      "waves": [
+        {
+          "time": 0.6,
+          "enemies": [
+            {
+              "id": "beetle",
+              "count": 1
+            }
+          ]
+        }
+      ]
+    },
+    "retry-battle": {
+      "id": 1,
+      "name": "첫 숲길",
+      "enemyHp": 220,
+      "enemyAttack": 1,
+      "baseReward": 0,
+      "duration": 40,
+      "waves": [
+        {
+          "time": 0.6,
+          "enemies": [
+            {
+              "id": "beetle",
+              "count": 1
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "earlyGuide": {
+    "wall-battle": {
+      "challenge": {
+        "id": 2,
+        "name": "튼튼한 성벽",
+        "enemyHp": 1200,
+        "enemyAttack": 0.7,
+        "baseReward": 120,
+        "duration": 40,
+        "waves": [
+          {
+            "time": 0.6,
+            "enemies": [
+              {
+                "id": "beetle",
+                "count": 2,
+                "interval": 1.3
+              }
+            ]
+          }
+        ]
+      },
+      "idle": null
+    },
+    "rabbit-recruit": {
+      "challenge": {
+        "id": 2,
+        "name": "튼튼한 성벽",
+        "enemyHp": 1200,
+        "enemyAttack": 0.7,
+        "baseReward": 120,
+        "duration": 40,
+        "waves": [
+          {
+            "time": 0.6,
+            "enemies": [
+              {
+                "id": "beetle",
+                "count": 2,
+                "interval": 1.3
+              }
+            ]
+          }
+        ]
+      },
+      "idle": null
+    },
+    "wall-retry": {
+      "challenge": {
+        "id": 2,
+        "name": "튼튼한 성벽",
+        "enemyHp": 1200,
+        "enemyAttack": 0.7,
+        "baseReward": 120,
+        "duration": 40,
+        "waves": [
+          {
+            "time": 0.6,
+            "enemies": [
+              {
+                "id": "beetle",
+                "count": 2,
+                "interval": 1.3
+              }
+            ]
+          }
+        ]
+      },
+      "idle": null
+    },
+    "idle-defense": {
+      "challenge": null,
+      "idle": {
+        "id": 2,
+        "name": "버섯 오솔길",
+        "description": "원거리 버섯 무리가 숲길을 지켜요.",
+        "baseReward": 120,
+        "enemyHp": 1320,
+        "enemyAttack": 1.05,
+        "waves": [
+          {
+            "time": 1,
+            "enemies": [
+              {
+                "id": "beetle",
+                "count": 2,
+                "interval": 1.2,
+                "effects": {
+                  "shield": false,
+                  "regeneration": false
+                }
+              }
+            ]
+          },
+          {
+            "time": 2,
+            "enemies": [
+              {
+                "id": "boar",
+                "count": 4,
+                "interval": 1.5,
+                "statMultipliers": {
+                  "hp": 1.7,
+                  "attack": 2.4,
+                  "speed": 0.8,
+                  "attackInterval": 1.15
+                },
+                "effects": {
+                  "shield": false,
+                  "regeneration": false
+                }
+              }
+            ]
+          }
+        ],
+        "region": 1,
+        "regionName": "초원",
+        "enemyModifiers": {
+          "hp": 1
+        },
+        "duration": 40
+      }
+    },
+    "remove-rabbit": {
+      "challenge": null,
+      "idle": {
+        "id": 2,
+        "name": "버섯 오솔길",
+        "description": "원거리 버섯 무리가 숲길을 지켜요.",
+        "baseReward": 120,
+        "enemyHp": 1320,
+        "enemyAttack": 1.05,
+        "waves": [
+          {
+            "time": 1,
+            "enemies": [
+              {
+                "id": "beetle",
+                "count": 2,
+                "interval": 1.2,
+                "effects": {
+                  "shield": false,
+                  "regeneration": false
+                }
+              }
+            ]
+          },
+          {
+            "time": 2,
+            "enemies": [
+              {
+                "id": "boar",
+                "count": 4,
+                "interval": 1.5,
+                "statMultipliers": {
+                  "hp": 1.7,
+                  "attack": 2.4,
+                  "speed": 0.8,
+                  "attackInterval": 1.15
+                },
+                "effects": {
+                  "shield": false,
+                  "regeneration": false
+                }
+              }
+            ]
+          }
+        ],
+        "region": 1,
+        "regionName": "초원",
+        "enemyModifiers": {
+          "hp": 1
+        },
+        "duration": 40
+      }
+    },
+    "idle-retry": {
+      "challenge": null,
+      "idle": {
+        "id": 2,
+        "name": "버섯 오솔길",
+        "description": "원거리 버섯 무리가 숲길을 지켜요.",
+        "baseReward": 120,
+        "enemyHp": 1320,
+        "enemyAttack": 1.05,
+        "waves": [
+          {
+            "time": 1,
+            "enemies": [
+              {
+                "id": "beetle",
+                "count": 2,
+                "interval": 1.2,
+                "effects": {
+                  "shield": false,
+                  "regeneration": false
+                }
+              }
+            ]
+          },
+          {
+            "time": 2,
+            "enemies": [
+              {
+                "id": "boar",
+                "count": 4,
+                "interval": 1.5,
+                "statMultipliers": {
+                  "hp": 1.7,
+                  "attack": 2.4,
+                  "speed": 0.8,
+                  "attackInterval": 1.15
+                },
+                "effects": {
+                  "shield": false,
+                  "regeneration": false
+                }
+              }
+            ]
+          }
+        ],
+        "region": 1,
+        "regionName": "초원",
+        "enemyModifiers": {
+          "hp": 1
+        },
+        "duration": 40
+      }
+    }
+  },
+  "economy": {
+    "idleRewardSeconds": 90,
+    "growthAnchors": [
+      {
+        "level": 1,
+        "stage": 1,
+        "rounds": 1
+      },
+      {
+        "level": 7,
+        "stage": 6,
+        "rounds": 2
+      },
+      {
+        "level": 35,
+        "stage": 10,
+        "rounds": 14
+      },
+      {
+        "level": 50,
+        "stage": 12,
+        "rounds": 18
+      },
+      {
+        "level": 100,
+        "stage": 20,
+        "rounds": 24
+      }
+    ],
+    "levelCosts": {
+      "1": 100,
+      "2": 137,
+      "3": 183,
+      "4": 240,
+      "5": 312,
+      "6": 401,
+      "7": 511,
+      "8": 638,
+      "9": 770,
+      "10": 910,
+      "11": 1056,
+      "12": 1210,
+      "13": 1372,
+      "14": 1541,
+      "15": 1718,
+      "16": 1904,
+      "17": 2099,
+      "18": 2303,
+      "19": 2517,
+      "20": 2740,
+      "21": 2974,
+      "22": 3218,
+      "23": 3473,
+      "24": 3740,
+      "25": 4019,
+      "26": 4310,
+      "27": 4614,
+      "28": 4932,
+      "29": 5263,
+      "30": 5609,
+      "31": 5969,
+      "32": 6345,
+      "33": 6737,
+      "34": 7145,
+      "35": 7571,
+      "36": 7911,
+      "37": 8263,
+      "38": 8627,
+      "39": 9005,
+      "40": 9396,
+      "41": 9802,
+      "42": 10222,
+      "43": 10657,
+      "44": 11107,
+      "45": 11574,
+      "46": 12057,
+      "47": 12556,
+      "48": 13074,
+      "49": 13610,
+      "50": 14164,
+      "51": 14693,
+      "52": 15241,
+      "53": 15808,
+      "54": 16396,
+      "55": 17005,
+      "56": 17636,
+      "57": 18290,
+      "58": 18967,
+      "59": 19668,
+      "60": 20395,
+      "61": 21148,
+      "62": 21927,
+      "63": 22734,
+      "64": 23571,
+      "65": 24437,
+      "66": 25334,
+      "67": 26263,
+      "68": 27225,
+      "69": 28221,
+      "70": 29253,
+      "71": 30321,
+      "72": 31427,
+      "73": 32573,
+      "74": 33759,
+      "75": 34987,
+      "76": 36259,
+      "77": 37576,
+      "78": 38939,
+      "79": 40350,
+      "80": 41812,
+      "81": 43325,
+      "82": 44891,
+      "83": 46512,
+      "84": 48191,
+      "85": 49929,
+      "86": 51728,
+      "87": 53590,
+      "88": 55518,
+      "89": 57513,
+      "90": 59579,
+      "91": 61716,
+      "92": 63929,
+      "93": 66220,
+      "94": 68590,
+      "95": 71044,
+      "96": 73583,
+      "97": 76211,
+      "98": 78932,
+      "99": 81747,
+      "100": 84660
+    },
+    "fullRewards": {
+      "1": 500,
+      "2": 603.13630880579,
+      "3": 727.5468139997466,
+      "4": 877.6197997584399,
+      "5": 1058.6487331223639,
+      "6": 1277.018978434697,
+      "7": 1540.433025856088,
+      "8": 1858.1821783547502,
+      "9": 2241.4742802831724,
+      "10": 2703.8290473862153,
+      "11": 3261.554942564795,
+      "12": 3934.3244180516217,
+      "13": 4745.867814296286,
+      "14": 5724.81039118973,
+      "15": 6905.68201591041,
+      "16": 8330.135121725463,
+      "17": 10048.413898341933,
+      "18": 12121.126535997504,
+      "19": 14621.383034978897,
+      "20": 17637.37398670554
+    },
+    "dailySpeedrunRewards": {
+      "0": 0,
+      "1": 10,
+      "2": 10,
+      "3": 10,
+      "4": 10,
+      "5": 10,
+      "6": 10,
+      "7": 10,
+      "8": 10,
+      "9": 10,
+      "10": 10,
+      "11": 10,
+      "12": 10,
+      "13": 10,
+      "14": 10,
+      "15": 10,
+      "16": 10,
+      "17": 10,
+      "18": 10,
+      "19": 10,
+      "20": 10,
+      "21": 10,
+      "22": 10,
+      "23": 10,
+      "24": 10,
+      "25": 10,
+      "26": 10,
+      "27": 10,
+      "28": 10,
+      "29": 10,
+      "30": 10,
+      "31": 10,
+      "32": 10,
+      "33": 10,
+      "34": 10,
+      "35": 10,
+      "36": 10,
+      "37": 10,
+      "38": 10,
+      "39": 10,
+      "40": 10,
+      "41": 10,
+      "42": 10,
+      "43": 10,
+      "44": 10,
+      "45": 10,
+      "46": 10,
+      "47": 10,
+      "48": 10,
+      "49": 10,
+      "50": 10,
+      "51": 10,
+      "52": 10,
+      "53": 10,
+      "54": 10,
+      "55": 10,
+      "56": 10,
+      "57": 10,
+      "58": 10,
+      "59": 10,
+      "60": 10,
+      "61": 9,
+      "62": 9,
+      "63": 9,
+      "64": 8,
+      "65": 8,
+      "66": 8,
+      "67": 7,
+      "68": 7,
+      "69": 7,
+      "70": 6,
+      "71": 6,
+      "72": 6,
+      "73": 6,
+      "74": 5,
+      "75": 5,
+      "76": 5,
+      "77": 4,
+      "78": 4,
+      "79": 4,
+      "80": 3,
+      "81": 3,
+      "82": 3,
+      "83": 3,
+      "84": 2,
+      "85": 2,
+      "86": 2,
+      "87": 1,
+      "88": 1,
+      "89": 1,
+      "90": 1
+    }
+  }
+}

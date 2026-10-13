@@ -1,0 +1,10 @@
+{
+  "name": "TinyLegion.Domain",
+  "rootNamespace": "TinyLegion.Domain",
+  "references": [],
+  "noEngineReferences": true,
+  "overrideReferences": true,
+  "precompiledReferences": [
+    "Newtonsoft.Json.dll"
+  ]
+}

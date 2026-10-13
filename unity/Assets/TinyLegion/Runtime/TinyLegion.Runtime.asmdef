@@ -1,0 +1,13 @@
+{
+  "name": "TinyLegion.Runtime",
+  "rootNamespace": "TinyLegion.Unity",
+  "references": [
+    "TinyLegion.Domain",
+    "TinyLegion.Presentation",
+    "UnityEngine.UI"
+  ],
+  "overrideReferences": true,
+  "precompiledReferences": [
+    "Newtonsoft.Json.dll"
+  ]
+}

@@ -11,7 +11,9 @@ npm run dev
 # http://127.0.0.1:4173
 ```
 
-실제 게임 소스는 `dist/`이며 서버 API는 `server/`입니다. 테스트·서버 빌드·문법 검사와 구조는 [개발 안내](docs/development/local.md)를 참고합니다.
+Unity 2D + URP 이식은 `unity/`에서 진행합니다. 실행 환경·구조·검증 상태는 [Unity 개발 안내](docs/development/unity.md)를 참고합니다.
+
+현재 웹 게임 소스는 `dist/`이며 서버 API는 `server/`입니다. 테스트·서버 빌드·문법 검사와 구조는 [개발 안내](docs/development/local.md)를 참고합니다.
 
 ## 문서
 

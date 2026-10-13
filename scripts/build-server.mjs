@@ -1,6 +1,7 @@
 import { readFile, readdir, mkdir, writeFile, cp, rm } from 'node:fs/promises';
 import { resolve, extname } from 'node:path';
 import { build } from 'esbuild';
+import { gzipSync } from 'node:zlib';
 
 const root = resolve(import.meta.dirname, '..'), source = resolve(root, 'dist');
 const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.mp3': 'audio/mpeg' };
@@ -22,6 +23,32 @@ async function walk(directory, prefix = '') {
   }
 }
 await walk(source);
+// Opt-in preparation leaves the running web entry intact until Unity acceptance.
+if (process.env.TINY_LEGION_UNITY_WEB === '1') {
+  const unityRoot = resolve(root, process.env.TINY_LEGION_UNITY_WEB_ROOT ?? 'unity/Builds/Web');
+  const unityTypes = { '.wasm': 'application/wasm', '.data': 'application/octet-stream', '.js': 'text/javascript; charset=utf-8', '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.png': 'image/png', '.jpg': 'image/jpeg', '.json': 'application/json' };
+  async function unityWalk(directory, prefix = '/unity') {
+    for (const entry of await readdir(directory, { withFileTypes: true })) {
+      const path = `${prefix}/${entry.name}`;
+      if (entry.isDirectory()) await unityWalk(resolve(directory, entry.name), path);
+      else {
+        const type = unityTypes[extname(entry.name)];
+        if (!type) throw new Error(`Unsupported Unity artifact: ${path}`);
+        const bytes = await readFile(resolve(directory, entry.name));
+        if (type.startsWith('text/')) {
+          let body = bytes.toString('utf8');
+          if (type.startsWith('text/html')) body = body.replace('</head>', '<script>globalThis.TINY_LEGION_SERVER = true;</script></head>');
+          assets[path] = { body, type };
+        } else {
+          const compressed = ['.wasm', '.data'].includes(extname(entry.name));
+          assets[path] = { body: (compressed ? gzipSync(bytes) : bytes).toString('base64'), type, binary: true, ...(compressed ? { encoding: 'gzip' } : {}) };
+        }
+      }
+    }
+  }
+  await unityWalk(unityRoot);
+  assets['/unity/'] = assets['/unity/index.html'];
+}
 // dist/ is maintained source. Only these two generated subdirectories are replaced.
 await mkdir(resolve(source, 'server'), { recursive: true });
 await mkdir(resolve(source, '.openai'), { recursive: true });
@@ -32,6 +59,8 @@ await build({ entryPoints: [resolve(root, 'server/worker.js')], outfile: resolve
     build.onLoad({ filter: /.*/, namespace: 'game' }, () => ({ contents: `export const assets = ${JSON.stringify(assets)};`, loader: 'js' }));
   } }],
 });
+const workerSize=(await readFile(resolve(source,'server/index.js'))).byteLength;
+if(workerSize>64*1024*1024)throw new Error('Worker bundle exceeds 64 MiB; move Unity binary assets to object storage before deployment');
 const manifest = JSON.parse(await readFile(resolve(root, '.openai/hosting.json'), 'utf8'));
 if (manifest.static || manifest.d1 !== 'DB') throw new Error('Worker hosting must bind DB and omit static');
 await writeFile(resolve(source, '.openai/hosting.json'), JSON.stringify(manifest, null, 2));

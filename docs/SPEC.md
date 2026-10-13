@@ -16,6 +16,7 @@
 
 - [미완료 작업과 수용 검증](TODO.md)
 - [개발·자동 검증](development/local.md)
+- [Unity 이식 구조·개발 환경](development/unity.md)
 - [저장·복구와 정적 호스팅](operations/storage-and-hosting.md)
 
 초기 수치와 운영 정책은 검증용입니다. 최종 승인되지 않은 항목은 TODO에 남깁니다. 기획 원본의 예시·추천안은 [v0.3 기획 기록](history/design-v0.3.md)에 보존하며 현재 구현의 설명으로 사용하지 않습니다.

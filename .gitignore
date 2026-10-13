@@ -12,3 +12,14 @@ tiny-legion-save*.json
 /dist/server/
 /dist/.openai/
 .wrangler/
+
+/unity/Library/
+/unity/Temp/
+/unity/Logs/
+/unity/UserSettings/
+/unity/Builds/
+/unity/Tests/bin/
+/unity/Tests/obj/
+/unity/*.csproj
+/unity/*.sln
+/unity/*.slnx

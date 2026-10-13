@@ -8,6 +8,7 @@
 
 ## 프로젝트 작업
 
+- Unity 이식 구조·버전·검증 경계는 [Unity 개발 안내](docs/development/unity.md)를 따릅니다. 공통 데이터는 원본에서 내보내며 계산·효과를 화면에 복제하지 않습니다. 현재 JS 서버 재생과 C# 결과의 일치, Editor·실기기·Sites 검증을 각각 유지합니다.
 - `dist/`는 직접 관리하는 실제 소스이자 정적 배포 루트입니다. 이름만 보고 생성물로 제외하거나 지우지 않습니다. 구조·명령은 [개발 안내](docs/development/local.md)를 따릅니다.
 - 순환 소환, 기록 기반 생산, 일일 수령, 일반 레벨 초기화의 보존 규칙은 [전투](docs/SPEC/battle.md)와 [성장·저장](docs/SPEC/account.md)을 먼저 확인합니다.
 - 테스트 중 데이터 이주는 기본으로 추가하지 않고, 남겨야 할 임시 호환 처리는 `dist/src/save-compat.js`로 모읍니다. 유지·제거 범위는 [개발 안내](docs/development/local.md#테스트-저장-호환-코드)를 따릅니다.
