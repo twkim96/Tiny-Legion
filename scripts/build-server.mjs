@@ -2,6 +2,7 @@ import { readFile, readdir, mkdir, writeFile, cp, rm } from 'node:fs/promises';
 import { resolve, extname } from 'node:path';
 import { build } from 'esbuild';
 import { gzipSync } from 'node:zlib';
+import { createHash } from 'node:crypto';
 
 const root = resolve(import.meta.dirname, '..'), source = resolve(root, 'dist');
 const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.mp3': 'audio/mpeg' };
@@ -41,7 +42,9 @@ if (process.env.TINY_LEGION_UNITY_WEB === '1') {
           assets[path] = { body, type };
         } else {
           const compressed = ['.wasm', '.data'].includes(extname(entry.name));
-          assets[path] = { body: (compressed ? gzipSync(bytes) : bytes).toString('base64'), type, binary: true, ...(compressed ? { encoding: 'gzip' } : {}) };
+          assets[path] = { body: (compressed ? gzipSync(bytes) : bytes).toString('base64'), type, binary: true,
+            cache:'public, max-age=0, must-revalidate', etag:'"'+createHash('sha256').update(bytes).digest('hex')+'"',
+            ...(compressed ? { encoding: 'gzip' } : {}) };
         }
       }
     }

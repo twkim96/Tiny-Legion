@@ -23,3 +23,8 @@ tiny-legion-save*.json
 /unity/*.csproj
 /unity/*.sln
 /unity/*.slnx
+
+# Unity performance-test package generates these during player builds.
+/unity/Assets/Resources/PerformanceTestRunInfo.json*
+/unity/Assets/Resources/PerformanceTestRunSettings.json*
+/unity/Assets/Resources.meta

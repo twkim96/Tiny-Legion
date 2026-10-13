@@ -66,7 +66,7 @@ namespace TinyLegion.Unity
             if(scenery!=scene||!background.sprite||background.sprite==white){scenery=scene;background.sprite=Scenery("background-"+(scene??"normal"));terrain.gameObject.SetActive(false);}
             background.transform.localScale=new Vector3(battleCamera.orthographicSize*battleCamera.aspect*2,battleCamera.orthographicSize*2/(background.sprite?background.sprite.bounds.size.y:1),1);
             playerHealth.transform.localScale=new Vector3(1.2f*(float)(state.PlayerHp/Math.Max(1,state.PlayerMaxHp)),.07f,1);enemyHealth.transform.localScale=new Vector3(1.2f*(float)(state.EnemyHp/Math.Max(1,state.EnemyMaxHp)),.07f,1);
-            battleCamera.backgroundColor=scene=="moonlight"?new Color32(80,93,120,255):scene=="sunset"?new Color32(224,181,153,255):scene=="quarry"?new Color32(195,203,203,255):new Color32(219,232,203,255);
+            battleCamera.backgroundColor=scene=="moon"?new Color32(80,93,120,255):scene=="sunset"?new Color32(224,181,153,255):scene=="quarry"?new Color32(195,203,203,255):new Color32(219,232,203,255);
             visible.Clear();
             foreach(var unit in state.Units)
             {

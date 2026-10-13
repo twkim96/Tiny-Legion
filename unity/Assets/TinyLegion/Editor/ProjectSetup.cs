@@ -48,6 +48,16 @@ namespace TinyLegion.Editor
     {
         void OnPreprocessTexture()
         {
+            if(assetPath.StartsWith("Assets/TinyLegion/Resources/Scenery/"))
+            {
+                var scenery=(TextureImporter)assetImporter;
+                scenery.textureType=TextureImporterType.Default;
+                scenery.textureShape=TextureImporterShape.Texture2D;
+                scenery.alphaIsTransparency=true;scenery.mipmapEnabled=false;
+                scenery.wrapMode=TextureWrapMode.Clamp;
+                scenery.textureCompression=TextureImporterCompression.Uncompressed;
+                return;
+            }
             if(!assetPath.StartsWith("Assets/TinyLegion/Resources/Art/"))return;
             var importer=(TextureImporter)assetImporter;importer.textureType=TextureImporterType.Sprite;
             importer.spriteImportMode=SpriteImportMode.Single;importer.spritePixelsPerUnit=384;

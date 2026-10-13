@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { transform } from 'esbuild';
 
 const root = resolve(fileURLToPath(new URL('../..', import.meta.url)));
 const source = await readFile(resolve(root, 'dist/src/fullscreen.js'), 'utf8');
@@ -10,7 +11,7 @@ if (start < 0 || end < 0) throw new Error('Missing maintained fullscreen entry p
 const enter = source.slice(start, end).trim().replace('export async function enterLandscapeFullscreen', 'async function');
 const output = resolve(root, 'unity/Assets/Plugins/WebGL/TinyLegion.fullscreen.jslib');
 await mkdir(resolve(root, 'unity/Assets/Plugins/WebGL'), { recursive: true });
-await writeFile(output, `// Generated from dist/src/fullscreen.js by scripts/unity/export-platform.mjs.
+const bridge = `// Generated from dist/src/fullscreen.js by scripts/unity/export-platform.mjs.
 // Edit the maintained browser function, then export; do not maintain a second copy.
 mergeInto(LibraryManager.library, {
   $TL_EnterLandscapeFullscreen: ${enter},
@@ -40,5 +41,9 @@ mergeInto(LibraryManager.library, {
     }).catch(function() { alert('전체화면을 사용할 수 없습니다. 기기를 가로로 돌려 주세요.'); });
   }
 });
-`);
+`;
+// Unity's bundled JS optimizer cannot convert optional chaining AST nodes.
+// Keep the shared function, but lower newer syntax before Emscripten consumes it.
+const compatible = await transform(bridge, { target: 'es2017', legalComments: 'inline' });
+await writeFile(output, '// Generated from dist/src/fullscreen.js; export-platform.mjs lowers syntax for Unity.\n' + compatible.code);
 console.log('Exported the maintained browser fullscreen behavior to the Unity bridge');
