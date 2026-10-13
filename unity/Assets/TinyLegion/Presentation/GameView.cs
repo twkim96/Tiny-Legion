@@ -32,20 +32,21 @@ namespace TinyLegion.Unity
             notice=ui.Label(root,"",16,TextAnchor.MiddleCenter);notice.rectTransform.anchorMin=new Vector2(.1f,.72f);notice.rectTransform.anchorMax=new Vector2(.9f,.82f);notice.rectTransform.offsetMin=notice.rectTransform.offsetMax=Vector2.zero;
             modal=new ModalNavigation(ui,root);modal.OpenChanged+=open=>{game.SetModalOpen(open);if(!open)ShowPendingIdleResult();};game.Changed+=Refresh;game.AccountReplaced+=ResetPresentation;game.SaveImportRequested+=ConfirmImport;game.Notice+=Toast;game.BattleFinished+=ShowBattleResult;
             gameObject.AddComponent<BattleView>().Initialize(game,ui);
-            Refresh();if(game.Account==null)ShowLogin();else {ResumeGuide();if(!Intro&&!modal.Open)Run(()=>game.StartBattle("idle",(int?)game.Account["idleStage"]??1));}
+            Refresh();if(game.SaveRecoveryRequired)return;if(game.Account==null)ShowLogin();else {ResumeGuide();if(!Intro&&!modal.Open)Run(()=>game.StartBattle("idle",(int?)game.Account["idleStage"]??1));}
         }
         string Phase=>(string)game.Account?["onboarding"]?["phase"];
         bool Intro=>Phase!=null&&Phase!="complete";
         static string N(JToken value)=>((double?)value??0).ToString("N0",System.Globalization.CultureInfo.GetCultureInfo("ko-KR"));
         static string StageLabel(int id)=>id==0?"0":$"{(id-1)/10+1}-{(id-1)%10+1}";
-        void ResetPresentation(){pendingIdleResult=null;if(idlePopup)Destroy(idlePopup.gameObject);modal.ForceClose();recruitReceipt=null;revealedCompanions.Clear();collectionRarity="all";collectionOwned=false;shownGuide=null;sessionPresented=false;shownReturnTo=0;shownConnection=null;Refresh();}
+        void ResetPresentation(){recoveryPresented=false;pendingIdleResult=null;if(idlePopup)Destroy(idlePopup.gameObject);modal.ForceClose();recruitReceipt=null;revealedCompanions.Clear();collectionRarity="all";collectionOwned=false;shownGuide=null;sessionPresented=false;shownReturnTo=0;shownConnection=null;Refresh();}
         void ConfirmImport(string json){Confirm("저장 불러오기","현재 진행도를 파일의 내용으로 교체합니다.",()=>game.ImportSave(json));}
         void Toast(string text){notice.text=text;noticeUntil=Time.unscaledTime+5;}
-        async void Run(Func<Task> action){try{await action();}catch(Exception error){Toast(error.Message);}}
+        async void Run(Func<Task> action){try{await action();}catch(Exception error){Toast(error.Message);if(game.SaveRecoveryRequired&&!modal.Open){recoveryPresented=false;ShowSaveRecovery();}}}
         async Task StartCurrent()
         {int stage=Intro?(int?)game.Catalog.Raw["onboarding"]?[Phase]?["id"]??1:game.Mode=="idle"?(int?)game.Account?["idleStage"]??1:Math.Max(1,game.StageId);modal.Close();await game.StartBattle(Intro?"challenge":game.Mode,stage);}
         void Refresh()
         {
+            if(game.SaveRecoveryRequired){resources.text="저장 복구 필요";ShowSaveRecovery();return;}
             if(game.Account==null){if(game.Online&&game.ConnectionStatus!="idle")ShowConnection();return;}
             bool firstSession=!sessionPresented;sessionPresented=true;
             if(firstSession&&game.Online)modal.ForceClose();

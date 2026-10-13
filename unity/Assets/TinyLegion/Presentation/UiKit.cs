@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
 namespace TinyLegion.Unity
@@ -35,7 +36,7 @@ namespace TinyLegion.Unity
         {var row=Row(parent,38);var toggle=row.gameObject.AddComponent<Toggle>();var box=Panel(row,Paper);box.gameObject.AddComponent<LayoutElement>().preferredWidth=28;var check=Label(box,"✓",20,TextAnchor.MiddleCenter);Fill(check.rectTransform);toggle.targetGraphic=box.GetComponent<Image>();toggle.graphic=check;Paragraph(row,label);toggle.isOn=value;toggle.onValueChanged.AddListener(x=>action?.Invoke(x));return toggle;}
         public Slider Slider(Transform parent,float value,Action<float> action)
         {var rect=Panel(parent,new Color32(223,217,194,255));rect.gameObject.AddComponent<LayoutElement>().preferredHeight=28;var slider=rect.gameObject.AddComponent<Slider>();var handle=Panel(rect,Green);handle.sizeDelta=new Vector2(20,28);slider.handleRect=handle;slider.targetGraphic=handle.GetComponent<Image>();slider.minValue=0;slider.maxValue=1;slider.value=value;slider.onValueChanged.AddListener(x=>action?.Invoke(x));return slider;}
-        public static void Clear(Transform parent){for(int i=parent.childCount-1;i>=0;i--){var child=parent.GetChild(i);child.gameObject.SetActive(false);UnityEngine.Object.Destroy(child.gameObject);}}
+        public static void Clear(Transform parent){for(int i=parent.childCount-1;i>=0;i--){var child=parent.GetChild(i);child.gameObject.SetActive(false);if(Application.isPlaying)UnityEngine.Object.Destroy(child.gameObject);else UnityEngine.Object.DestroyImmediate(child.gameObject);}}
     }
     public sealed class ModalNavigation
     {
@@ -43,6 +44,7 @@ namespace TinyLegion.Unity
         readonly UiKit ui; readonly RectTransform overlay,panel,body;readonly Text title;readonly Stack<Page> pages=new Stack<Page>();
         ScrollRect scroll;Button closeButton;
         public bool Open=>pages.Count>0;
+        public string CurrentTitle=>Open?pages.Peek().Title:null;
         public event Action<bool> OpenChanged;
         public ModalNavigation(UiKit ui,RectTransform root)
         {
@@ -66,7 +68,16 @@ namespace TinyLegion.Unity
             if(pages.Count>1)ui.Button(content,"뒤로",Back);
         }
         public void Back(){if(!Open||pages.Peek().Required)return;pages.Pop();Refresh(false);}
-        public void Close(){if(Open&&pages.Peek().Required)return;ForceClose();}
+        public void Close()
+        {
+            if(pages.Any(page=>page.Required))
+            {
+                if(pages.Peek().Required)return;
+                while(Open&&!pages.Peek().Required)pages.Pop();
+                Refresh(false);return;
+            }
+            ForceClose();
+        }
         public void ForceClose(){pages.Clear();Refresh();}
     }
 }

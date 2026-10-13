@@ -8,6 +8,20 @@ namespace TinyLegion.Unity
 {
     public sealed partial class GameView
     {
+        bool recoveryPresented;
+        void ShowSaveRecovery()
+        {
+            if(recoveryPresented)return;
+            recoveryPresented=true;
+            modal.Show("저장 복구",p=>{
+                ui.Paragraph(p,"기존 저장을 읽지 못했습니다. 진행을 멈추고 원본을 유지했습니다. 파일을 보관한 뒤 정상 저장을 불러오거나 새로 시작해 주세요.");
+                ui.Button(p,"기존 파일 보관",()=>game.DownloadSave());
+                ui.Button(p,"저장 파일 불러오기",()=>game.ChooseSaveImport());
+                var paste=ui.Input(p,"저장 JSON 붙여넣기");
+                ui.Button(p,"붙여넣은 저장 적용",()=>ConfirmImport(paste.text));
+                ui.Button(p,"새로 시작",()=>Confirm("새로 시작","읽지 못한 원본을 별도 보관한 뒤 새 계정을 저장합니다.",async()=>{await game.Command("account.reset");}));
+            },replace:true,required:true);
+        }
         void ShowConnection()
         {
             if(shownConnection==game.ConnectionStatus)return;shownConnection=game.ConnectionStatus;
@@ -52,8 +66,8 @@ namespace TinyLegion.Unity
                 foreach(string k in new[]{"musicVolume","sfxVolume"}){string key=k;ui.Paragraph(p,key=="musicVolume"?"음악 음량":"효과음 음량");float draft=(float?)audio[key]??.3f;ui.Slider(p,draft,value=>draft=value);ui.Button(p,"음량 적용",()=>Run(async()=>await game.Command("settings",new JObject{["audio"]=new JObject{[key]=draft}})));}
                 var speed=ui.Row(p);ui.Button(speed,"수동 전투 1×",()=>Run(async()=>await game.Command("settings",new JObject{["speed"]=1})));ui.Button(speed,"수동 전투 2×",()=>Run(async()=>await game.Command("settings",new JObject{["speed"]=2})));ui.Paragraph(p,"방치는 항상 1×로 진행됩니다.");
                 ui.Button(p,"숨긴 방치 결과 모두 복원",()=>Run(async()=>await game.Command("idle.popup.reset")));
-                ui.Button(p,game.Online?"진행도 기록 내려받기":"저장 파일 내려받기",()=>WebPlatform.Download("tiny-legion-save.json",game.ExportSave()));
-                if(!game.Online){ui.Button(p,"저장 파일 불러오기",()=>WebPlatform.ChooseImport(game is MonoBehaviour b?b.gameObject.name:"Tiny Legion"));var paste=ui.Input(p,"저장 JSON 붙여넣기");ui.Button(p,"붙여넣은 저장 적용",()=>Confirm("저장 불러오기","현재 진행도를 파일의 내용으로 교체합니다.",()=>game.ImportSave(paste.text)));}
+                ui.Button(p,game.Online?"진행도 기록 내려받기":"저장 파일 내려받기",()=>game.DownloadSave());
+                if(!game.Online){ui.Button(p,"저장 파일 불러오기",()=>game.ChooseSaveImport());var paste=ui.Input(p,"저장 JSON 붙여넣기");ui.Button(p,"붙여넣은 저장 적용",()=>Confirm("저장 불러오기","현재 진행도를 파일의 내용으로 교체합니다.",()=>game.ImportSave(paste.text)));}
                 ui.Button(p,"계정 초기화",()=>Confirm("계정 초기화",game.Online?"현재 게임 계정을 새로 시작합니다. 내려받은 기록 파일로 복원할 수 없습니다.":"현재 계정을 새로 시작합니다. 미리 내려받은 저장 파일로 복원할 수 있습니다.",async()=>{await game.LeaveBattle();await game.Command("account.reset");shownGuide=null;ResumeGuide();}));
             });
         }

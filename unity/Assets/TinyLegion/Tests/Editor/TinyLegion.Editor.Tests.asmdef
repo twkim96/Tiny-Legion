@@ -1,0 +1,7 @@
+{
+  "name": "TinyLegion.Editor.Tests",
+  "references": ["TinyLegion.Presentation", "UnityEngine.UI"],
+  "includePlatforms": ["Editor"],
+  "optionalUnityReferences": ["TestAssemblies"],
+  "autoReferenced": false
+}

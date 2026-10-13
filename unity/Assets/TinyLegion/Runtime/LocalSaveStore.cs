@@ -2,33 +2,63 @@ using System;
 using System.IO;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using TinyLegion.Domain.Services;
 using UnityEngine;
 namespace TinyLegion.Unity
 {
     public sealed class LocalSaveStore
     {
-        readonly string path;
         const string Key = "tiny-legion.unity.save.v1";
-        public LocalSaveStore() { path = Path.Combine(Application.persistentDataPath, "tiny-legion-save.json"); }
+#if UNITY_WEBGL && !UNITY_EDITOR
+        public bool RecoveryRequired { get; private set; }
+        public string RecoveryBackupPath { get; private set; }
+        public string OriginalFilePath => null;
+#else
+        readonly string path;
+        readonly JsonFileStore files;
+        public bool RecoveryRequired => files.RecoveryRequired;
+        public string RecoveryBackupPath => files.RecoveryBackupPath;
+        public string OriginalFilePath => path;
+        public LocalSaveStore()
+        {
+#if UNITY_EDITOR
+            var testDirectory = Environment.GetEnvironmentVariable("TINY_LEGION_TEST_SAVE_DIRECTORY");
+#else
+            string testDirectory = null;
+#endif
+            path = Path.Combine(string.IsNullOrEmpty(testDirectory) ? Application.persistentDataPath : Path.GetFullPath(testDirectory), "tiny-legion-save.json");
+            files = new JsonFileStore(path);
+        }
+#endif
+        public string ReadRaw()
+        {
+#if UNITY_WEBGL && !UNITY_EDITOR
+            return PlayerPrefs.GetString(Key, "");
+#else
+            return File.Exists(path) ? File.ReadAllText(path) : "";
+#endif
+        }
         public JObject Read()
         {
 #if UNITY_WEBGL && !UNITY_EDITOR
-            var text = PlayerPrefs.GetString(Key, "");
+            try { var text = ReadRaw(); var result = string.IsNullOrEmpty(text) ? null : JObject.Parse(text); RecoveryRequired = false; return result; }
+            catch { RecoveryRequired = true; throw; }
 #else
-            var text = File.Exists(path) ? File.ReadAllText(path) : "";
+            return files.Read();
 #endif
-            return string.IsNullOrEmpty(text) ? null : JObject.Parse(text);
         }
-        public void Write(JObject account)
+        public void Write(JObject account, bool replaceUnreadable = false)
         {
-            var json = account.ToString(Formatting.None);
 #if UNITY_WEBGL && !UNITY_EDITOR
-            PlayerPrefs.SetString(Key, json); PlayerPrefs.Save();
+            if (RecoveryRequired)
+            {
+                if (!replaceUnreadable) throw new InvalidOperationException("기존 저장을 읽지 못했습니다. 복구 또는 초기화를 확인해 주세요.");
+                var backup = Key + ".recovery." + Guid.NewGuid().ToString("N");
+                PlayerPrefs.SetString(backup, ReadRaw()); PlayerPrefs.Save(); RecoveryBackupPath = backup;
+            }
+            PlayerPrefs.SetString(Key, account.ToString(Formatting.None)); PlayerPrefs.Save(); RecoveryRequired = false;
 #else
-            Directory.CreateDirectory(Path.GetDirectoryName(path));
-            var temporary = path + ".pending";
-            File.WriteAllText(temporary, json);
-            if (File.Exists(path)) File.Replace(temporary, path, null); else File.Move(temporary, path);
+            files.Write(account, replaceUnreadable);
 #endif
         }
     }

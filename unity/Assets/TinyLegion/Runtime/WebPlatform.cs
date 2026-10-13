@@ -1,4 +1,7 @@
+using System;
+using System.IO;
 using System.Runtime.InteropServices;
+using TinyLegion.Domain.Services;
 using UnityEngine;
 namespace TinyLegion.Unity
 {
@@ -47,18 +50,35 @@ namespace TinyLegion.Unity
             TL_StoreSession(session);
 #endif
         }
-        public static void Download(string name,string text)
+        public static string Download(string name,string text,string originalFile=null)
         {
 #if UNITY_WEBGL && !UNITY_EDITOR
             TL_Download(name,text);
+            return null;
+#elif UNITY_EDITOR
+            var path=UnityEditor.EditorUtility.SaveFilePanel("저장 파일 내보내기",Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),name,"json");
+            if(string.IsNullOrEmpty(path))return null;
+            if(originalFile==null)File.WriteAllText(path,text);else File.Copy(originalFile,path,true);
+            return path;
 #else
-            System.IO.File.WriteAllText(System.IO.Path.Combine(Application.persistentDataPath,name),text);
+            var directory=Path.Combine(Application.persistentDataPath,"exports");
+            Directory.CreateDirectory(directory);
+            var path=Path.Combine(directory,name);
+            if(originalFile==null)File.WriteAllText(path,text);else File.Copy(originalFile,path,true);
+            return path;
 #endif
         }
-        public static void ChooseImport(string target)
+        public static void ChooseImport(string target,Action<string> selected,Action<string> failed)
         {
 #if UNITY_WEBGL && !UNITY_EDITOR
             TL_Import(target);
+#elif UNITY_EDITOR
+            var path=UnityEditor.EditorUtility.OpenFilePanel("저장 파일 불러오기",Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),"json");
+            if(string.IsNullOrEmpty(path))return;
+            try { using var file=File.OpenRead(path); selected(SaveDocument.ReadUtf8(file)); }
+            catch(Exception error) { failed(error.Message); }
+#else
+            failed("이 환경에서는 저장 JSON을 붙여넣어 불러와 주세요.");
 #endif
         }
         public static void Fullscreen()

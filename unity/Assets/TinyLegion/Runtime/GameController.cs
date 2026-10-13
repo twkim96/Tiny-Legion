@@ -22,6 +22,7 @@ namespace TinyLegion.Unity
         public double CannonRemaining=>cannonRemaining;
         public bool Busy { get; private set; }
         public bool Online => session != null;
+        public bool SaveRecoveryRequired => !Online && saves?.RecoveryRequired == true;
         public bool TestLoginAvailable=>Online&&WebPlatform.TestLoginAvailable;
         readonly System.Threading.SemaphoreSlim localCommands=new System.Threading.SemaphoreSlim(1,1);
         public string ConnectionStatus => session?.Status ?? "local";
@@ -68,7 +69,7 @@ namespace TinyLegion.Unity
                 else
                 {
                     JObject saved=null;
-                    try{saved=saves.Read();}catch(Exception){startupWarning="저장 파일을 읽지 못했습니다. 진행도 파일을 내보내 보관해 주세요.";}
+                    try{saved=saves.Read();}catch(Exception){startupWarning="기존 저장을 읽지 못했습니다. 파일을 보관한 뒤 복구 또는 초기화를 선택해 주세요.";}
                     Account = rules.NormalizeAccount(saved, Now);
                     ReturnIncome = rules.CollectReturnIncome(Account,Now);
                     if(startupWarning==null)try{saves.Write(Account);}catch(Exception){startupWarning="기기 내 저장을 사용할 수 없습니다. 진행도 파일을 내려받아 보관해 주세요.";}
@@ -87,6 +88,7 @@ namespace TinyLegion.Unity
             args ??= new JObject();
             try
             {
+                if(SaveRecoveryRequired&&type!="account.reset")throw new InvalidOperationException("기존 저장의 복구 또는 초기화를 확인해 주세요.");
                 JObject envelope;
                 if (Online) envelope = await session.Command(type, args);
                 else
@@ -97,7 +99,7 @@ namespace TinyLegion.Unity
                         var next = (JObject)Account.DeepClone();
                         if(type!="settle")rules.Execute(next, "settle", new JObject(), Now);
                         var result = rules.Execute(next, type, args, Now);
-                        saves.Write(next); Account = next;
+                        saves.Write(next, type=="account.reset"); Account = next;
                         envelope = new JObject { ["account"] = next.DeepClone(), ["result"] = result?.DeepClone(), ["serverNow"] = Now, ["revision"] = 0 };
                     }
                     finally {localCommands.Release();}
@@ -110,7 +112,7 @@ namespace TinyLegion.Unity
         }
         public async Task StartBattle(string mode, int stageId)
         {
-            if (Busy || Account == null) return;
+            if (Busy || Account == null || SaveRecoveryRequired) return;
             Busy = true; Changed?.Invoke();
             try
             {
@@ -152,7 +154,7 @@ namespace TinyLegion.Unity
         }
         void EmitBattleEvents(int from)
         {for(int i=from;i<Battle.State.Events.Count;i++)BattleEvent?.Invoke((JObject)Battle.State.Events[i]);}
-        bool CanAdvance => focused && (!Online || ConnectionStatus == "connected");
+        bool CanAdvance => focused && !SaveRecoveryRequired && (!Online || ConnectionStatus == "connected");
         public void SetModalOpen(bool open){modalOpen=open;}
         public void TogglePause() { Paused = !Paused; Changed?.Invoke(); }
         void Update()
@@ -214,20 +216,37 @@ namespace TinyLegion.Unity
         public void SignIn() => WebPlatform.SignIn();
         public void SetFullscreen() => WebPlatform.Fullscreen();
         public string ExportSave() => Account?.ToString(Formatting.Indented);
+        public void DownloadSave()
+        {
+            try
+            {
+                var original=SaveRecoveryRequired?saves.OriginalFilePath:null;
+                var text=original!=null?null:SaveRecoveryRequired?saves.ReadRaw():ExportSave();
+                var path=WebPlatform.Download(SaveRecoveryRequired?"tiny-legion-unreadable-save.json":"tiny-legion-save.json",text,original);
+                if(path!=null)Notice?.Invoke("저장 파일을 내보냈습니다: "+path);
+            }
+            catch(Exception error) { Notice?.Invoke(error.Message); }
+        }
+        public void ChooseSaveImport()
+        {
+            if(Online){Notice?.Invoke("온라인 진행도는 파일에서 복원할 수 없습니다");return;}
+            try { WebPlatform.ChooseImport(gameObject.name, ImportFromBrowser, ImportFailure); }
+            catch(Exception error) { Notice?.Invoke(error.Message); }
+        }
         public Task ImportSave(string json)
         {
             if(Online) throw new InvalidOperationException("온라인 진행도는 파일에서 복원할 수 없습니다");
             var raw=SaveDocument.Parse(json);
-            var next=rules.NormalizeAccount(raw,Now);rules.CollectReturnIncome(next,Now);saves.Write(next);Account=next;Battle=null;ReturnIncome=null;AccountReplaced?.Invoke();Changed?.Invoke();return Task.CompletedTask;
+            var next=rules.NormalizeAccount(raw,Now);rules.CollectReturnIncome(next,Now);saves.Write(next,true);Account=next;Battle=null;ReturnIncome=null;AccountReplaced?.Invoke();Changed?.Invoke();return Task.CompletedTask;
         }
         public void ImportFromBrowser(string json) { try { if(Online)throw new InvalidOperationException("온라인 진행도는 파일에서 복원할 수 없습니다");SaveDocument.Parse(json);SaveImportRequested?.Invoke(json); } catch(Exception error){Notice?.Invoke(error.Message);} }
         public void ImportFailure(string message) => Notice?.Invoke(message);
         async void OnApplicationFocus(bool focus)
         {
             focused=focus;accumulator=0;
-            if(focus&&Account!=null)try { if(Online&&ConnectionStatus=="connected"){var envelope=await session.Resume();ReturnIncome=envelope["returnIncome"] as JObject;Changed?.Invoke();}else if(!Online){ReturnIncome=rules.CollectReturnIncome(Account,Now);saves.Write(Account);Changed?.Invoke();} }catch(Exception error){Notice?.Invoke(error.Message);}
+            if(focus&&Account!=null&&!SaveRecoveryRequired)try { if(Online&&ConnectionStatus=="connected"){var envelope=await session.Resume();ReturnIncome=envelope["returnIncome"] as JObject;Changed?.Invoke();}else if(!Online){ReturnIncome=rules.CollectReturnIncome(Account,Now);saves.Write(Account);Changed?.Invoke();} }catch(Exception error){Notice?.Invoke(error.Message);}
         }
-        void OnApplicationQuit() { if(!Online&&Account!=null) saves.Write(Account); }
+        void OnApplicationQuit() { if(!Online&&Account!=null&&!SaveRecoveryRequired)try{saves.Write(Account);}catch(Exception error){Debug.LogWarning(error.Message);} }
         void OnDestroy() { if(session!=null)session.Changed-=OnSessionChanged; }
     }
 }

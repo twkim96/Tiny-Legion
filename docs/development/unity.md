@@ -2,7 +2,7 @@
 
 ## 범위와 구조
 
-`codex/unity-migration` worktree에서 현재 웹 플레이 버전의 구현 전체를 Unity 2D + URP로 이식합니다. 미구현 연구소·진화 등 확장 TODO를 이식 완료 범위에 넣지 않습니다. 기존 전투·성장·보석·모집·도감·편성·안내·계정·설정·음악을 보존합니다. Unity 플레이 및 Sites 배포는 아직 검증 전입니다. Unity Editor와 웹 모듈 설치는 완료했고, 실제 실행은 라이선스 활성화가 없어 시작 전 종료됩니다.
+`codex/unity-migration` worktree에서 현재 웹 플레이 버전의 구현 전체를 Unity 2D + URP로 이식합니다. 미구현 연구소·진화 등 확장 TODO를 이식 완료 범위에 넣지 않습니다. 기존 전투·성장·보석·모집·도감·편성·안내·계정·설정·음악을 보존합니다. Unity 플레이 및 Sites 배포는 아직 검증 전입니다. Unity Editor/Web 모듈 설치와 라이선스 활성화, 실제 Editor의 패키지 임포트·컴파일·`Prepare` 실행을 확인했습니다.
 
 - `unity/Assets/TinyLegion/Domain`: Unity API에 의존하지 않는 데이터·전투·효과·계정·통신 계약. 계산은 `double`, 30Hz 입력, JavaScript와 같은 반올림을 사용합니다. 계정 규칙은 조회·성장·보석·모집·편성·생산·진행·저장 책임별 partial 파일로 나눕니다. 특수능력 정규화/비용과 생산 경제는 전투·계정이 같은 서비스를 사용합니다. Unity Physics2D는 보상 판정에 사용하지 않습니다.
 - `unity/Assets/TinyLegion/Presentation`: 공통 화면/입력과 전장 표시. 정의·조건·성장식을 화면에 복제하지 않습니다.
@@ -14,9 +14,13 @@
 
 ## 환경
 
-Unity Editor LTS `6000.3.26f1`과 Web Build Support를 사용합니다. 두 기기의 Editor와 패키지 버전을 고정합니다. Unity CLI 설치는 Editor 라이선스 활성화를 대신하지 않습니다. Unity 로그인/라이선스는 사용자가 완료해야 하며 비밀번호·토큰을 저장소에 넣지 않습니다.
+Unity Editor LTS `6000.3.26f1`과 Web Build Support를 사용합니다. 두 기기의 Editor와 패키지 버전을 고정합니다. Unity CLI 설치와 계정 로그인은 Editor 라이선스 활성화를 대신하지 않습니다. 브라우저의 로그인 확인과 사용할 라이선스의 선택·약관 동의는 사용자가 진행하며, 비밀번호·토큰을 저장소에 넣지 않습니다.
 
 이번 Mac에서 별도 설치한 실행 파일은 `/Users/twkim/.local/share/tiny-legion-unity-cli/bin/unity`, 순수 C# 검사용 .NET 8 SDK는 `/Users/twkim/.local/share/tiny-legion-dotnet/dotnet`입니다. 일반 환경에서는 PATH의 `unity`, `dotnet`을 사용합니다.
+
+`unity auth login`으로 로그인 요청을 열고 브라우저에서 확인합니다. 이어 `unity license status --json`의 `active`가 `true`인지 확인합니다. `signedIn: true`만으로 Editor를 실행할 수 있는 것은 아닙니다. Personal을 사용하는 경우 CLI는 `unity license activate --personal --accept-eula`를 요구합니다. 사용자가 해당 라이선스와 약관을 확인한 뒤 직접 실행하며, 자동 빌드에서는 약관 동의를 대신 실행하지 않습니다. 다른 라이선스의 활성화 옵션은 `unity license activate --help`를 확인합니다.
+
+Editor 첫 창 실행에서는 라이선스 활성화와 별도의 Unity Editor Software Terms 동의를 요구할 수 있습니다. 사용자가 해당 창을 확인합니다. Play Mode 자동 검증에는 버전이 고정된 `com.unity.pipeline`을 사용하고, CLI 명령은 이 worktree의 `unity/` 절대 경로를 지정합니다. 한 프로젝트의 Editor 실행과 배치 빌드를 동시에 진행하지 않습니다.
 
 ```sh
 npm ci
@@ -34,6 +38,14 @@ dotnet run --project unity/Tests/TinyLegion.Domain.Checks.csproj -- unity/Assets
 `.meta`, `Packages`, `ProjectSettings`와 소스를 Git에 포함합니다. `Library`, `Temp`, 빌드·검사 출력·로컬 계정 저장은 제외합니다. 큰 재사용 원본 자산의 증가 시 LFS 적용 여부를 검토하며 Sites 원격의 LFS 지원을 먼저 확인합니다.
 
 ## 데이터와 검증 경계
+
+로컬 저장 읽기 실패는 새 계정으로 원본을 덮어쓰지 않습니다. `JsonFileStore`가 실패 후 일반 쓰기를 거부하고, 컨트롤러가 전투·정산·복귀·종료 저장을 중지합니다. 복구 화면에서는 원본 내보내기·정상 저장 가져오기·초기화를 선택합니다. 확인 후 가져오기/초기화는 읽지 못한 원본을 고유한 복구 사본으로 먼저 보관합니다. Web PlayerPrefs 경로도 같은 복구 경계를 적용합니다. Native 파일 저장은 같은 디렉터리의 임시 파일과 원자적 교체를 사용하며, 복구 사본은 이후 저장에서 유지합니다.
+
+Editor 검증에서는 실행 전 `TINY_LEGION_TEST_SAVE_DIRECTORY`에 검증용 폴더의 절대 경로를 지정해 실제 기기 저장과 분리합니다. 이 변수는 Editor 조건에서만 적용되고 Player에는 포함되지 않습니다. 정상 검증과 손상 저장 복구 검증은 각각 별도 폴더를 사용합니다.
+
+필수 안내/복구 화면 위에 열린 선택적 상세·확인 창에서 전체 닫기를 눌러도 필수 화면은 유지합니다. `ModalNavigationTests`는 Unity Test Framework의 EditMode에서 이 닫기/뒤로가기 계약을 검사합니다. 실제 Editor에서 해당 검사를 실행하기 전에는 통과로 간주하지 않습니다.
+
+저장 파일 선택/내보내기는 `IGameController`를 통해 Runtime으로 전달합니다. Web은 브라우저의 다운로드·파일 선택을 사용하고 Editor는 OS 파일 대화상자를 사용합니다. Editor에서 선택 취소는 진행도를 바꾸지 않으며, 선택한 UTF-8 JSON은 제한된 스트림 읽기로 1MB를 넘기지 않고 기존 확인 창·정규화·저장 경로로 넘깁니다. 잘못된 인코딩·크기·형식과 내보내기 실패는 안내합니다. 독립 네이티브 Player의 OS 파일 선택기 연결은 별도로 확인해야 하며, 현재는 JSON 붙여넣기 가져오기와 기기 저장 폴더의 `exports/`로 내보내기를 사용합니다. 손상된 Native 원본은 텍스트로 재해석하지 않고 파일 바이트를 복사해 보관합니다.
 
 캐릭터 ID·효과 ID·종족·속성·공격 유형은 기존 정의와 같습니다. 효과 대상은 축 사이 AND·축 안 OR이며 `all`은 열린 조건입니다. 같은 출처·종류는 교체하고 독립 강화 출처는 공존합니다. UI와 엔진은 동일 정의/능력치/설명 서비스를 소비합니다. 상태 표식·공격 출처 스냅샷은 같은 대상 조건을 사용하며, 캐시된 태그 조회와 발사 시점의 독립 사본을 구분합니다. 전장 캐릭터/발사체 표시 객체는 풀에서 재사용합니다.
 
@@ -53,7 +65,7 @@ TINY_LEGION_UNITY_WEB=1 npm run build
 
 현재 Sites 준비는 기존 Worker에 `/unity/` 파일을 추가하는 명시적 옵션입니다. wasm/data를 바이너리로 제공하고 gzip·MIME·HEAD/Range를 유지합니다. 큰 데이터를 문자열로 내장하는 초기 경로이므로 빌드 크기·메모리·Sites 용량 검증 후 R2 등 별도 저장으로 분리할 필요가 있을 수 있습니다. 64MiB Worker 상한을 넘으면 빌드를 중단합니다. 기존 `/` 화면은 이식 수용 전 유지합니다.
 
-`node scripts/unity/check-unity-source.mjs`와 `--web`는 설치한 Unity의 실제 API 어셈블리에 C# 소스를 정적으로 컴파일합니다. 라이선스가 없는 동안 사용할 수 있지만 패키지 임포트·Editor/IL2CPP 실행을 대신하지 않습니다. 다른 기기는 `TINY_LEGION_UNITY_EDITOR`, `TINY_LEGION_DOTNET`로 실행 경로를 지정합니다.
+`node scripts/unity/check-unity-source.mjs`와 `--web`는 `.asmdef`의 프로젝트 참조·외부 참조·`noEngineReferences`를 따르는 별도 어셈블리로 설치된 Unity API에 정적으로 컴파일합니다. 화면은 `IGameController`를 통해 저장 내보내기/가져오기를 요청하며 Runtime의 플랫폼 브리지를 직접 참조하지 않습니다. `--web`는 Editor 전용 코드를 제외하고 Web 조건부 코드를 검사합니다. 이 검사는 패키지 임포트·Editor/IL2CPP 실행을 대신하지 않습니다. 다른 기기는 `TINY_LEGION_UNITY_EDITOR`, `TINY_LEGION_DOTNET`로 실행 경로를 지정합니다.
 
 `node --test tests/unity-platform.test.js`는 생성된 Web 전체화면 브리지를 브라우저 API 대역에서 실행해 미지원·거절·방향 고정·종료 경합을 검사합니다. 설치된 Unity Web 컴파일러에서 브리지 단독 링크를 확인했습니다. 실제 Unity Web 빌드와 기기의 전체화면·회전 확인은 별도로 수행합니다.
 

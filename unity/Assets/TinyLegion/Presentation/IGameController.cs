@@ -16,6 +16,7 @@ namespace TinyLegion.Unity
         double CannonRemaining { get; }
         bool Busy { get; }
         bool Online { get; }
+        bool SaveRecoveryRequired { get; }
         bool TestLoginAvailable { get; }
         string ConnectionStatus { get; }
         JObject Identity { get; }
@@ -43,6 +44,8 @@ namespace TinyLegion.Unity
         void SignIn();
         void SetFullscreen();
         string ExportSave();
+        void DownloadSave();
+        void ChooseSaveImport();
         Task ImportSave(string json);
     }
 }
