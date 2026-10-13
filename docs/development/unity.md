@@ -63,7 +63,7 @@ unity run unity -- -executeMethod TinyLegion.Editor.ProjectSetup.BuildWeb
 TINY_LEGION_UNITY_WEB=1 npm run build
 ```
 
-현재 빌드의 wasm 약 53MB와 data 약 23MB는 gzip 후 합계 약 27MB이며, 포함한 Worker는 약 39MB입니다. 현재 Sites 준비는 기존 Worker에 `/unity/` 파일을 추가하는 명시적 옵션입니다. wasm/data를 바이너리로 제공하고 gzip·MIME·HEAD/Range를 유지합니다. 바이너리는 중간 문자 배열 없이 변환하고 HEAD/ETag 일치 응답은 디코딩을 생략합니다. Unity 바이너리는 콘텐츠 ETag와 재검증 캐시로 같은 파일명에 새 빌드를 배포해도 이전 버전을 하루 동안 고정하지 않습니다. 큰 데이터를 문자열로 내장하는 초기 경로이므로 빌드 크기·메모리·Sites 용량 검증 후 R2 등 별도 저장으로 분리할 필요가 있을 수 있습니다. 64MiB Worker 상한을 넘으면 빌드를 중단합니다. 기존 `/` 화면은 이식 수용 전 유지합니다.
+현재 빌드의 wasm 약 53MB와 data 약 23MB는 gzip 후 합계 약 27MB이며, 포함한 Worker는 약 39MB입니다. 현재 Sites 준비는 기존 Worker에 `/unity/` 파일을 추가하는 명시적 옵션입니다. wasm/data를 바이너리로 제공하고 gzip·MIME·HEAD/Range를 유지합니다. Sites의 Cloudflare Worker에는 이미 gzip한 응답을 `encodeBody: manual`로 전달해 이중 압축을 막습니다. Node 로컬 서버의 압축 검사는 이 Worker 확장을 검증하지 못합니다. 바이너리는 중간 문자 배열 없이 변환하고 HEAD/ETag 일치 응답은 디코딩을 생략합니다. Unity 바이너리는 콘텐츠 ETag와 재검증 캐시로 같은 파일명에 새 빌드를 배포해도 이전 버전을 하루 동안 고정하지 않습니다. 큰 데이터를 문자열로 내장하는 초기 경로이므로 빌드 크기·메모리·Sites 용량 검증 후 R2 등 별도 저장으로 분리할 필요가 있을 수 있습니다. 64MiB Worker 상한을 넘으면 빌드를 중단합니다. 기존 `/` 화면은 이식 수용 전 유지합니다.
 
 `node scripts/unity/check-unity-source.mjs`와 `--web`는 `.asmdef`의 프로젝트 참조·외부 참조·`noEngineReferences`를 따르는 별도 어셈블리로 설치된 Unity API에 정적으로 컴파일합니다. 화면은 `IGameController`를 통해 저장 내보내기/가져오기를 요청하며 Runtime의 플랫폼 브리지를 직접 참조하지 않습니다. `--web`는 Editor 전용 코드를 제외하고 Web 조건부 코드를 검사합니다. 이 검사는 패키지 임포트·Editor/IL2CPP 실행을 대신하지 않습니다. 다른 기기는 `TINY_LEGION_UNITY_EDITOR`, `TINY_LEGION_DOTNET`로 실행 경로를 지정합니다.
 

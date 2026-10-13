@@ -43,7 +43,7 @@ if (process.env.TINY_LEGION_UNITY_WEB === '1') {
         } else {
           const compressed = ['.wasm', '.data'].includes(extname(entry.name));
           assets[path] = { body: (compressed ? gzipSync(bytes) : bytes).toString('base64'), type, binary: true,
-            cache:'public, max-age=0, must-revalidate', etag:'"'+createHash('sha256').update(bytes).digest('hex')+'"',
+            cache:'public, max-age=0, must-revalidate', etag:'"'+(compressed?'gzip-manual-':'identity-')+createHash('sha256').update(bytes).digest('hex')+'"',
             ...(compressed ? { encoding: 'gzip' } : {}) };
         }
       }
