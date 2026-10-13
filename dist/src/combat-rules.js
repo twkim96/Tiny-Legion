@@ -8,7 +8,7 @@ const boundedBonus = (value, cap) =>
 // Each target is evaluated independently, including each victim of a splash hit.
 export const traitBonus = (source, target, field) => Math.max(0, ...Object.values(source?.effects ?? {})
   .filter(spec => Object.hasOwn(COMBAT_TRAITS[spec?.type] ?? {}, field) && matchesEffectTarget(spec, target))
-  .map(spec => boundedBonus(spec[field], field === 'damageReduction' ? 1 : Infinity)));
+  .map(spec => boundedBonus(spec[field], Infinity)));
 const gemBonus = (source, target, kind) => boundedBonus(source?.gemAttributeBonuses?.[target?.attribute]?.[kind], Infinity);
 
 export function resolveDamage(target, rawDamage, source = {}) {
@@ -18,7 +18,7 @@ export function resolveDamage(target, rawDamage, source = {}) {
   damage /= 1 + gemBonus(target, source, 'effectiveHp');
   // Final trait multipliers follow attack buffs, equipment and other damage bonuses.
   damage *= 1 + traitBonus(source, target, 'bonus');
-  damage *= 1 - traitBonus(target, source, 'damageReduction');
+  damage /= 1 + traitBonus(target, source, 'effectiveHp');
   const shieldBonus=effectOf(source,"shieldDamage");
   const shieldMultiplier = 1 + boundedBonus((matchesEffectTarget(shieldBonus,target)?shieldBonus?.bonus??0:source.shieldDamageSupportBonus??0), SHIELD_BONUS_CAP);
   const shield = Math.max(0, target.shield ?? 0);

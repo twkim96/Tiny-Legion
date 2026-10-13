@@ -48,18 +48,32 @@ test("native devastating traits raise damage only against their scoped attribute
     outcomes.push(before - enemy.hp);
   }
   assert.ok(outcomes[0] > outcomes[1]);
+  const generalistDamage = [];
   for (const attribute of ["wild", "machine", "spirit", "shadow"]) {
     const { state, ally, enemy } = duel("squirrel", "beetle", { attribute });
     const before = enemy.hp;
     attackOnce(state, ally);
-    near(before - enemy.hp, ally.attack * (attribute === "wild" ? 1.3 : 1));
+    generalistDamage.push(before - enemy.hp);
+    near(before - enemy.hp, ally.attack);
   }
+  assert.ok(generalistDamage.every((damage) => damage === generalistDamage[0]));
+  const generalistIncoming = [];
+  for (const attribute of ["wild", "machine", "spirit", "shadow"]) {
+    const { state, ally, enemy } = duel("sheep", "beetle", { attribute });
+    ally.attackTimer = 1000;
+    enemy.attackTimer = 0;
+    const before = ally.hp;
+    attackOnce(state, enemy);
+    generalistIncoming.push(before - ally.hp);
+    near(before - ally.hp, ENEMIES.find((definition) => definition.id === "beetle").attack);
+  }
+  assert.ok(generalistIncoming.every((damage) => damage === generalistIncoming[0]));
 });
 
-test("sturdy reduces matching incoming damage by 30 percent without raising global HP", () => {
+test("sturdy increases effective HP only against its scoped attribute", () => {
   const outcomes = [];
-  for (const attribute of ["wild", "machine"]) {
-    const { state, ally, enemy } = duel("sheep", "beetle", { attribute });
+  for (const attribute of ["machine", "wild"]) {
+    const { state, ally, enemy } = duel("hedgehog", "beetle", { attribute });
     ally.attackTimer = 1000;
     enemy.attackTimer = 0;
     const before = ally.hp;
@@ -68,7 +82,7 @@ test("sturdy reduces matching incoming damage by 30 percent without raising glob
     assert.equal(ally.hp + outcomes.at(-1), ally.maxHp);
   }
   const incomingAttack = ENEMIES.find((definition) => definition.id === "beetle").attack;
-  near(outcomes[0], incomingAttack * 0.7);
+  near(outcomes[0], incomingAttack / 1.5);
   near(outcomes[1], incomingAttack);
 });
 
@@ -80,7 +94,7 @@ test("splash specialization evaluates each victim, while castle damage stays neu
   state.units.push(other);
   const before = enemy.hp;
   attackOnce(state, ally);
-  near(before - enemy.hp, ally.attack * 1.3);
+  near(before - enemy.hp, ally.attack * 1.5);
   near(before - other.hp, ally.attack);
 });
 
@@ -112,6 +126,7 @@ test("cloud shield aura helps nearby allies, does not stack, and ends outside it
   const losses = [];
   for (const positions of [[], [490], [490, 480], [100]]) {
     const { state, ally, enemy } = duel("squirrel", "clock-beetle");
+    enemy.shield = 1000;
     for (const x of positions) {
       state.gold = 1000;
       state.cooldowns.cloud = 0;

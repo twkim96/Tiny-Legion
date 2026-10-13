@@ -23,22 +23,22 @@ export const STAT_KEYS = Object.freeze(['hp','attack','speed','range','attackInt
 export const STAT_MINIMUMS = Object.freeze({ hp: 1, attack: 1, speed: 0, range: 0, attackInterval: .2 });
 export const STAT_NAMES = Object.freeze({ hp: '체력', attack: '공격력', speed: '이동속도', range: '사거리', attackInterval: '공격 간격' });
 export const COMBAT_TRAITS = Object.freeze({
-  sturdy: Object.freeze({ damageReduction: .3 }),
-  strong: Object.freeze({ damageReduction: .2, bonus: .1 }),
-  devastating: Object.freeze({ bonus: .3 }),
+  sturdy: Object.freeze({ effectiveHp: .5 }),
+  strong: Object.freeze({ effectiveHp: .3, bonus: .2 }),
+  devastating: Object.freeze({ bonus: .5 }),
 });
 export const traitFields = character => [...new Set(Object.values(character?.effects ?? {})
   .flatMap(spec => Object.keys(COMBAT_TRAITS[spec?.type] ?? {})))];
 export const EFFECT_KEYWORDS = Object.freeze(Object.fromEntries(Object.entries({
-  sturdy: '단단함', strong: '강함', devastating: '강타',
+  sturdy: '단단함', strong: '강함', devastating: '매서움',
   slow: '둔화', healingSuppression: '회복 억제', healing: '회복', regeneration: '재생',
   shield: '방어막', poison: '중독', immunity: '면역', shieldDamageAura: '방어막 공격 지원',
   areaAttack: '범위 공격', castleDamage: '성 추가 피해', shieldDamage: '방어막 추가 피해',
   knockback: '밀쳐내기', attackImmunity: '공격 무효', hitStun: '경직', stat: '능력치 변화',
 }).map(([id, name]) => [id, Object.freeze({ name })])));
 const catalog = {
-  sturdy: { fields: ['damageReduction'], describe: e => `받는 피해 ${percent(e.damageReduction)} 감소` },
-  strong: { fields: ['damageReduction', 'bonus'], describe: e => `받는 피해 ${percent(e.damageReduction)} 감소 · 추가 피해 ${percent(e.bonus)}` },
+  sturdy: { fields: ['effectiveHp'], describe: e => `유효 체력 +${percent(e.effectiveHp)}` },
+  strong: { fields: ['effectiveHp', 'bonus'], describe: e => `유효 체력 +${percent(e.effectiveHp)} · 추가 피해 ${percent(e.bonus)}` },
   devastating: { fields: ['bonus'], describe: e => `추가 피해 ${percent(e.bonus)}` },
   slow: { trigger: 'hit', color: '#78a9b7', fields: ['factor', 'duration'], describe: e => `이동속도 ${percent(1-e.factor)} 감소 · ${number(e.duration)}초` },
   healingSuppression: { trigger: 'hit', color: '#bb8b81', fields: ['factor', 'duration'], describe: e => `${e.scope === "regeneration" ? "재생 " : ""}회복량 ${percent(1-e.factor)} 감소 · ${number(e.duration)}초` },
@@ -79,7 +79,6 @@ export function effect(type, values = {}) {
   if (type==='poison' && (!(result.duration>0) || !Number.isFinite(result.ratio))) throw new TypeError('Invalid poison');
   if (['healing','regeneration','shield'].includes(type) && !((result.amount??0)>0 || (result.hpRatio??0)>0)) throw new TypeError(`Invalid ${type} amount`);
   if (type==='immunity' && !EFFECTS[result.effect]) throw new TypeError('Invalid immunity');
-  if (COMBAT_TRAITS[type] && result.damageReduction > 1) throw new TypeError('Invalid damage reduction');
   if (type==='repelPulse') {
     if (!(result.interval>0) || !Number.isFinite(result.range) || !Number.isFinite(result.distance)) throw new TypeError('Invalid repelPulse');
     result.interval=Math.max(MIN_EFFECT_INTERVAL,result.interval);
@@ -171,7 +170,7 @@ export function changeText(change, rank=1) {
   if(change.op==='effect')return effectText(change.value);
   if(change.op==='specialty')return '';
   if(change.op==='counter')return (change.fields?.length ? change.fields : ['trait'])
-    .map(field => `${({ damageReduction: '피해 감소', bonus: '추가 피해', trait: '특성 효과' })[field]} +${number(change.amount*rank*100)}%p`).join(' · ');
+    .map(field => `${({ effectiveHp: '유효 체력', bonus: '추가 피해', trait: '특성 효과' })[field]} +${number(change.amount*rank*100)}%p`).join(' · ');
   const [root,type,field]=change.path.split('.');
   const label=root==='effects' ? `${EFFECTS[type].name} ${({duration:'지속시간',radius:'범위',bonus:'',amount:'회복량',hpRatio:'흡수량'})[field]??field}`.trim() : STAT_NAMES[root];
   const value=change.amount*rank;

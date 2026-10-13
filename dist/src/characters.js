@@ -18,9 +18,8 @@ export const UNITS = [
     name: "양 방패",
     role: "tank",
     attackType: "melee",
-    effects: { sturdy: effect("sturdy", { attribute: ["wild"] }) },
-    specialties: ["wild"],
-    hp: 360,
+    specialties: [],
+    hp: 540,
     attack: 24,
     range: 42,
     speed: 34,
@@ -64,10 +63,9 @@ export const UNITS = [
     name: "씨앗 다람쥐",
     role: "ranged",
     attackType: "ranged",
-    effects: { devastating: effect("devastating", { attribute: ["wild"] }) },
-    specialties: ["wild"],
+    specialties: [],
     hp: 145,
-    attack: 34,
+    attack: 51,
     range: 250,
     speed: 44,
     cost: 520,
@@ -564,7 +562,7 @@ export const SIGNATURE_ABILITIES = {
   whale: { name: "넓은 물결", changes: [{ op: "effect", value: effect("areaAttack", { radius: 45 }) }] },
 };
 export const EXTRA_ATTRIBUTES = {
-  sheep: "machine", rabbit: "machine", squirrel: "machine", fox: "shadow", chick: "machine", deer: "spirit",
+  rabbit: "machine", fox: "shadow", chick: "machine", deer: "spirit",
   teapot: "wild", hedgehog: "wild", owl: "wild", turtle: "spirit",
   cloud: "machine", otter: "shadow", "mushroom-witch": "shadow", penguin: "shadow", whale: "wild",
 };

@@ -317,6 +317,11 @@ test("legacy ownership stays saved while unavailable lineup entries wait for 2-1
 
 test("banner companions cover one target except multi-attribute legendary companions", () => {
   for (const banner of RECRUIT_BANNERS) for (const unit of bannerPool(banner.id)) {
+    if (['sheep', 'squirrel'].includes(unit.id)) {
+      assert.deepEqual(unit.specialties, []);
+      assert.equal(banner.id, 'forest');
+      continue;
+    }
     assert.ok(unit.specialties.includes(banner.attribute), `${banner.id}: ${unit.id}`);
     if (unit.rarity === "legendary") assert.ok(unit.specialties.length >= 2 && unit.specialties.length <= 3);
     else assert.deepEqual(unit.specialties, [banner.attribute]);

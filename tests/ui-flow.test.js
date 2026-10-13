@@ -916,7 +916,8 @@ test('companion details expose only the optional abilities assigned to that unit
   c.account.owned.rabbit=true;c.account.owned.whale=true;
   c.openUnitDetail('sheep');
   assert.doesNotMatch(c.$('modal-content').innerHTML,/data-ability="(?:move|range)"/);
-  for(const id of ['hp','attack','counter']) assert.ok(c.$('modal-content').innerHTML.includes(`data-ability="${id}"`));
+  for(const id of ['hp','attack']) assert.ok(c.$('modal-content').innerHTML.includes(`data-ability="${id}"`));
+  assert.doesNotMatch(c.$('modal-content').innerHTML,/data-ability="(?:counter|extra)"/);
   c.openUnitDetail('rabbit');
   assert.match(c.$('modal-content').innerHTML,/data-ability="move"/);
   assert.doesNotMatch(c.$('modal-content').innerHTML,/data-ability="range"/);

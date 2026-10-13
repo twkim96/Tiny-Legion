@@ -6,6 +6,7 @@ import { newAccount, normalizeAccount, upgradeUnitAbility, recruitUnits, refundU
 import { applyUnitAbilities, unitAbilities, abilityCost, abilityText, markTypeFor, DUPLICATE_MARKS } from '../dist/src/abilities.js';
 import { createBattle, summonUnit, stepBattle } from '../dist/src/engine.js';
 import { traitBonus } from '../dist/src/combat-rules.js';
+import { traitFields } from '../dist/src/effects.js';
 import { duplicateRewardText } from '../dist/src/recruitment-ui.js';
 
 function account() {
@@ -68,6 +69,9 @@ test('locked, unowned, invalid and unaffordable upgrades leave all state unchang
   a.marks.wild=1000; a.highestCleared=9;
   const before=JSON.stringify(a);
   assert.equal(upgradeUnitAbility(a,'sheep','extra'),false);
+  assert.equal(upgradeUnitAbility(a,'sheep','counter'),false);
+  assert.equal(upgradeUnitAbility(a,'squirrel','counter'),false);
+  assert.equal(upgradeUnitAbility(a,'squirrel','extra'),false);
   assert.equal(upgradeUnitAbility(a,'sheep','missing'),false);
   assert.equal(upgradeUnitAbility(a,'missing','hp'),false);
   assert.equal(JSON.stringify(a),before);
@@ -119,18 +123,23 @@ test('unit abilities stay in battle and production snapshots and survive an indi
   assert.deepEqual(a.marks,marks);assert.deepEqual(a.abilities,abilities);
   assert.deepEqual(a.records,{});
 });
-test('extra attributes expand native traits and counter upgrades strengthen their fields',()=>{
-  const normal=duel('squirrel',{},'beetle','machine');
-  const upgraded=duel('squirrel',{squirrel:{extra:1,counter:10}},'beetle','machine');
+test('extra attributes expand eligible native traits and counter upgrades strengthen their fields',()=>{
+  const normal=duel('rabbit',{},'beetle','machine');
+  const upgraded=duel('rabbit',{rabbit:{extra:1,counter:10}},'beetle','machine');
   for(const pair of [normal,upgraded]){
     while(!pair.state.finished&&pair.enemy.hp===10000)stepBattle(pair.state,1/30);
   }
   assert.ok(upgraded.enemy.hp<normal.enemy.hp);
   assert.equal(traitBonus(normal.player,{attribute:'machine'},'bonus'),0);
-  assert.equal(traitBonus(upgraded.player,{attribute:'machine'},'bonus'),.4);
-  assert.equal(traitBonus(upgraded.player,{attribute:'wild'},'bonus'),.4);
-  const counter=unitAbilities('squirrel').find(ability=>ability.id==='counter');
+  assert.equal(traitBonus(upgraded.player,{attribute:'machine'},'bonus'),.6);
+  assert.equal(traitBonus(upgraded.player,{attribute:'wild'},'bonus'),.6);
+  const counter=unitAbilities('rabbit').find(ability=>ability.id==='counter');
   assert.match(abilityText(counter,10),/10%p/);
+  for(const id of ['sheep','squirrel']) {
+    assert.deepEqual(unitAbilities(id).map(ability=>ability.id), ['hp','attack','signature']);
+    assert.deepEqual(unit(id).specialties, []);
+    assert.deepEqual(traitFields(unit(id)), []);
+  }
   const disallowed=duel('sheep',{sheep:{range:5,move:5}}).player;
   assert.equal(disallowed.range,unit('sheep').range);
   assert.equal(disallowed.definition.speed,unit('sheep').speed);
@@ -156,7 +165,7 @@ test('poison causes timed non-stacking damage and the purchased immunity blocks 
   for(const signature of [0,1]){
     const {state,player,enemy}=duel('sheep',{sheep:{signature}},'porcupine');
     player.attackTimer=100;enemy.attackTimer=0;
-    const expectedPoisonDamage=enemy.attack*.04*3*.7;
+    const expectedPoisonDamage=enemy.attack*.04*3;
     const before=player.hp;
     while(player.hp===before&&state.time<5)stepBattle(state,1/30);
     const afterHit=player.hp;
@@ -211,10 +220,11 @@ test('repeated poison applications refresh duration but do not stack tick damage
   assert.ok(activeEffects(enemy,'poison')[0].remaining<=3);
 });
 
-test('only the three core abilities are common; movement and range follow unit eligibility', () => {
+test('counter requires a native trait; movement and range follow unit eligibility', () => {
   for (const u of UNITS) {
     const abilities = unitAbilities(u);
-    assert.deepEqual(abilities.slice(0,3).map(a=>a.id), ['hp','attack','counter']);
+    assert.deepEqual(abilities.filter(a=>['hp','attack','counter'].includes(a.id)).map(a=>a.id),
+      ['hp','attack', ...(traitFields(u).length ? ['counter'] : [])]);
     assert.equal(abilities.some(a=>a.id==='move'), ['rabbit','fox','deer','penguin'].includes(u.id));
     assert.equal(abilities.some(a=>a.id==='range'), u.id==='whale');
     const stats=applyUnitAbilities(u,{});
@@ -232,9 +242,10 @@ test('only the three core abilities are common; movement and range follow unit e
   assert.equal(upgradeUnitAbility(a,'rabbit','move'),true);
   assert.equal(upgradeUnitAbility(a,'whale','range'),true);
 });
-test('unsupported ability ranks are dropped without currency compensation; permitted purchases and progress survive', () => {
+test('unknown and unassigned ability ranks are dropped without currency compensation; permitted ranks and progress survive', () => {
   const raw=account();raw.gold=1000;
   raw.abilities.sheep={hp:4,attack:2,counter:3,move:3,range:5,signature:1};
+  raw.abilities.squirrel={hp:3,attack:2,counter:4,extra:1,signature:1};
   raw.abilities.rabbit={move:2,range:2};
   raw.abilities.whale={move:1,range:3};
   raw.levels.sheep=8;
@@ -245,7 +256,10 @@ test('unsupported ability ranks are dropped without currency compensation; permi
   assert.equal(clean.abilities.sheep.move,undefined);
   assert.equal(clean.abilities.sheep.range,undefined);
   assert.equal(clean.abilities.sheep.hp,4);
+  assert.equal(clean.abilities.sheep.attack,2);
+  assert.equal(clean.abilities.sheep.counter,undefined);
   assert.equal(clean.abilities.sheep.signature,1);
+  assert.deepEqual(clean.abilities.squirrel,{hp:3,attack:2,signature:1});
   assert.equal(clean.abilities.rabbit.move,2);
   assert.equal(clean.abilities.whale.range,3);
   assert.equal(clean.levels.sheep,8);

@@ -103,7 +103,7 @@ test('kill rewards are paid once for enemy deaths, including cannon, and obey go
  assert.ok(battle.gold<10);
  assert.equal(battle.events.filter(e=>e.type==='gold').length,0);
 });
-test('stronger 2-2 blocks the entry formation, while the guide gem or later levels provide real alternatives',()=>{
+test('stronger 2-2 blocks an undergrown formation, while guided gem growth or later levels provide alternatives',()=>{
  function play(level,withGem){
   const a=account(),ids=['sheep','squirrel','rabbit'];
   if(withGem){const item=drawGem(a,{free:true,random:()=>0});equipGem(a,item.uid);}
@@ -116,7 +116,7 @@ test('stronger 2-2 blocks the entry formation, while the guide gem or later leve
   }
   return b.result;
  }
- assert.equal(play(35,false).won,false);
+ assert.equal(play(25,false).won,false);
  assert.equal(play(35,true).won,true);
  assert.equal(play(50,false).won,true);
 });

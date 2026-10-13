@@ -1,7 +1,7 @@
 import { UNITS, getEnemy } from "./characters.js";
 export { UNITS, ENEMIES, ATTRIBUTES, NEUTRAL_ATTRIBUTE, SHIELD_BONUS_CAP, stageLabel } from "./characters.js";
 // Initial tuning, subject to play acceptance. Permanent equipment/specialty bonuses add.
-export const BALANCE_VERSION = "combat-traits-19";
+export const BALANCE_VERSION = "combat-traits-20";
 export const RARITIES = [
   { id: "common", name: "일반", color: "#7b8974", rate: 0.6 },
   { id: "rare", name: "희귀", color: "#6094a4", rate: 0.28 },
@@ -573,6 +573,10 @@ STAGES[1].waves = [
 for (const wave of STAGES[1].waves) for (const group of wave.enemies) {
   group.effects = { shield: false, regeneration: false };
 }
+
+// Keep the early growth and gem lessons meaningful with the generic starters.
+STAGES.find(stage => stage.id === 6).enemyAttack = 1.125;
+STAGES.find(stage => stage.id === 12).enemyAttack = 9.1;
 
 export const RECRUIT_BANNERS = [
   { id: "forest", name: "숲속 친구들", attribute: "wild", unlock: 0,
