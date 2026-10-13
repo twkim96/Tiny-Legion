@@ -1,3 +1,4 @@
+import { matchesEffectTarget } from './effect-targets.js';
 import { STAGES, STARTER_UNIT_IDS, battleDuration } from "./data.js";
 import { UNITS, getUnit, getEnemy, getCharacter } from "./characters.js";
 import { characterStats, combineStatMultipliers, combineAttackTypeMultipliers } from "./character-stats.js";
@@ -100,6 +101,7 @@ function makeUnit(state, definition, team, x, level = 1) {
     sizeScale: definition.sizeScale ?? 1,
     role: definition.role,
     attackType: definition.attackType,
+    family: definition.family,
     attribute: definition.attribute,
     specialties: [...(definition.specialties ?? [])],
     specialtyUpgradeBonus: definition.specialtyUpgradeBonus,
@@ -421,7 +423,7 @@ function impact(state, shot, units, batch) {
     if (candidate.team !== target.team || candidate.dead) continue;
     if (
       candidate.uid !== primary?.uid &&
-      !(splashRadius > 0 && Math.abs(candidate.x - center) <= splashRadius)
+      !(splashRadius > 0 && matchesEffectTarget(effectOf(shot.source,"areaAttack"),candidate) && Math.abs(candidate.x - center) <= splashRadius)
     )
       continue;
     addDamage(
@@ -436,7 +438,7 @@ function impact(state, shot, units, batch) {
   }
   if (
     target.kind === "castle" ||
-    (splashRadius > 0 &&
+    (splashRadius > 0 && matchesEffectTarget(effectOf(shot.source,"areaAttack"),{kind:"castle",team:target.team}) &&
       Math.abs(
         (target.team === "enemy" ? ENEMY_CASTLE_X : PLAYER_CASTLE_X) - center,
       ) <= splashRadius)
@@ -448,7 +450,7 @@ function impact(state, shot, units, batch) {
       batch.enemyCastle +=
         damage *
         (team === "player"
-          ? 1 + Math.max(0, finiteNumber(effectOf(shot.source, "castleDamage")?.bonus, 0))
+          ? 1 + Math.max(0, finiteNumber(matchesEffectTarget(effectOf(shot.source,"castleDamage"),{kind:"castle",team:target.team}) ? effectOf(shot.source, "castleDamage")?.bonus : 0, 0))
           : 1);
       hit = true;
     }
@@ -660,10 +662,12 @@ export function fireCannon(state) {
   if (!state || state.finished || state.mode === "idle") return false;
   const enemies = activeUnits(state).filter((unit) => unit.team === "enemy");
   const batch = damageBatch();
+  const source = { team: "player", attackType: "ranged", family: null, attribute: "normal" };
   for (const enemy of enemies)
-    addDamage(batch, enemy, CANNON.damage, 1, "cannon", { team: "player", attackType: 'ranged' });
+    addDamage(batch, enemy, CANNON.damage, 1, "cannon", source);
   applyDamage(state, enemies, batch);
-  for (const enemy of enemies) if(!blocksAttack(enemy,{attackType:'ranged'}))applyEffect(enemy, CANNON.knockback, { direction: 1, maxX: ENEMY_CASTLE_X - 10 });
+  for (const enemy of enemies) if (!blocksAttack(enemy, source))
+    applyEffect(enemy, CANNON.knockback, { source, direction: 1, maxX: ENEMY_CASTLE_X - 10 });
   return true;
 }
 

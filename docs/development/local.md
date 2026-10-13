@@ -20,6 +20,7 @@ npm run dev
 |---|---|
 | `dist/index.html`, `dist/style.css` | 화면과 반응형 스타일 |
 | `dist/src/characters.js` | 아군·적 원본 정의·속성·고유 효과·강화 배정 |
+| `dist/src/character-tags.js`, `dist/src/effect-targets.js` | 종족·속성 공통 정의와 효과 대상 조건/판정 |
 | `dist/src/attack-types.js` | 근거리·원거리 ID와 표시명 |
 | `dist/src/character-stats.js` | 공통 능력치 스냅샷·배율 |
 | `dist/src/effects-ui.js` | 동료/적 도감과 상세의 공통 효과 키워드 표시 |

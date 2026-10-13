@@ -1,3 +1,4 @@
+import { matchesEffectTarget } from './effect-targets.js';
 import { EFFECTS, effect, effectOf, effectKey, BATTLE_ORIGIN, STAT_MINIMUMS, MIN_EFFECT_INTERVAL } from './effects.js';
 import { specializationBonus, blocksAttack } from './combat-rules.js';
 
@@ -8,7 +9,7 @@ export const CANNON = Object.freeze({ damage: 110, knockback: Object.freeze(effe
 export const COMBAT_TIMING = Object.freeze({ step: MIN_EFFECT_INTERVAL, hitFlash: .18, hitStun: .18, heavyHitStun: .24, heavyHitRatio: .2, stunCooldown: .65, death: .32 });
 export const activeEffects = (unit, type) => Object.values(unit?.statusEffects ?? {}).filter(status => status.type === type && status.remaining > 0);
 export const remainingEffect = (unit, type) => Math.max(0, ...activeEffects(unit, type).map(status => status.remaining));
-export const isImmune = (unit,type) => effectOf(unit,'immunity')?.effect===type;
+export const isImmune = (unit,type,source=unit) => { const spec=effectOf(unit,'immunity'); return spec?.effect===type && matchesEffectTarget(spec,source); };
 export const effectFactor = (unit, type, scope = 'all') => activeEffects(unit, type).filter(status => scope === 'regeneration' || status.scope !== 'regeneration').reduce((factor, status) => factor * status.factor, 1);
 export const healingAmount = (unit,spec) => nonnegative(spec?.amount) + nonnegative(unit?.maxHp)*nonnegative(spec?.hpRatio);
 
@@ -16,10 +17,11 @@ export function initializeEffects(unit, definition) {
   unit.effects=structuredClone(definition.effects ?? {});
   unit.statusEffects={};
   unit.periodicTimers={};
-  const shield=healingAmount(unit,effectOf(unit,'shield'));
+  const shieldSpec=effectOf(unit,'shield');
+  const shield=matchesEffectTarget(shieldSpec,unit)?healingAmount(unit,shieldSpec):0;
   unit.shield=unit.maxShield=Math.round(shield);
   const regeneration=effectOf(unit,'regeneration');
-  if(regeneration)unit.periodicTimers.regeneration=regeneration.interval;
+  if(regeneration && matchesEffectTarget(regeneration,unit))unit.periodicTimers.regeneration=regeneration.interval;
   const repulsion=effectOf(unit,'repelPulse');
   if(repulsion)unit.periodicTimers.repelPulse=repulsion.interval;
   return unit;
@@ -30,7 +32,9 @@ export function initializeEffects(unit, definition) {
 export function applyEffect(unit, spec, context = {}) {
   if(!unit || unit.dead || !spec)return false;
   try { spec=effect(spec.type,spec); } catch { return false; }
-  if(isImmune(unit,spec.type))return false;
+  const installed=['immunity','attackImmunity','repelPulse','areaAttack','shieldDamageAura','castleDamage','shieldDamage'];
+  if(!installed.includes(spec.type) && !matchesEffectTarget(spec,unit))return false;
+  if(isImmune(unit,spec.type,context.source??unit))return false;
   const origin = context.origin ?? spec.origin ?? context.source?.origin ?? BATTLE_ORIGIN;
   if (typeof origin !== 'string' || !origin.trim()) return false;
   const key = effectKey(origin, spec);
@@ -50,7 +54,6 @@ export function applyEffect(unit, spec, context = {}) {
     const tickRemaining=previous?.remaining>0 ? Math.min(previous.tickRemaining,spec.interval) : spec.interval;
     unit.statusEffects[key]={...spec,origin,remaining:spec.duration*durationMultiplier,tickRemaining,damage,direction:context.direction,source};
   } else if(spec.type==='stat') {
-    if(spec.attackType && spec.attackType!==unit.attackType)return false;
     unit.statusEffects[key]={...spec,origin,remaining:spec.duration*durationMultiplier};
   } else if(spec.type==='healing') {
     return healUnit(unit,spec)>0;
@@ -100,7 +103,7 @@ function syncHitStun(unit) {
 }
 export function combatStat(unit,stat) {
   let value=finite(unit?.[stat]);
-  const statuses=Object.values(unit?.statusEffects??{}).filter(e=>e.type==='stat' && e.stat===stat && e.remaining>0 && (!e.attackType || e.attackType===unit.attackType));
+  const statuses=Object.values(unit?.statusEffects??{}).filter(e=>e.type==='stat' && e.stat===stat && e.remaining>0 && matchesEffectTarget(e,unit));
   value+=statuses.reduce((sum,e)=>sum+e.flat,0);
   for(const status of statuses)value*=status.multiplier;
   if(stat==='speed')value*=effectFactor(unit,'slow');
@@ -109,12 +112,12 @@ export function combatStat(unit,stat) {
 export const regenerationFactor = unit => effectFactor(unit, 'healingSuppression', 'regeneration');
 export const healingFactor = (unit, spec) => effectFactor(unit, 'healingSuppression', spec?.type === 'regeneration' ? 'regeneration' : 'all');
 export function queueHealing(batch,unit,spec) {
-  if(!unit || unit.dead)return;
+  if(!unit || unit.dead || !matchesEffectTarget(spec,unit))return;
   const amount=healingAmount(unit,spec)*healingFactor(unit,spec);
   batch.healing.set(unit.uid,(batch.healing.get(unit.uid)??0)+amount);
 }
 export function healUnit(unit,spec) {
-  if(!unit || unit.dead)return 0;
+  if(!unit || unit.dead || !matchesEffectTarget(spec,unit))return 0;
   const before=unit.hp;
   unit.hp=Math.min(unit.maxHp,unit.hp+healingAmount(unit,spec)*healingFactor(unit,spec));
   return unit.hp-before;
@@ -123,7 +126,7 @@ export function tickPeriodicEffects(unit,dt,{heal,damage}) {
   if(unit.dead || !Number.isFinite(dt) || !(dt>0))return;
   for(const [key,poison] of Object.entries(unit.statusEffects??{})) {
     if(poison.type!=='poison')continue;
-    if(isImmune(unit,'poison')) { delete unit.statusEffects[key]; continue; }
+    if(isImmune(unit,'poison',poison.source)) { delete unit.statusEffects[key]; continue; }
     const active=Math.min(dt,poison.remaining);
     poison.remaining=Math.max(0,poison.remaining-active);
     poison.tickRemaining-=active;
@@ -131,7 +134,7 @@ export function tickPeriodicEffects(unit,dt,{heal,damage}) {
     if(poison.remaining<=EPSILON)delete unit.statusEffects[key];
   }
   const regeneration=effectOf(unit,'regeneration');
-  if(regeneration) {
+  if(regeneration && matchesEffectTarget(regeneration,unit)) {
     unit.periodicTimers ??= {};
     let timer=(unit.periodicTimers.regeneration??regeneration.interval)-dt;
     while(timer<=EPSILON) { heal(regeneration); timer+=regeneration.interval; }
@@ -146,7 +149,7 @@ export function applyHitEffects(target,source,{hpDamage,damage,direction}) {
     if (contract?.trigger === 'hit' && (!contract.requiresHpDamage || hpDamage > 0)) applyEffect(target,spec,{source,damage,direction,durationMultiplier});
   }
 }
-// Team-independent periodic control: only the declared attack class is eligible.
+// Team-independent periodic control: each recipient must match all target axes.
 export function tickRepulsion(unit,dt,units,{warning,pulse} = {}) {
   const spec=effectOf(unit,'repelPulse');
   if(!spec || unit.dead || !Number.isFinite(dt) || !(dt>0))return;
@@ -156,8 +159,8 @@ export function tickRepulsion(unit,dt,units,{warning,pulse} = {}) {
   if(spec.warning>0 && before>spec.warning && remaining<=spec.warning)warning?.(spec);
   while(remaining<=EPSILON) {
     for(const target of units) {
-      if(target.dead || target.team===unit.team || target.attackType!==spec.attackType || Math.abs(target.x-unit.x)>spec.range)continue;
-      applyEffect(target,effect('knockback',{distance:spec.distance}),{direction:Math.sign(target.x-unit.x)||(unit.team==='enemy'?-1:1),cancelWindup:true});
+      if(target.dead || target.team===unit.team || !matchesEffectTarget(spec,target) || Math.abs(target.x-unit.x)>spec.range)continue;
+      applyEffect(target,effect('knockback',{distance:spec.distance}),{direction:Math.sign(target.x-unit.x)||(unit.team==='enemy'?-1:1),cancelWindup:true,source:unit});
     }
     pulse?.(spec);
     remaining+=spec.interval;
@@ -170,18 +173,30 @@ export function auraBonus(source,units,type) {
   for(const unit of units) {
     if(unit.team!==source.team || unit.dead)continue;
     const aura=effectOf(unit,type);
-    if(aura && Math.abs(unit.x-source.x)<=aura.range)origins.set(aura.origin??BATTLE_ORIGIN,aura.bonus);
+    if(aura && matchesEffectTarget(aura,source) && Math.abs(unit.x-source.x)<=aura.range)origins.set(aura.origin??BATTLE_ORIGIN,aura.bonus);
   }
   return [...origins.values()].reduce((sum,bonus)=>sum+bonus,0);
 }
 export function attackSource(unit,units) {
-  return {origin:unit.origin??BATTLE_ORIGIN,team:unit.team,attackType:unit.attackType,role:unit.role,attribute:unit.attribute,specialties:[...(unit.specialties??[])],attributeBonuses:structuredClone(unit.attributeBonuses),specialtyUpgradeBonus:structuredClone(unit.specialtyUpgradeBonus),gemAttributeBonuses:structuredClone(unit.gemAttributeBonuses),effects:{...structuredClone(unit.effects??{}),shieldDamage:effect('shieldDamage',{bonus:(effectOf(unit,'shieldDamage')?.bonus??0)+auraBonus(unit,units,'shieldDamageAura')})}};
+  const nativeShieldDamage = effectOf(unit,'shieldDamage');
+  const supportBonus = auraBonus(unit,units,'shieldDamageAura');
+  return {
+    origin:unit.origin??BATTLE_ORIGIN, team:unit.team, attackType:unit.attackType,
+    family:unit.family, role:unit.role, attribute:unit.attribute,
+    specialties:[...(unit.specialties??[])], attributeBonuses:structuredClone(unit.attributeBonuses),
+    specialtyUpgradeBonus:structuredClone(unit.specialtyUpgradeBonus), gemAttributeBonuses:structuredClone(unit.gemAttributeBonuses),
+    // Native bonuses select the victim; the aura has already selected its recipient.
+    shieldDamageSupportBonus:supportBonus,
+    effects:{...structuredClone(unit.effects??{}),shieldDamage:effect('shieldDamage',{
+      ...structuredClone(nativeShieldDamage??{}), bonus:(nativeShieldDamage?.bonus??0)+supportBonus,
+    })},
+  };
 }
 export function supportTarget(source,units,spec) {
   if(!spec)return null;
-  return units.filter(u=>u.team===source.team && !u.dead && u.hp<u.maxHp && Math.abs(u.x-source.x)<=spec.range).sort((a,b)=>a.hp/a.maxHp-b.hp/b.maxHp || Math.abs(a.x-source.x)-Math.abs(b.x-source.x) || a.uid.localeCompare(b.uid))[0]??null;
+  return units.filter(u=>u.team===source.team && !u.dead && matchesEffectTarget(spec,u) && u.hp<u.maxHp && Math.abs(u.x-source.x)<=spec.range).sort((a,b)=>a.hp/a.maxHp-b.hp/b.maxHp || Math.abs(a.x-source.x)-Math.abs(b.x-source.x) || a.uid.localeCompare(b.uid))[0]??null;
 }
 export function statusMarks(unit) {
   if(unit.dead)return [];
-  return ['regeneration','slow','healingSuppression','poison'].filter(type=>type==='regeneration'?effectOf(unit,type):remainingEffect(unit,type)>0).map(type=>({kind:type,color:EFFECTS[type].color}));
+  return ['regeneration','slow','healingSuppression','poison'].filter(type=>type==='regeneration'?(effectOf(unit,type) && matchesEffectTarget(effectOf(unit,type),unit)):remainingEffect(unit,type)>0).map(type=>({kind:type,color:EFFECTS[type].color}));
 }

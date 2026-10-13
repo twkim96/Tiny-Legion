@@ -1,3 +1,4 @@
+import { matchesEffectTarget } from './effect-targets.js';
 import { effectOf } from './effects.js';
 import {
   ATTRIBUTE_BONUS_CAP,
@@ -25,8 +26,8 @@ export function resolveDamage(target, rawDamage, source = {}) {
     damage *= 1 + specializationBonus(source, target, "attack");
   if (target.team === "player" && source.team === "enemy")
     damage /= 1 + specializationBonus(target, source, "effectiveHp");
-  const shieldMultiplier =
-    1 + boundedBonus(effectOf(source, "shieldDamage")?.bonus, SHIELD_BONUS_CAP);
+  const shieldBonus=effectOf(source,"shieldDamage");
+  const shieldMultiplier = 1 + boundedBonus((matchesEffectTarget(shieldBonus,target)?shieldBonus?.bonus??0:source.shieldDamageSupportBonus??0), SHIELD_BONUS_CAP);
   const shield = Math.max(0, target.shield ?? 0);
   const absorbedBase = Math.min(damage, shield / shieldMultiplier);
   return {
@@ -36,5 +37,5 @@ export function resolveDamage(target, rawDamage, source = {}) {
 }
 export const blocksAttack = (target, source = {}) => {
   const immunity = effectOf(target, 'attackImmunity');
-  return !!immunity && immunity.attackType === source.attackType;
+  return !!immunity && matchesEffectTarget(immunity,source);
 };

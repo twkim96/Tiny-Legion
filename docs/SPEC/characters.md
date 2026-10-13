@@ -2,13 +2,14 @@
 
 ## 원본 정보
 
-- `dist/src/characters.js`가 아군 `UNITS`와 적 `ENEMIES`의 유일한 원본입니다. 이름·역할·공격 유형·속성/특화·기본 스탯·소환 비용/주기·기본 기믹·투사체·외형 ID와 공통/선택/고유 강화 배정을 모읍니다. 배열과 중첩 정의는 변경할 수 없도록 고정합니다. 모집 등급/배너·스테이지/웨이브는 `data.js`, SVG 원화는 `character-art.js`에서 관리합니다.
+- `dist/src/characters.js`가 아군 `UNITS`와 적 `ENEMIES`의 유일한 원본입니다. 이름·역할·공격 유형·종족·자신의 속성/특화·기본 스탯·소환 비용/주기·기본 기믹·투사체·외형 ID와 공통/선택/고유 강화 배정을 모읍니다. 배열과 중첩 정의는 변경할 수 없도록 고정합니다. 모집 등급/배너·스테이지/웨이브는 `data.js`, SVG 원화는 `character-art.js`에서 관리합니다.
 - `getUnit(id)`, `getEnemy(id)`, `getCharacter(id, team)`으로 정의를 조회합니다. `team`은 `player`/`enemy`이며 생략하면 두 목록을 조회합니다. 없는 ID는 `null`입니다. `data.js`의 정의 재수출은 동일 객체이며 별도 복사본을 만들지 않습니다.
 - 햇살 토끼(`mushroom`)는 기본 야생·재생 없음입니다. 정령·2초마다 최대 체력 2.5% 재생은 별도 빛샘 토끼(`spirit-rabbit`)가 소유합니다. 후반 기존 재생 전투는 이 ID를 배치하고 도감에도 별도 표시합니다. 토끼 실루엣을 공유하되 빛샘 토끼는 수정 귀 장식과 정령 색으로 구별합니다.
 - 정상 스테이지와 첫 안내는 이름/속성/재생을 임시 덮어쓰기보다 해당 정의의 ID를 배치합니다. 다른 속성이 실제로 필요한 적은 별도 정의를 추가합니다. 기존 웨이브 기믹 끄기와 명시적인 `attribute`/`effects` 옵션은 전투 구성용으로 지원하며, 스테이지 정보도 같은 옵션 계산을 사용합니다.
 
 ## 공격 유형
 
+- 종족 ID와 속성 정의는 `dist/src/character-tags.js`에 모으고 `characters.js`가 속성 정의를 재수출합니다. 아군·적은 원본에 `family`와 자신의 `attribute`를 명시합니다. 숲/공방/별빛/겨울은 종족이고 야생/기계/정령/그림자/무속성은 전투 속성입니다. `specialties`는 강하게 대응하는 적 속성으로, 자신의 속성·종족을 대신하지 않습니다.
 - 모든 아군·적은 원본에 `attackType: melee`(근거리) 또는 `ranged`(원거리)를 명시합니다. 역할·사거리·투사체 유무로 재분류하지 않으며 범위 공격도 해당 유닛의 공격 유형을 따릅니다. 유형 ID와 표시명은 `dist/src/attack-types.js`가 관리하고 동료 상세·적 도감에 표시합니다.
 - 생성 시 `modifiers.attackTypes.melee/ranged`와 `multipliers.attackTypes.melee/ranged`에 스탯별 배율을 전달합니다. 전체 배율과 해당 유형 배율을 곱하며 양 팀·스테이지·웨이브에서 같은 계산을 사용합니다. 예: `{ attackTypes: { melee: { attack: 1.1 }, ranged: { hp: 1.05 } } }`.
 - 시간제 `stat` 효과도 선택적 `attackType`을 받습니다. 일치하는 개체에만 적용하고 생략하면 모두에게 적용합니다. 같은 출처의 같은 스탯·방향·대상 유형 효과는 교체하며, 전체/근거리/원거리 강화는 서로 다른 효과 종류입니다. 발사된 공격은 발사 시점의 유형을 보존합니다. 대포는 원거리입니다.
@@ -57,13 +58,29 @@
 - 공격 무효는 **공격 무효(원거리)**, 면역은 **면역(중독)**처럼 대상을 표시합니다. 능력치 버프/디버프는 **공격력 증가(근거리)** 등으로 표시합니다. 범위·주기·지속시간·강도는 개별 효과 값으로 생성합니다. 곰의 밀쳐내기는 대상 근거리·범위 165·주기 2.8초·거리 120입니다.
 - `dist/src/effects-ui.js`의 `effectMarkup`이 동료 상세와 아군/적 도감에 같은 키워드 제목·수치 설명을 렌더링합니다. 툴팁·강화 설명은 동일 descriptor의 `effectText`/`effectLines`를 사용합니다. 키워드 정리로 전투 수치·저장·출처별 중첩은 변경하지 않습니다.
 
+### 효과 대상 조건
+
+- 모든 효과는 독립적인 `attackType`, `family`, `attribute` 조건을 받습니다. 각 조건은 `'all'`(기본값), 단일 ID, 또는 ID 배열입니다. 같은 조건의 배열은 OR, 서로 다른 조건은 AND입니다. `effect-targets.js`의 `normalizeEffectTargets`가 검증·정렬·중복 제거하고 `matchesEffectTarget`이 공통 판정합니다.
+- `'all'`은 현재 목록을 복사하지 않습니다. 새 종족·속성·공격 유형이 추가되어도 포함하며, 특정 ID만 골랐을 때는 그 조건만 일치합니다. 신규 정의는 공통 태그/공격 유형 목록에 한 번 추가합니다.
+- 공격 무효·면역의 조건은 들어오는 공격/효과의 **출처 유닛**을 검사합니다. 곰은 원거리·모든 종족·모든 속성 공격 무효입니다. `{ attackType: 'ranged', family: 'forest', attribute: 'all' }`이면 숲 종족의 원거리만 차단합니다. 다른 종족이나 근거리는 차단하지 않습니다. 타격/투사체는 발사 시점의 종족·속성·공격 유형을 보존합니다. 대포는 원거리·무속성이며 유닛 종족에 속하지 않습니다.
+- 둔화·중독·회복 억제·능력치 변화·회복·재생·방어막·경직·밀쳐내기 조건은 **효과를 받는 유닛**을 검사합니다. 조건 밖 대상에는 적용/재적용하지 않으며 기존 효과를 지우거나 갱신하지 않습니다. 공격 무효·주기 밀쳐내기 등 기본 기믹을 캐릭터에 설치할 때는 소유자가 효과 대상 조건에 일치할 필요가 없습니다.
+- 종족·속성 조건은 출처를 새로 만들지 않습니다. 대상이 일치한 경우 같은 출처·종류의 새 버프/디버프는 조건과 수치·시간을 함께 교체하며, 재화로 얻은 서로 다른 강화 출처는 기존대로 공존합니다.
+- 지원 회복은 조건에 맞는 부상자만 선택하고, 지원 오라는 조건에 맞는 동료에게만 제공합니다. 범위 공격은 기본 타격 외의 추가 피해 대상, 방어막 추가 피해는 피해 대상 조건을 검사합니다. 특수능력·보석·전투 지원의 기존 출처와 교체 규칙은 유지합니다.
+- 공통 descriptor/도감/상세/강화 설명에 종족·속성 조건을 표시합니다. 공격 무효는 전체 대상인 경우에도 `모든 종족 · 모든 속성`을 명시합니다. 조건·수치 변경은 같은 `effect(type, values)` 호출에서 처리하며 저장 데이터 이주는 추가하지 않습니다.
+
 ### 호출과 확장
 
 ```js
 import { effect, effectOrigin } from './effects.js';
 import { applyEffect, healUnit } from './combat-effects.js';
 
-applyEffect(target, effect('slow', { factor: .7, duration: 2 }));
+applyEffect(target, effect('slow', { attribute: 'wild', factor: .7, duration: 2 }));
+// 숲 종족에만 공격력 증가: 아군/적군 모두 같은 API 사용
+applyEffect(ally, effect('stat', {
+  family: 'forest', attribute: 'all', stat: 'attack', multiplier: 1.1, duration: 10,
+}));
+// 숲 종족 원거리의 공격만 차단하는 기믹 설치
+applyEffect(bear, effect('attackImmunity', { attackType: 'ranged', family: 'forest', attribute: 'all' }));
 applyEffect(target, effect('healingSuppression', {
   factor: .5, duration: 3, scope: 'all',
 }));
@@ -96,6 +113,7 @@ applyEffect(ally, effect('stat', {
 
 ## 검증
 
+- `tests/effect-targets.test.js`: 대상 조건 AND/OR·전체의 미래 태그 포함·출처/수신자 구별·조건부 면역·회복/지원·발사 스냅샷과 실제 투사체.
 - `tests/attack-types.test.js`: 유형 고정·유형별 배율/상태·투사체/대포/범위/타격 효과 차단·밀쳐내기 주기/대상·빠른/느린 근거리의 실제 전투.
 - `tests/character-stats.test.js`: 정의 불변·야생/정령 토끼 구별·초반 웨이브 일치·적 배율 합성·아군 상세/소환 일치·양 팀 버프/디버프 갱신/만료와 실제 타격.
 - `tests/combat-effects.test.js`: 양 팀 공통 적용·약한/짧은 재적용·강화별 출처 분리·전투 지원 공통 출처·갱신/만료·회복 억제 범위·동시 회복 합산·최종 중독 틱·면역·발사 스냅샷·수치 변경과 설명·웨이브 효과 상속/끄기·지원 대상·경직/밀어내기.

@@ -1,4 +1,4 @@
-import { isAttackType, attackTypeName } from './attack-types.js';
+import { normalizeEffectTargets, attackTargetName, effectTargetText } from './effect-targets.js';
 // Shared vocabulary and numeric contracts. Character data owns tuning values.
 const number = value => Number(value).toLocaleString('ko-KR', { maximumFractionDigits: 2 });
 const percent = value => `${number(value * 100)}%`;
@@ -42,7 +42,7 @@ const catalog = {
   shieldDamage: { fields: ['bonus'], describe: e => `+${percent(e.bonus)}` },
   knockback: { trigger: 'hit', fields: ['distance'], describe: e => `거리 ${number(e.distance)}` },
   attackImmunity: { fields: [], describe: () => '' },
-  repelPulse: { keyword: 'knockback', fields: ['interval', 'range', 'distance', 'warning'], describe: e => `${number(e.interval)}초마다 · 대상 ${attackTypeName(e.attackType)} · 범위 ${number(e.range)} · 거리 ${number(e.distance)}` },
+  repelPulse: { keyword: 'knockback', fields: ['interval', 'range', 'distance', 'warning'], describe: e => `${number(e.interval)}초마다 · 대상 ${attackTargetName(e.attackType)} · 범위 ${number(e.range)} · 거리 ${number(e.distance)}` },
   hitStun: { trigger: 'hit', fields: ['duration'], describe: e => `${number(e.duration)}초` },
   stat: { trigger: 'hit', fields: ['multiplier', 'flat', 'duration'], describe: e => `${[e.flat ? `${e.flat>0?'+':''}${number(e.flat)}` : '', e.multiplier!==1 ? `${number(e.multiplier)}배` : ''].filter(Boolean).join(' · ') || '변화 없음'} · ${number(e.duration)}초` },
 };
@@ -56,7 +56,7 @@ export const EFFECTS = Object.freeze(catalog);
 export function effect(type, values = {}) {
   const definition = EFFECTS[type];
   if (!definition) throw new TypeError(`Unknown effect: ${type}`);
-  const result = { ...values, type };
+  const result = { ...values, type, ...normalizeEffectTargets(values) };
   if (result.origin != null && (typeof result.origin !== 'string' || !result.origin.trim())) throw new TypeError('Invalid effect origin');
   for (const field of definition.fields) {
     if (result[field] == null) continue;
@@ -67,7 +67,6 @@ export function effect(type, values = {}) {
   if (type==='poison' && (!(result.duration>0) || !Number.isFinite(result.ratio))) throw new TypeError('Invalid poison');
   if (['healing','regeneration','shield'].includes(type) && !((result.amount??0)>0 || (result.hpRatio??0)>0)) throw new TypeError(`Invalid ${type} amount`);
   if (type==='immunity' && !EFFECTS[result.effect]) throw new TypeError('Invalid immunity');
-  if (['attackImmunity','repelPulse'].includes(type) && !isAttackType(result.attackType)) throw new TypeError('Invalid attack type');
   if (type==='repelPulse') {
     if (!(result.interval>0) || !Number.isFinite(result.range) || !Number.isFinite(result.distance)) throw new TypeError('Invalid repelPulse');
     result.interval=Math.max(MIN_EFFECT_INTERVAL,result.interval);
@@ -78,7 +77,6 @@ export function effect(type, values = {}) {
   if (type==='healing' && !Number.isFinite(result.range)) throw new TypeError('Invalid healing range');
   if (['areaAttack','knockback','castleDamage','shieldDamage','shieldDamageAura','hitStun'].includes(type) && definition.fields.some(field=>!Number.isFinite(result[field]))) throw new TypeError(`Invalid ${type}`);
   if (type==='stat') {
-    if (result.attackType!=null && !isAttackType(result.attackType)) throw new TypeError('Invalid stat attack type');
     result.multiplier ??= 1;
     result.flat ??= 0;
     if (!STAT_NAMES[result.stat] || result.stat==='hp' || !(result.duration>0)) throw new TypeError('Invalid stat effect');
@@ -99,12 +97,12 @@ export function hasEffectKeyword(character, keyword) {
 export function effectKeyword(spec) {
   const definition = EFFECTS[spec?.type];
   if (!definition) return '';
-  if (spec.type === 'attackImmunity') return `${definition.name}(${attackTypeName(spec.attackType)})`;
+  if (spec.type === 'attackImmunity') return `${definition.name}(${attackTargetName(spec.attackType)})`;
   if (spec.type === 'immunity') return `${definition.name}(${EFFECTS[spec.effect]?.name ?? spec.effect})`;
   if (spec.type === 'stat') {
     const direction = effectKind(spec).split(':')[2];
     const change = direction === 'increase' ? '증가' : direction === 'decrease' ? '감소' : '변화';
-    return `${STAT_NAMES[spec.stat]} ${change}${spec.attackType ? `(${attackTypeName(spec.attackType)})` : ''}`;
+    return `${STAT_NAMES[spec.stat]} ${change}${spec.attackType && spec.attackType !== 'all' ? `(${attackTargetName(spec.attackType)})` : ''}`;
   }
   return definition.name;
 }
@@ -113,7 +111,7 @@ export function effectInfo(spec) {
   if (!EFFECTS[spec?.type]) return null;
   const values = effect(spec.type, structuredClone(spec));
   return { type: values.type, keyword: EFFECTS[values.type].keyword,
-    label: effectKeyword(values), details: EFFECTS[values.type].describe(values), values };
+    label: effectKeyword(values), details: [EFFECTS[values.type].describe(values), effectTargetText(values, { all: values.type === 'attackImmunity', includeAttackType: !['attackImmunity','repelPulse','stat'].includes(values.type) })].filter(Boolean).join(' · '), values };
 }
 export const effectKeywords = character => Object.values(character?.effects ?? {}).filter(Boolean).map(effectInfo).filter(Boolean);
 export function effectText(spec) {
