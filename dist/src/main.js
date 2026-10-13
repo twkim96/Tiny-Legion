@@ -6,7 +6,7 @@ import { bindRotationPrompt, enterLandscapeFullscreen } from "./fullscreen.js";
 import { enemyCombatStats } from "./character-stats.js";
 import { signInPath, signInIntent, entryPanel, accountIdentityPanel } from "./sign-in.js";
 import { testLoginPanel, bindTestLogin, adminPanel } from "./test-access-ui.js";
-import { UNITS, ENEMIES, ATTRIBUTES, NEUTRAL_ATTRIBUTE, ROLE_SPECIALIZATION, getEnemy } from "./characters.js";
+import { UNITS, ENEMIES, ATTRIBUTES, NEUTRAL_ATTRIBUTE, getEnemy } from "./characters.js";
 import { effectLines } from "./effects.js";
 import { effectMarkup } from "./effects-ui.js";
 import { attackTypeName } from "./attack-types.js";
@@ -25,7 +25,6 @@ import { drawGem, gemByUid, gemDefinition, gemUpgradeCost, gemRerollCost, gemOpt
 import { gemPage, gemPicker, gemDetail, gemCard, gemRateMarkup } from "./gem-ui.js";
 import { bindSequenceDrag, moveSequenceItem } from "./sequence-ui.js";
 import { companionPanel } from "./companion-ui.js";
-import { specializationBonus } from "./combat-rules.js";
 import { Renderer } from "./renderer.js";
 import {
   recruitPanel,
@@ -189,7 +188,6 @@ const roles = {
 const attributeById = Object.fromEntries(
   (ATTRIBUTES ?? []).map((attribute) => [attribute.id, attribute]),
 );
-const percent = (value) => `${Math.round(value * 100)}%`;
 function attributeName(id, suffix = "") {
   const attribute = attributeById[id] ?? NEUTRAL_ATTRIBUTE;
   return `<strong class="attribute-label" style="color:${attribute.ink ?? "#757b6a"}">${attribute.name}${suffix}</strong>`;
@@ -197,18 +195,8 @@ function attributeName(id, suffix = "") {
 function unitSpecialtyText(unit, rich = false) {
   const specialties = Array.isArray(unit.specialties) ? unit.specialties : [];
   if (!specialties.length) return "범용 · 모든 속성에 동일한 기본 성능";
-  const bonuses = ROLE_SPECIALIZATION?.[unit.role] ?? {};
-  const effects = [];
-  if (Number.isFinite(bonuses.attack))
-    effects.push(`공격력 +${percent(specializationBonus(unit, { attribute: specialties[0] }, "attack"))}`);
-  if (Number.isFinite(bonuses.effectiveHp))
-    effects.push(
-      `유효 체력 +${percent(specializationBonus(unit, { attribute: specialties[0] }, "effectiveHp"))} (표시 체력은 그대로)`,
-    );
-  if (Number.isFinite(bonuses.duration))
-    effects.push(`방해 지속시간 +${percent(specializationBonus(unit, { attribute: specialties[0] }, "duration"))}`);
   const attributes = specialties.map((id) => rich ? attributeName(id, "특화") : `${attributeById[id]?.name ?? "무속성"}특화`).join(" · ");
-  return `${attributes}${effects.length ? ` · ${effects.join(" · ")}` : ""} · 다른 속성 페널티 없음`;
+  return attributes;
 }
 function unitAbilityLines(unit) {
   return effectLines(unit);

@@ -4,16 +4,6 @@ import { isAttackType } from './attack-types.js';
 import { ATTRIBUTES, NEUTRAL_ATTRIBUTE, FAMILIES } from './character-tags.js';
 export { ATTRIBUTES, NEUTRAL_ATTRIBUTE, FAMILIES } from './character-tags.js';
 export const stageLabel = (id) => id === 0 ? "0" : `${Math.floor((id - 1) / 10) + 1}-${(id - 1) % 10 + 1}`;
-export const ROLE_SPECIALIZATION = {
-  warrior: { attack: 0.2, effectiveHp: 0.2 },
-  tank: { effectiveHp: 0.4 },
-  fast: { attack: 0.4 },
-  melee: { attack: 0.4 },
-  ranged: { attack: 0.4 },
-  splash: { attack: 0.4 },
-  support: { duration: 0.3 },
-};
-export const ATTRIBUTE_BONUS_CAP = 0.4;
 export const SHIELD_BONUS_CAP = 1;
 
 export const UNIT_LEVEL_GROWTH = .12;
@@ -28,6 +18,7 @@ export const UNITS = [
     name: "양 방패",
     role: "tank",
     attackType: "melee",
+    effects: { sturdy: effect("sturdy", { attribute: ["wild"] }) },
     specialties: ["wild"],
     hp: 360,
     attack: 24,
@@ -53,7 +44,7 @@ export const UNITS = [
     specialties: ["wild"],
     hp: 155,
     attack: 38,
-    effects: { castleDamage: effect("castleDamage", { bonus: 4 }) },
+    effects: { devastating: effect("devastating", { attribute: ["wild"] }), castleDamage: effect("castleDamage", { bonus: 4 }) },
     range: 48,
     speed: 115,
     cost: 270,
@@ -73,6 +64,7 @@ export const UNITS = [
     name: "씨앗 다람쥐",
     role: "ranged",
     attackType: "ranged",
+    effects: { devastating: effect("devastating", { attribute: ["wild"] }) },
     specialties: ["wild"],
     hp: 145,
     attack: 34,
@@ -107,7 +99,7 @@ export const UNITS = [
     attackWindup: 0.34,
     attackRecovery: 0.28,
     projectile: { kind: "water", speed: 480 },
-    effects: { areaAttack: effect("areaAttack", { radius: 105 }) },
+    effects: { devastating: effect("devastating", { attribute: ["machine"] }), areaAttack: effect("areaAttack", { radius: 105 }) },
     description: "가까이 모인 적에게 뜨거운 물을 퍼부어요.",
     color: "#df8669",
   },
@@ -121,7 +113,7 @@ export const UNITS = [
     role: "support",
     attackType: "ranged",
     specialties: ["spirit"],
-    effects: {
+    effects: { strong: effect("strong", { attribute: ["spirit"] }),
       slow: effect("slow", { factor: .75, duration: 2 }),
       healingSuppression: effect("healingSuppression", { factor: .5, duration: 3, scope: "regeneration" }),
       shieldDamageAura: effect("shieldDamageAura", { bonus: 1, range: 230 }),
@@ -150,6 +142,7 @@ export const UNITS = [
     name: "등불 여우",
     role: "warrior",
     attackType: "melee",
+    effects: { strong: effect("strong", { attribute: ["wild"] }) },
     specialties: ["wild"],
     hp: 265,
     attack: 39,
@@ -172,6 +165,7 @@ export const UNITS = [
     name: "가시 고슴도치",
     role: "tank",
     attackType: "melee",
+    effects: { sturdy: effect("sturdy", { attribute: ["machine"] }) },
     specialties: ["machine"],
     hp: 455,
     attack: 19,
@@ -205,7 +199,7 @@ export const UNITS = [
     attackWindup: 0.28,
     attackRecovery: 0.24,
     projectile: { kind: "seed", speed: 580 },
-    effects: { areaAttack: effect("areaAttack", { radius: 78 }) },
+    effects: { devastating: effect("devastating", { attribute: ["wild"] }), areaAttack: effect("areaAttack", { radius: 78 }) },
     description: "작은 폭탄을 통통 던져 모인 적을 함께 맞혀요.",
     color: "#e8c858",
   },
@@ -229,7 +223,7 @@ export const UNITS = [
     attackWindup: 0.3,
     attackRecovery: 0.24,
     projectile: { kind: "bolt", speed: 900 },
-    effects: { healing: effect("healing", { amount: 24, range: 190 }) },
+    effects: { strong: effect("strong", { attribute: ["spirit"] }), healing: effect("healing", { amount: 24, range: 190 }) },
     description: "반짝이는 물방울을 나누어 가까운 동료를 보살펴요.",
     color: "#78aebe",
   },
@@ -242,6 +236,7 @@ export const UNITS = [
     name: "태엽 부엉이",
     role: "ranged",
     attackType: "ranged",
+    effects: { devastating: effect("devastating", { attribute: ["machine"] }) },
     specialties: ["machine"],
     hp: 170,
     attack: 43,
@@ -276,7 +271,7 @@ export const UNITS = [
     attackWindup: 0.34,
     attackRecovery: 0.28,
     projectile: { kind: "water", speed: 460 },
-    effects: { areaAttack: effect("areaAttack", { radius: 92 }) },
+    effects: { devastating: effect("devastating", { attribute: ["spirit"] }), areaAttack: effect("areaAttack", { radius: 92 }) },
     description: "별가루 물약을 터뜨려 한곳에 모인 적을 공격해요.",
     color: "#9874a9",
   },
@@ -299,7 +294,7 @@ export const UNITS = [
     attackInterval: 1.28,
     attackWindup: 0.26,
     attackRecovery: 0.23,
-    effects: { areaAttack: effect("areaAttack", { radius: 65 }) },
+    effects: { strong: effect("strong", { attribute: ["wild"] }), areaAttack: effect("areaAttack", { radius: 65 }) },
     description: "잎사귀 방패로 버티며 나무 창을 크게 휘둘러 모인 적을 함께 공격해요.",
     color: "#ac9169",
   },
@@ -312,6 +307,7 @@ export const UNITS = [
     name: "눈꽃 펭귄",
     role: "fast",
     attackType: "melee",
+    effects: { devastating: effect("devastating", { attribute: ["spirit"] }) },
     specialties: ["spirit"],
     hp: 185,
     attack: 31,
@@ -345,7 +341,7 @@ export const UNITS = [
     attackWindup: 0.34,
     attackRecovery: 0.28,
     projectile: { kind: "bolt", speed: 720 },
-    effects: { slow: effect("slow", { factor: .9, duration: .8 }) },
+    effects: { devastating: effect("devastating", { attribute: ["spirit", "shadow"] }), slow: effect("slow", { factor: .9, duration: .8 }) },
     description: "별빛 물결을 보내 먼 적의 걸음을 잠시 늦춰요.",
     color: "#7194b5",
   },
@@ -368,7 +364,7 @@ export const UNITS = [
     attackInterval: 1.62,
     attackWindup: 0.36,
     attackRecovery: 0.3,
-    effects: { shieldDamageAura: effect("shieldDamageAura", { bonus: .25, range: 140 }) },
+    effects: { sturdy: effect("sturdy", { attribute: ["machine", "wild"] }), shieldDamageAura: effect("shieldDamageAura", { bonus: .25, range: 140 }) },
     description: "태엽 등껍질의 힘으로 가까운 동료의 방어막 공격을 도와요.",
     color: "#7e9b78",
   },
@@ -580,7 +576,6 @@ function freezeDefinition(value) {
 }
 freezeDefinition(ATTRIBUTES);
 freezeDefinition(NEUTRAL_ATTRIBUTE);
-freezeDefinition(ROLE_SPECIALIZATION);
 for (const definition of [...UNITS, ...ENEMIES]) {
   if (!isAttackType(definition.attackType)) throw new TypeError(`Missing attack type: ${definition.id}`);
   if (!Object.hasOwn(FAMILIES, definition.family)) throw new TypeError(`Missing family: ${definition.id}`);

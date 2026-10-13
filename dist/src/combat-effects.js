@@ -1,6 +1,6 @@
 import { matchesEffectTarget } from './effect-targets.js';
-import { EFFECTS, effect, effectOf, effectKey, BATTLE_ORIGIN, STAT_MINIMUMS, MIN_EFFECT_INTERVAL } from './effects.js';
-import { specializationBonus, blocksAttack } from './combat-rules.js';
+import { EFFECTS, COMBAT_TRAITS, effect, effectOf, effectKey, BATTLE_ORIGIN, STAT_MINIMUMS, MIN_EFFECT_INTERVAL } from './effects.js';
+import { blocksAttack } from './combat-rules.js';
 
 const finite = (value, fallback = 0) => Number.isFinite(Number(value)) ? Number(value) : fallback;
 const nonnegative = value => Math.max(0, finite(value));
@@ -32,7 +32,7 @@ export function initializeEffects(unit, definition) {
 export function applyEffect(unit, spec, context = {}) {
   if(!unit || unit.dead || !spec)return false;
   try { spec=effect(spec.type,spec); } catch { return false; }
-  const installed=['immunity','attackImmunity','repelPulse','areaAttack','shieldDamageAura','castleDamage','shieldDamage'];
+  const installed=[...Object.keys(COMBAT_TRAITS),'immunity','attackImmunity','repelPulse','areaAttack','shieldDamageAura','castleDamage','shieldDamage'];
   if(!installed.includes(spec.type) && !matchesEffectTarget(spec,unit))return false;
   if(isImmune(unit,spec.type,context.source??unit))return false;
   const origin = context.origin ?? spec.origin ?? context.source?.origin ?? BATTLE_ORIGIN;
@@ -71,7 +71,7 @@ export function applyEffect(unit, spec, context = {}) {
     unit.statusEffects[key]={...spec,origin,remaining:spec.duration*durationMultiplier};
     syncHitStun(unit);
     unit.moving=false;
-  } else if (['regeneration','immunity','shieldDamageAura','areaAttack','castleDamage','shieldDamage','attackImmunity','repelPulse'].includes(spec.type)) {
+  } else if (installed.includes(spec.type) || spec.type === 'regeneration') {
     unit.effects ??= {};
     unit.effects[spec.type] = structuredClone(spec);
     if (spec.type === 'regeneration') {
@@ -143,10 +143,9 @@ export function tickPeriodicEffects(unit,dt,{heal,damage}) {
 }
 export function applyHitEffects(target,source,{hpDamage,damage,direction}) {
   if(blocksAttack(target,source))return;
-  const durationMultiplier=1+specializationBonus(source,target,'duration');
   for (const spec of Object.values(source?.effects ?? {})) {
     const contract = EFFECTS[spec?.type];
-    if (contract?.trigger === 'hit' && (!contract.requiresHpDamage || hpDamage > 0)) applyEffect(target,spec,{source,damage,direction,durationMultiplier});
+    if (contract?.trigger === 'hit' && (!contract.requiresHpDamage || hpDamage > 0)) applyEffect(target,spec,{source,damage,direction});
   }
 }
 // Team-independent periodic control: each recipient must match all target axes.
@@ -183,8 +182,7 @@ export function attackSource(unit,units) {
   return {
     origin:unit.origin??BATTLE_ORIGIN, team:unit.team, attackType:unit.attackType,
     family:unit.family, role:unit.role, attribute:unit.attribute,
-    specialties:[...(unit.specialties??[])], attributeBonuses:structuredClone(unit.attributeBonuses),
-    specialtyUpgradeBonus:structuredClone(unit.specialtyUpgradeBonus), gemAttributeBonuses:structuredClone(unit.gemAttributeBonuses),
+    specialties:[...(unit.specialties??[])], gemAttributeBonuses:structuredClone(unit.gemAttributeBonuses),
     // Native bonuses select the victim; the aura has already selected its recipient.
     shieldDamageSupportBonus:supportBonus,
     effects:{...structuredClone(unit.effects??{}),shieldDamage:effect('shieldDamage',{

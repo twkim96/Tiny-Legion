@@ -5,7 +5,6 @@ import assert from "node:assert/strict";
 import { createBattle, summonUnit, stepBattle } from "../dist/src/engine.js";
 import {
   resolveDamage,
-  specializationBonus,
 } from "../dist/src/combat-rules.js";
 import { STAGES, ENEMIES } from "../dist/src/data.js";
 
@@ -40,7 +39,7 @@ function attackOnce(state, attacker) {
   assert.fail("attack was not released");
 }
 
-test("forest specialization raises damage only against wild and has no penalty elsewhere", () => {
+test("native devastating traits raise damage only against their scoped attribute", () => {
   const outcomes = [];
   for (const attribute of ["wild", "machine"]) {
     const { state, ally, enemy } = duel("rabbit", "beetle", { attribute });
@@ -53,11 +52,11 @@ test("forest specialization raises damage only against wild and has no penalty e
     const { state, ally, enemy } = duel("squirrel", "beetle", { attribute });
     const before = enemy.hp;
     attackOnce(state, ally);
-    near(before - enemy.hp, ally.attack * (attribute === "wild" ? 1.4 : 1));
+    near(before - enemy.hp, ally.attack * (attribute === "wild" ? 1.3 : 1));
   }
 });
 
-test("tank effective HP reduces matching incoming hits without raising global HP", () => {
+test("sturdy reduces matching incoming damage by 30 percent without raising global HP", () => {
   const outcomes = [];
   for (const attribute of ["wild", "machine"]) {
     const { state, ally, enemy } = duel("sheep", "beetle", { attribute });
@@ -68,7 +67,9 @@ test("tank effective HP reduces matching incoming hits without raising global HP
     outcomes.push(before - ally.hp);
     assert.equal(ally.hp + outcomes.at(-1), ally.maxHp);
   }
-  near(outcomes[1] / outcomes[0], 1.4);
+  const incomingAttack = ENEMIES.find((definition) => definition.id === "beetle").attack;
+  near(outcomes[0], incomingAttack * 0.7);
+  near(outcomes[1], incomingAttack);
 });
 
 test("splash specialization evaluates each victim, while castle damage stays neutral", () => {
@@ -79,7 +80,7 @@ test("splash specialization evaluates each victim, while castle damage stays neu
   state.units.push(other);
   const before = enemy.hp;
   attackOnce(state, ally);
-  near(before - enemy.hp, ally.attack * 1.4);
+  near(before - enemy.hp, ally.attack * 1.3);
   near(before - other.hp, ally.attack);
 });
 
@@ -129,7 +130,7 @@ test("cloud shield aura helps nearby allies, does not stack, and ends outside it
   near(losses[3], losses[0]);
 });
 
-test("support specialty extends control, including projectiles whose caster has died", () => {
+test("support traits do not extend control duration; projectiles still resolve after caster death", () => {
   const remaining = [];
   for (const attribute of ["wild", "spirit"]) {
     const { state, ally, enemy } = duel("cloud", "mushroom", { attribute });
@@ -150,7 +151,7 @@ test("support specialty extends control, including projectiles whose caster has 
     stepBattle(state, tick);
     assert.ok(x - enemy.x < 30 * tick);
   }
-  near(remaining[1] / remaining[0], 1.3);
+  near(remaining[1], remaining[0]);
 });
 
 test("regeneration is capped at max HP, suppression lowers recovery and expires", () => {
@@ -175,21 +176,6 @@ test("regeneration is capped at max HP, suppression lowers recovery and expires"
   enemy.periodicTimers.regeneration = tick;
   stepBattle(state, tick);
   assert.equal(enemy.hp, enemy.maxHp);
-});
-
-test("same-kind attribute bonuses add with a cap; unrelated attributes stay neutral", () => {
-  const warrior = {
-    team: "player",
-    role: "warrior",
-    specialties: ["wild"],
-    attributeBonuses: { wild: { attack: 0.1, effectiveHp: 20 } },
-  };
-  near(specializationBonus(warrior, { attribute: "wild" }, "attack"), 0.3);
-  near(specializationBonus(warrior, { attribute: "wild" }, "effectiveHp"), 0.4);
-  assert.equal(
-    specializationBonus(warrior, { attribute: "machine" }, "attack"),
-    0,
-  );
 });
 
 test("idle survival can succeed with a live shield threat and stages contain all four attributes", () => {

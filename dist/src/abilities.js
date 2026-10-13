@@ -1,5 +1,5 @@
-import { applyChanges, changesText } from './effects.js';
-import { getUnit, ROLE_SPECIALIZATION, SIGNATURE_ABILITIES as signature, EXTRA_ATTRIBUTES as extraAttributes, COMMON_ABILITIES as basic, OPTIONAL_ABILITIES as optional, MOVEMENT_ROLES, RANGE_UNIT_IDS } from "./characters.js";
+import { applyChanges, changesText, traitFields } from './effects.js';
+import { getUnit, SIGNATURE_ABILITIES as signature, EXTRA_ATTRIBUTES as extraAttributes, COMMON_ABILITIES as basic, OPTIONAL_ABILITIES as optional, MOVEMENT_ROLES, RANGE_UNIT_IDS } from "./characters.js";
 export { UNIT_LEVEL_GROWTH } from "./characters.js";
 
 export const MARK_TYPES = [
@@ -19,7 +19,9 @@ export function unitAbilities(unitOrId) {
     ...(MOVEMENT_ROLES.includes(unit.role) ? [optional.move] : []),
     ...(RANGE_UNIT_IDS.includes(unit.id) && unit.rarity === "legendary" && unit.role === "ranged" && unit.cost >= 900 && unit.cooldown >= 6 ? [optional.range] : []),
   ];
-  const core = basic.map(ability => ability.id === "counter" ? { ...ability, changes: ability.changes.map(change => ({ ...change, kinds: Object.keys(ROLE_SPECIALIZATION[unit.role] ?? {}) })) } : ability);
+  const core = basic.map(ability => ability.id === 'counter' ? {
+    ...ability, changes: ability.changes.map(change => ({ ...change, fields: traitFields(unit) })),
+  } : ability);
   return [...core, ...options, ...(signature[unit.id] ? [{ id: "signature", max: 1, ...signature[unit.id] }] : []),
     ...(extraAttributes[unit.id] ? [{ id: "extra", name: "새로운 특화", max: 1, changes: [{ op: "specialty", attribute: extraAttributes[unit.id] }], attribute: extraAttributes[unit.id], unlock: 10 }] : [])];
 }

@@ -453,7 +453,7 @@ test("deer melee hits clustered enemies once, with each target's attribute appli
   assert.equal(nearby.hp, 1000);
   releaseAttack(state, ally);
   assert.equal(enemy.hp, 1000 - ally.attack);
-  assert.ok(Math.abs(nearby.hp - (1000 - ally.attack * 1.2)) < 1e-8);
+  assert.ok(Math.abs(nearby.hp - (1000 - ally.attack * 1.1)) < 1e-8);
   assert.equal(distant.hp, 1000);
   assert.equal(friendly.hp, friendlyHp);
   assert.equal(state.projectiles.length, 0);

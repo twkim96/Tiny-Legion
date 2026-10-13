@@ -104,11 +104,7 @@ function makeUnit(state, definition, team, x, level = 1) {
     family: definition.family,
     attribute: definition.attribute,
     specialties: [...(definition.specialties ?? [])],
-    specialtyUpgradeBonus: definition.specialtyUpgradeBonus,
     gemAttributeBonuses: team === "player" ? structuredClone(state._modifiers.attributeBonuses) : undefined,
-    attributeBonuses: definition.attributeBonuses
-      ? structuredClone(definition.attributeBonuses)
-      : undefined,
     x: clamp(x, WORLD_MIN, WORLD_MAX),
     hp: maxHp,
     maxHp,

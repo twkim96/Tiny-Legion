@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import { activeEffects } from '../dist/src/combat-effects.js';
 import { UNITS } from '../dist/src/data.js';
 import { newAccount, normalizeAccount, upgradeUnitAbility, recruitUnits, refundUnitLevels, companionStats, recordIdle, levelCost } from '../dist/src/account.js';
-import { applyUnitAbilities, unitAbilities, abilityCost, markTypeFor, DUPLICATE_MARKS } from '../dist/src/abilities.js';
+import { applyUnitAbilities, unitAbilities, abilityCost, abilityText, markTypeFor, DUPLICATE_MARKS } from '../dist/src/abilities.js';
 import { createBattle, summonUnit, stepBattle } from '../dist/src/engine.js';
-import { specializationBonus } from '../dist/src/combat-rules.js';
+import { traitBonus } from '../dist/src/combat-rules.js';
 import { duplicateRewardText } from '../dist/src/recruitment-ui.js';
 
 function account() {
@@ -119,15 +119,18 @@ test('unit abilities stay in battle and production snapshots and survive an indi
   assert.deepEqual(a.marks,marks);assert.deepEqual(a.abilities,abilities);
   assert.deepEqual(a.records,{});
 });
-test('extra attributes and specialty upgrades affect real hits and remain separate from the basic bonus cap',()=>{
+test('extra attributes expand native traits and counter upgrades strengthen their fields',()=>{
   const normal=duel('squirrel',{},'beetle','machine');
   const upgraded=duel('squirrel',{squirrel:{extra:1,counter:10}},'beetle','machine');
   for(const pair of [normal,upgraded]){
     while(!pair.state.finished&&pair.enemy.hp===10000)stepBattle(pair.state,1/30);
   }
   assert.ok(upgraded.enemy.hp<normal.enemy.hp);
-  assert.equal(specializationBonus(normal.player,{attribute:'machine'},'attack'),0);
-  assert.equal(specializationBonus(upgraded.player,{attribute:'machine'},'attack'),.5);
+  assert.equal(traitBonus(normal.player,{attribute:'machine'},'bonus'),0);
+  assert.equal(traitBonus(upgraded.player,{attribute:'machine'},'bonus'),.4);
+  assert.equal(traitBonus(upgraded.player,{attribute:'wild'},'bonus'),.4);
+  const counter=unitAbilities('squirrel').find(ability=>ability.id==='counter');
+  assert.match(abilityText(counter,10),/10%p/);
   const disallowed=duel('sheep',{sheep:{range:5,move:5}}).player;
   assert.equal(disallowed.range,unit('sheep').range);
   assert.equal(disallowed.definition.speed,unit('sheep').speed);
@@ -153,6 +156,7 @@ test('poison causes timed non-stacking damage and the purchased immunity blocks 
   for(const signature of [0,1]){
     const {state,player,enemy}=duel('sheep',{sheep:{signature}},'porcupine');
     player.attackTimer=100;enemy.attackTimer=0;
+    const expectedPoisonDamage=enemy.attack*.04*3*.7;
     const before=player.hp;
     while(player.hp===before&&state.time<5)stepBattle(state,1/30);
     const afterHit=player.hp;
@@ -161,9 +165,9 @@ test('poison causes timed non-stacking damage and the purchased immunity blocks 
     enemy.attackTimer=100;enemy.action=null;
     runFor(state,3.2);
     outcomes.push(afterHit-player.hp);
+    if(signature===0)assert.ok(Math.abs(outcomes.at(-1)-expectedPoisonDamage)<1e-6);
     assert.equal(activeEffects(player,'poison').length,0);
   }
-  assert.ok(Math.abs(outcomes[0]-3.6)<1e-6);
   assert.equal(outcomes[1],0);
 });
 test('released witch poison survives caster death and deals its three timed ticks after one impact',()=>{
