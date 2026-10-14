@@ -70,7 +70,7 @@ namespace TinyLegion.Unity
                     var id=CText(unit["id"]);var level=rules.EffectiveLevel(game.Account,id);var stats=rules.CompanionStats(game.Account,id,game.Mode);var card=CollectionCard(p);
                     CollectionHeading(card,unit,$"{RarityName(unit)} · Lv. {level} · 체력 {N(stats["hp"])} / 공격력 {N(stats["attack"])}");
                     var row=ui.Row(card);ui.Button(row,"상세 · 특수능력",()=>ShowUnitDetail(id));var cost=rules.GrowthCost(game.Account,id);
-                    ui.Button(row,level>=100?"레벨 완료":$"레벨 올리기 · 도토리 {N(new JValue(cost))}",()=>Run(async()=>{await CollectionCommand("unit.grow",new JObject{["id"]=id});}),CanCollect&&level<100&&CValue(game.Account["gold"])>=cost);
+                    ui.Button(row,level>=100?"레벨 완료":$"레벨 올리기 · 도토리 {N(new JValue(cost))}",()=>Run(async()=>{await CollectionCommand("unit.grow",new JObject{["id"]=id});}),()=>CanCollect&&level<100&&CValue(game.Account["gold"])>=cost);
                 }
                 ui.Paragraph(p,$"도토리 {N(game.Account["gold"])} · 강화는 다음 전투부터 적용됩니다.");
             });
@@ -91,19 +91,19 @@ namespace TinyLegion.Unity
             foreach(var gem in CollectionBasics()){ui.Paragraph(p,$"{GemName(gem)} Lv. {N(gem["level"])} · {rules.GemDescription(gem)} · 보유 기본 효과");any=true;}
             foreach(var gem in CollectionEquipped())foreach(JObject option in gem["options"] as JArray??new JArray()){ui.Paragraph(p,GemName(gem)+" · 추가옵션 "+Descriptions.GemOption(option));any=true;}
             if(!any)ui.Paragraph(p,"아직 강화한 특수능력이 없어요.");
-            double price=rules.GrowthCost(game.Account,id);ui.Button(p,level>=100?"레벨 완료":$"레벨 올리기 · 도토리 {N(new JValue(price))}",()=>Run(async()=>await CollectionCommand("unit.grow",new JObject{["id"]=id})),CanCollect&&rules.GrowthUnlocked(game.Account)&&level<100&&CValue(game.Account["gold"])>=price);
+            double price=rules.GrowthCost(game.Account,id);ui.Button(p,level>=100?"레벨 완료":$"레벨 올리기 · 도토리 {N(new JValue(price))}",()=>Run(async()=>await CollectionCommand("unit.grow",new JObject{["id"]=id})),()=>CanCollect&&rules.GrowthUnlocked(game.Account)&&level<100&&CValue(game.Account["gold"])>=price);
             var mark=MarkFor(unit);ui.Paragraph(p,$"특수능력 · {MarkName(mark)} {N(game.Account["marks"]?[mark])}",20);
             var statService=new CharacterStatService(game.Catalog);
             foreach(JObject ability in game.Catalog.UnitAbilities(id))
             {
                 var abilityId=CText(ability["id"]);int rank=(int?)game.Account["abilities"]?[id]?[abilityId]??0;var cost=statService.AbilityCost(ability,rank);bool locked=CValue(game.Account["highestCleared"])<CValue(ability["unlock"]);var card=CollectionCard(p);
                 ui.Paragraph(card,$"{CText(ability["name"])} · {rank}/{N(ability["max"])}",17);ui.Paragraph(card,Descriptions.Ability(ability));
-                ui.Button(card,locked?$"{StageLabel((int)ability["unlock"])}에서 열림":cost==null?"완료":$"{MarkName(mark)} {N(cost["marks"])} · 도토리 {N(cost["gold"])}",()=>Run(async()=>await CollectionCommand("unit.ability",new JObject{["id"]=id,["abilityId"]=abilityId})),CanCollect&&rules.GrowthUnlocked(game.Account)&&!locked&&cost!=null&&CValue(game.Account["gold"])>=CValue(cost["gold"])&&CValue(game.Account["marks"]?[mark])>=CValue(cost["marks"]));
+                ui.Button(card,locked?$"{StageLabel((int)ability["unlock"])}에서 열림":cost==null?"완료":$"{MarkName(mark)} {N(cost["marks"])} · 도토리 {N(cost["gold"])}",()=>Run(async()=>await CollectionCommand("unit.ability",new JObject{["id"]=id,["abilityId"]=abilityId})),()=>CanCollect&&rules.GrowthUnlocked(game.Account)&&!locked&&cost!=null&&CValue(game.Account["gold"])>=CValue(cost["gold"])&&CValue(game.Account["marks"]?[mark])>=CValue(cost["marks"]));
             }
             ui.Paragraph(p,"강화는 다음 전투부터 적용됩니다.");var quote=rules.RefundQuote(game.Account,id);
             ui.Button(p,"개인 레벨 초기화",()=>Confirm("레벨 초기화",$"{CText(unit["name"])}의 개인 레벨을 1로 되돌리고 도토리 {N(quote["refund"])}개를 돌려받습니다.\n공유 레벨은 남은 기준 동료에 따라 다시 계산됩니다. 방치 기록은 모두 다시 측정해야 합니다. 특수능력과 보석은 보존됩니다.",async()=>{
                 var envelope=await CollectionCommand("unit.refund",new JObject{["id"]=id});await game.LeaveBattle();if(game.Mode=="idle")await game.StartBattle("idle",(int?)game.Account["idleStage"]??1);Toast("도토리 +"+N(envelope["result"]));
-            }),CanCollect&&(bool?)quote["enabled"]==true);
+            }),()=>CanCollect&&(bool?)quote["enabled"]==true);
         }
         void CollectionSpecialties(Transform parent,JObject unit)
         {var list=unit["specialties"] as JArray;ui.Paragraph(parent,list!=null&&list.Count>0?string.Join(" · ",list.Select(x=>Descriptions.Attribute((string)x)+"특화")):"범용 · 모든 속성에 동일한 기본 성능");}
@@ -154,9 +154,9 @@ namespace TinyLegion.Unity
                 ui.Paragraph(p,string.Join(" · ",CollectionRates(definition).Select(r=>CText(r["name"])+" "+EffectDescriptions.Number(CValue(r["rate"])*100)+"%")));
                 ui.Paragraph(p,$"희귀 이상 {Math.Max(0,10-CValue(game.Account["recruitment"]?["sinceRare"])):0}회 이내 · 영웅 이상 {Math.Max(0,50-CValue(game.Account["recruitment"]?["sinceEpic"])):0}회 이내\n누적 {N(game.Account["recruitment"]?["total"])}회 · 다이아 {EffectDescriptions.Number(CValue(game.Account["diamonds"]))}");
             }
-            var actions=ui.Row(p);ui.Button(actions,tutorial?"1회 무료":"1회 · 다이아 30",()=>Run(()=>DrawCollectionCompanions(1,tutorial,banner,tutorial)),CanCollect&&(tutorial||CValue(game.Account["diamonds"])>=30));
-            ui.Button(actions,"10회 · 다이아 270",()=>Run(()=>DrawCollectionCompanions(10,false,banner,false)),CanCollect&&!tutorial&&CValue(game.Account["diamonds"])>=270);
-            if(!tutorial&&(bool?)game.Account["recruitment"]?["welcomeClaimed"]!=true)ui.Button(p,"첫 만남 · 무료 10회",()=>Run(()=>DrawCollectionCompanions(10,true,banner,false)),CanCollect);
+            var actions=ui.Row(p);ui.Button(actions,tutorial?"1회 무료":"1회 · 다이아 30",()=>Run(()=>DrawCollectionCompanions(1,tutorial,banner,tutorial)),()=>CanCollect&&(tutorial||CValue(game.Account["diamonds"])>=30));
+            ui.Button(actions,"10회 · 다이아 270",()=>Run(()=>DrawCollectionCompanions(10,false,banner,false)),()=>CanCollect&&!tutorial&&CValue(game.Account["diamonds"])>=270);
+            if(!tutorial&&(bool?)game.Account["recruitment"]?["welcomeClaimed"]!=true)ui.Button(p,"첫 만남 · 무료 10회",()=>Run(()=>DrawCollectionCompanions(10,true,banner,false)),()=>CanCollect);
             if(!tutorial)ui.Button(p,"확률 · 보장 · 중복 보상",()=>ShowCollectionRates(banner));
         }
         IEnumerable<JObject> CollectionRates(JObject banner)
@@ -238,7 +238,7 @@ namespace TinyLegion.Unity
                 if(!rules.AdvancedContentUnlocked(game.Account)){ui.Paragraph(p,"2-1을 완료하면 열립니다.");return;}
                 var equipped=CollectionEquipped().ToArray();int limit=(int?)game.Catalog.Raw["constants"]?["gemOptionLimit"]??3;
                 ui.Paragraph(p,$"추가옵션 장착 {equipped.Length}/{limit}",20);
-                for(int i=0;i<limit;i++){if(i<equipped.Length){var gem=equipped[i];CollectionGemCard(p,gem,()=>ShowCollectionGemDetail(CText(gem["uid"])),"상세 · 교체");}else ui.Button(p,"+ 추가옵션 장착",()=>ShowCollectionGemPicker(),CanCollect);}
+                for(int i=0;i<limit;i++){if(i<equipped.Length){var gem=equipped[i];CollectionGemCard(p,gem,()=>ShowCollectionGemDetail(CText(gem["uid"])),"상세 · 교체");}else ui.Button(p,"+ 추가옵션 장착",()=>ShowCollectionGemPicker(),()=>CanCollect);}
                 ui.Paragraph(p,"보유한 보석의 기본 효과는 항상 적용됩니다. 추가옵션은 장착한 3개만 적용됩니다. 같은 종류는 하나만 장착하며, 모든 전투 모드의 다음 전투부터 반영됩니다.");
                 ui.Paragraph(p,"보유 보석의 기본 효과",20);var basics=CollectionBasics().ToArray();
                 foreach(var type in CollectionItems("gemTypes"))
@@ -247,8 +247,8 @@ namespace TinyLegion.Unity
                     var card=CollectionCard(p);ui.Paragraph(card,"◆ "+CText(type["name"]),18);ui.Paragraph(card,basic==null?"미보유 · 효과 없음":rules.GemDescription(basic)+" · 항상 적용");if(basic!=null)ui.Button(card,$"최고 Lv. {N(basic["level"])} · 기본 효과",()=>ShowCollectionGemDetail(CText(basic["uid"])));
                 }
                 var banner=CollectionItems("gemBanners").First();ui.Paragraph(p,CText(banner["name"]),20);ui.Paragraph(p,CText(banner["description"]));
-                if((bool?)game.Account["gemWelcomeClaimed"]!=true)ui.Button(p,"1회 무료",()=>Run(()=>DrawCollectionGem("diamonds",true)),CanCollect);
-                var actions=ui.Row(p);ui.Button(actions,"조각 5 · 모집",()=>Run(()=>DrawCollectionGem("tickets")),CanCollect&&CValue(game.Account["tickets"])>=5);ui.Button(actions,"다이아 30 · 모집",()=>Run(()=>DrawCollectionGem("diamonds")),CanCollect&&CValue(game.Account["diamonds"])>=30);ui.Button(actions,"확률 · 옵션",ShowCollectionGemRates);
+                if((bool?)game.Account["gemWelcomeClaimed"]!=true)ui.Button(p,"1회 무료",()=>Run(()=>DrawCollectionGem("diamonds",true)),()=>CanCollect);
+                var actions=ui.Row(p);ui.Button(actions,"조각 5 · 모집",()=>Run(()=>DrawCollectionGem("tickets")),()=>CanCollect&&CValue(game.Account["tickets"])>=5);ui.Button(actions,"다이아 30 · 모집",()=>Run(()=>DrawCollectionGem("diamonds")),()=>CanCollect&&CValue(game.Account["diamonds"])>=30);ui.Button(actions,"확률 · 옵션",ShowCollectionGemRates);
                 ui.Paragraph(p,$"보유 보석 {CollectionGems().Count()}",20);foreach(var item in CollectionGems()){var uid=CText(item["uid"]);CollectionGemCard(p,item,()=>ShowCollectionGemDetail(uid));}
                 if(!CollectionGems().Any())ui.Paragraph(p,"보석을 모집해 기본 효과와 추가옵션을 모아 보세요.");
                 var reserves=game.Account["gemReserves"] as JObject;if(reserves!=null&&reserves.Properties().Any(x=>CValue(x.Value)>0))ui.Paragraph(p,"이전 보석 재료 · "+string.Join(" · ",reserves.Properties().Where(x=>CValue(x.Value)>0).Select(x=>GemName(new JObject{["type"]=x.Name})+" "+N(x.Value))));
@@ -275,9 +275,9 @@ namespace TinyLegion.Unity
                 var basic=CollectionBasics().First(x=>CText(x["type"])==CText(gem["type"]));var tier=CollectionTier(gem);ui.Paragraph(p,$"◆ {GemName(gem)} · Lv. {N(gem["level"])}/10 · {CText(tier["name"])}",22);ui.Paragraph(p,$"보유 기본 효과 · 최고 Lv. {N(basic["level"])} · {rules.GemDescription(basic)}");
                 ui.Paragraph(p,$"추가옵션 · {N(tier["lines"])}줄",19);ui.Paragraph(p,CollectionGemOptions(gem) is string text&&text.Length>0?text:"추가옵션 없음");
                 ui.Paragraph(p,$"{CText(tier["name"])} · 재설정 도토리 {N(tier["cost"])} · 승급 {EffectDescriptions.Number(CValue(tier["promotionChance"])*100)}%");
-                if(CollectionEquipped(gem))ui.Button(p,"추가옵션 해제",()=>Run(async()=>{await CollectionCommand("gem.unequip",new JObject{["type"]=gem["type"].DeepClone()});Toast("해제했습니다. 다음 전투부터 적용됩니다.");}),CanCollect);
-                else {var equipped=CollectionEquipped().ToArray();bool same=equipped.Any(x=>CText(x["type"])==CText(gem["type"]));ui.Button(p,same?"같은 종류 교체":equipped.Length>=3?"다른 칸과 교체":"추가옵션 장착",()=>ChooseCollectionGemEquip(uid,true),CanCollect);}
-                var cost=rules.GemUpgradeCost(gem);var actions=ui.Row(p);ui.Button(actions,$"재설정 · 도토리 {N(tier["cost"])}",()=>ShowCollectionGemReroll(uid),CanCollect&&CValue(game.Account["gold"])>=CValue(tier["cost"]));ui.Button(actions,cost==null?"강화 완료":$"강화 · 같은 보석 {N(cost["copies"])}개 + 도토리 {N(cost["gold"])}",()=>ShowCollectionGemUpgrade(uid),CanCollect&&cost!=null);
+                if(CollectionEquipped(gem))ui.Button(p,"추가옵션 해제",()=>Run(async()=>{await CollectionCommand("gem.unequip",new JObject{["type"]=gem["type"].DeepClone()});Toast("해제했습니다. 다음 전투부터 적용됩니다.");}),()=>CanCollect);
+                else {var equipped=CollectionEquipped().ToArray();bool same=equipped.Any(x=>CText(x["type"])==CText(gem["type"]));ui.Button(p,same?"같은 종류 교체":equipped.Length>=3?"다른 칸과 교체":"추가옵션 장착",()=>ChooseCollectionGemEquip(uid,true),()=>CanCollect);}
+                var cost=rules.GemUpgradeCost(gem);var actions=ui.Row(p);ui.Button(actions,$"재설정 · 도토리 {N(tier["cost"])}",()=>ShowCollectionGemReroll(uid),()=>CanCollect&&CValue(game.Account["gold"])>=CValue(tier["cost"]));ui.Button(actions,cost==null?"강화 완료":$"강화 · 같은 보석 {N(cost["copies"])}개 + 도토리 {N(cost["gold"])}",()=>ShowCollectionGemUpgrade(uid),()=>CanCollect&&cost!=null);
                 ui.Paragraph(p,"재설정은 기존 옵션을 새 결과로 바꾸며 같은 등급을 유지하거나 한 단계 승급합니다. 승급하면 옵션 줄 수도 늘어날 수 있습니다. 보석 레벨 강화는 옵션 등급·수치를 유지합니다.");ui.Button(p,"옵션 등급 · 수치 범위",ShowCollectionGemRates);
             },replace);
         }
@@ -309,7 +309,7 @@ namespace TinyLegion.Unity
                 ui.Paragraph(p,$"선택 {selected.Count}/{copies} · 이전 보석 재료 {reserves:0}개 · 부족한 {gap}개는 이전 재료로 사용합니다.");
                 foreach(var gem in candidates){var id=CText(gem["uid"]);CollectionGemCard(p,gem,()=>{if(collectionPending)return;if(!selected.Remove(id)&&selected.Count<copies)selected.Add(id);modal.Refresh();},selected.Contains(id)?"✓ 선택됨 · 제외":"재료 선택");}
                 if(candidates.Length==0)ui.Paragraph(p,"사용 가능한 같은 종류의 Lv. 1 보석이 없습니다.");
-                var row=ui.Row(p);ui.Button(row,"취소",modal.Back);ui.Button(row,"선택한 재료로 강화",()=>Run(async()=>{await CollectionCommand("gem.upgrade",new JObject{["uid"]=uid,["materialUids"]=new JArray(selected.OrderBy(x=>x,StringComparer.Ordinal))});modal.Back();Toast("강화했습니다. 옵션 등급과 수치는 보존됩니다.");}),CanCollect&&gap<=reserves&&CValue(game.Account["gold"])>=CValue(cost["gold"]));
+                var row=ui.Row(p);ui.Button(row,"취소",modal.Back);ui.Button(row,"선택한 재료로 강화",()=>Run(async()=>{await CollectionCommand("gem.upgrade",new JObject{["uid"]=uid,["materialUids"]=new JArray(selected.OrderBy(x=>x,StringComparer.Ordinal))});modal.Back();Toast("강화했습니다. 옵션 등급과 수치는 보존됩니다.");}),()=>CanCollect&&gap<=reserves&&CValue(game.Account["gold"])>=CValue(cost["gold"]));
             });
         }
         void ShowCollectionGemReroll(string uid)
@@ -317,8 +317,8 @@ namespace TinyLegion.Unity
             modal.Show("추가옵션 재설정",p=>{
                 var item=CollectionGem(uid);if(item==null)return;var tier=CollectionTier(item);double cost=rules.GemRerollCost(item)??0;
                 ui.Paragraph(p,$"{GemName(item)} {CText(tier["name"])} · {N(tier["lines"])}줄의 옵션을 새로 뽑습니다.\n도토리 {N(new JValue(cost))}개를 사용하며, 다음 등급 승급 확률은 {EffectDescriptions.Number(CValue(tier["promotionChance"])*100)}%입니다.\n기존 옵션은 새 결과로 바뀌고, 적용은 다음 전투부터입니다.");
-                ui.Paragraph(p,"현재 옵션\n"+CollectionGemOptions(item));var row=ui.Row(p);ui.Button(row,"취소",modal.Back);ui.Button(row,"재설정",()=>Run(async()=>{var before=CText(tier["id"]);var envelope=await CollectionCommand("gem.reroll",new JObject{["uid"]=uid});var result=envelope["result"] as JObject??CollectionGem(uid);modal.Back();Toast(CText(result?["optionTier"])!=before?"보석 옵션이 승급했습니다!":"추가옵션을 재설정했습니다.");}),CanCollect&&cost>0&&CValue(game.Account["gold"])>=cost);
-            });
+                ui.Paragraph(p,"현재 옵션\n"+CollectionGemOptions(item));var row=ui.Row(p);ui.Button(row,"취소",modal.Back);ui.Button(row,"재설정",()=>Run(async()=>{var before=CText(tier["id"]);var envelope=await CollectionCommand("gem.reroll",new JObject{["uid"]=uid});var result=envelope["result"] as JObject??CollectionGem(uid);modal.Back();Toast(CText(result?["optionTier"])!=before?"보석 옵션이 승급했습니다!":"추가옵션을 재설정했습니다.");}),()=>CanCollect&&cost>0&&CValue(game.Account["gold"])>=cost);
+            },presentation:"message");
         }
     }
 }

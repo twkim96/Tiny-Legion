@@ -13,14 +13,14 @@ namespace TinyLegion.Unity
         {
             modal.Show("군단 메뉴",p=>{
                 if(game.Account==null){ui.Button(p,"로그인",ShowLogin);return;}
-                if(Intro){ui.Button(p,"설정",ShowSettings);return;}
-                var row=ui.Row(p);ui.Button(row,"동료",ShowGrowth);ui.Button(row,"모집",()=>ShowRecruit());ui.Button(row,"도감",()=>ShowCodex());
-                var next=ui.Row(p);ui.Button(next,"전장",ShowStages);ui.Button(next,"순서",ShowSequence);ui.Button(next,"미션",ShowMission);
-                var economy=ui.Row(p);ui.Button(economy,"생산 기록",ShowIncome);ui.Button(economy,"속공",ShowDaily,rules.AdvancedContentUnlocked(game.Account));ui.Button(economy,"보석",ShowGems,rules.AdvancedContentUnlocked(game.Account));
-                ui.Button(p,"설정",ShowSettings);
+                if(Intro||(game.Battle!=null&&!game.Battle.State.Finished&&game.Mode!="idle")){ui.IconButton(p,"settings","설정",ShowSettings);return;}
+                var row=ui.Row(p,72);ui.IconButton(row,"units","동료",ShowGrowth);ui.IconButton(row,"envelope","모집",()=>ShowRecruit());ui.IconButton(row,"book","도감",()=>ShowCodex());
+                var next=ui.Row(p,72);ui.IconButton(next,"map","전장",ShowStages);ui.IconButton(next,"sequence","순서",ShowSequence);ui.IconButton(next,"flag","미션",ShowMission);
+                var economy=ui.Row(p,72);ui.IconButton(economy,"purse","생산 기록",ShowIncome);ui.IconButton(economy,"bolt","속공",ShowDaily,rules.AdvancedContentUnlocked(game.Account));ui.IconButton(economy,"gem","보석",ShowGems,rules.AdvancedContentUnlocked(game.Account));
+                ui.IconButton(p,"settings","설정",ShowSettings);
                 if((bool?)game.Identity?["isAdmin"]==true)ui.Button(p,"관리자 기능",ShowAdmin);
                 if(game.Battle!=null)ui.Button(p,"전투 나가기",()=>Confirm("전투 나가기","진행 중인 전투를 종료하고 방치로 돌아갑니다.",async()=>{await game.LeaveBattle();if(!Intro)await game.StartBattle("idle",(int?)game.Account["idleStage"]??1);}));
-            });
+            },presentation:"drawer");
         }
         void ShowStages()
         {
@@ -87,7 +87,7 @@ namespace TinyLegion.Unity
             else if(phase=="complete"&&early=="idle-retry")Guide("다시 측정","방어에 맞춘 순서로 1-2를 다시 측정하세요.","방치 측정",()=>game.StartBattle("idle",2));
         }
         void Guide(string title,string text,string action,Func<Task> run)
-        {modal.Show(title,p=>{ui.Portrait(p,"sheep",96);ui.Paragraph(p,text,18);ui.Button(p,action,()=>Run(async()=>{modal.ForceClose();await run();}));},required:true);}
+        {modal.Show(title,p=>{ui.Portrait(p,"sheep",96);ui.Paragraph(p,text,18);ui.Button(p,action,()=>Run(async()=>{modal.ForceClose();await run();}));},required:true,presentation:"message");}
         JObject pendingIdleResult;RectTransform idlePopup;
         void ShowPendingIdleResult(){if(pendingIdleResult!=null&&!modal.Open){var outcome=pendingIdleResult;pendingIdleResult=null;ShowIdlePopup(outcome);}}
         void ShowIdlePopup(JObject outcome)

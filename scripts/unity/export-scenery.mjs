@@ -10,6 +10,10 @@ const source=await readFile(resolve(root,'dist/src/renderer.js'),'utf8');
 const helperStart=source.indexOf('function path('), helperEnd=source.indexOf('export class Renderer');
 const helpers=source.slice(helperStart,helperEnd);
 const output=resolve(root,'unity/Assets/TinyLegion/Resources/Scenery');await mkdir(output,{recursive:true});
+const shade=createCanvas(1,128),context=shade.getContext('2d'),gradient=context.createLinearGradient(0,0,0,128);
+gradient.addColorStop(0,'#0e1b1847');gradient.addColorStop(.55,'#0e1b1818');gradient.addColorStop(1,'#0e1b1800');
+context.fillStyle=gradient;context.fillRect(0,0,1,128);
+await writeFile(resolve(output,'hud-shade.png'),shade.toBuffer('image/png'));
 for(const enemy of [false,true]) {
  const canvas=createCanvas(320,420);
  new Function('c',`${helpers}\ncastle(c,160,385,260,${enemy},0);`)(canvas.getContext('2d'));

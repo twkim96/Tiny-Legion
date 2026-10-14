@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {gzipSync,gunzipSync} from 'node:zlib';
 import {binaryResponse} from '../server/static-response.js';
+import {versionArtifactUrls} from '../scripts/unity/artifact-urls.mjs';
 test('Unity wasm keeps binary bytes and streaming MIME with gzip/HEAD',async()=>{
  const bytes=Buffer.from([0,97,115,109,1,0,0,0]);const compressed=gzipSync(bytes);
  const file={body:compressed.toString('base64'),type:'application/wasm',binary:true,encoding:'gzip'};
@@ -25,4 +26,15 @@ test('Unity artifact revalidation returns no body and a changed build returns cu
  const changed=binaryResponse(file,new Request('https://game.test/game.data',{headers:{'If-None-Match':'"old"'}}));
  assert.equal(changed.status,200);assert.equal(await changed.text(),'new build');
  assert.match(changed.headers.get('Cache-Control'),/must-revalidate/);
+});
+test('a changed Unity build gets distinct browser cache URLs for all linked artifacts',()=>{
+ const html='<script src="Build/game.loader.js"></script><script>const config={dataUrl:\'Build/game.data\',codeUrl:\'Build/game.wasm\',frameworkUrl:\'Build/game.framework.js\'};</script>';
+ const hashes=Object.fromEntries(['game.loader.js','game.data','game.wasm','game.framework.js'].map(name=>['/unity/Build/'+name,'first']));
+ const oldBuild=versionArtifactUrls(html,hashes);
+ assert.equal((oldBuild.match(/\?v=first/g)||[]).length,4);
+ hashes['/unity/Build/game.wasm']='second';
+ const nextBuild=versionArtifactUrls(html,hashes);
+ assert.match(nextBuild,/game\.wasm\?v=second/);assert.doesNotMatch(nextBuild,/game\.wasm\?v=first/);
+ assert.match(nextBuild,/game\.data\?v=first/);
+ assert.throws(()=>versionArtifactUrls(html,{}),/Missing Unity artifact/);
 });

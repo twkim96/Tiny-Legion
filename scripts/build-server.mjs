@@ -3,6 +3,7 @@ import { resolve, extname } from 'node:path';
 import { build } from 'esbuild';
 import { gzipSync } from 'node:zlib';
 import { createHash } from 'node:crypto';
+import { versionArtifactUrls } from './unity/artifact-urls.mjs';
 
 const root = resolve(import.meta.dirname, '..'), source = resolve(root, 'dist');
 const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.mp3': 'audio/mpeg' };
@@ -27,6 +28,7 @@ await walk(source);
 // Opt-in preparation leaves the running web entry intact until Unity acceptance.
 if (process.env.TINY_LEGION_UNITY_WEB === '1') {
   const unityRoot = resolve(root, process.env.TINY_LEGION_UNITY_WEB_ROOT ?? 'unity/Builds/Web');
+  const unityHashes = {};
   const unityTypes = { '.wasm': 'application/wasm', '.data': 'application/octet-stream', '.js': 'text/javascript; charset=utf-8', '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.png': 'image/png', '.jpg': 'image/jpeg', '.json': 'application/json' };
   async function unityWalk(directory, prefix = '/unity') {
     for (const entry of await readdir(directory, { withFileTypes: true })) {
@@ -36,6 +38,7 @@ if (process.env.TINY_LEGION_UNITY_WEB === '1') {
         const type = unityTypes[extname(entry.name)];
         if (!type) throw new Error(`Unsupported Unity artifact: ${path}`);
         const bytes = await readFile(resolve(directory, entry.name));
+        unityHashes[path] = createHash('sha256').update(bytes).digest('hex');
         if (type.startsWith('text/')) {
           let body = bytes.toString('utf8');
           if (type.startsWith('text/html')) body = body.replace('</head>', '<script>globalThis.TINY_LEGION_SERVER = true;</script></head>');
@@ -43,13 +46,16 @@ if (process.env.TINY_LEGION_UNITY_WEB === '1') {
         } else {
           const compressed = ['.wasm', '.data'].includes(extname(entry.name));
           assets[path] = { body: (compressed ? gzipSync(bytes) : bytes).toString('base64'), type, binary: true,
-            cache:'public, max-age=0, must-revalidate', etag:'"'+(compressed?'gzip-manual-':'identity-')+createHash('sha256').update(bytes).digest('hex')+'"',
+            cache:'public, max-age=0, must-revalidate', etag:'"'+(compressed?'gzip-manual-':'identity-')+unityHashes[path]+'"',
             ...(compressed ? { encoding: 'gzip' } : {}) };
         }
       }
     }
   }
   await unityWalk(unityRoot);
+  for (const [path, file] of Object.entries(assets)) {
+    if (path.startsWith('/unity/') && file.type.startsWith('text/html')) file.body = versionArtifactUrls(file.body, unityHashes);
+  }
   assets['/unity/'] = assets['/unity/index.html'];
 }
 // dist/ is maintained source. Only these two generated subdirectories are replaced.

@@ -2,13 +2,13 @@
 
 ## 범위와 구조
 
-`codex/unity-migration` worktree에서 현재 웹 플레이 버전의 구현 전체를 Unity 2D + URP로 이식합니다. 미구현 연구소·진화 등 확장 TODO를 이식 완료 범위에 넣지 않습니다. 기존 전투·성장·보석·모집·도감·편성·안내·계정·설정·음악을 보존합니다. 첫 안내의 렌더링과 버튼 콜백 연결, 첫 전투의 소환·시간 진행, Play Mode의 프레임 진행을 확인했습니다. 실제 IL2CPP Web 빌드와 로컬 브라우저의 서버 게스트 접속·출정/소환 클릭·종료 후 안내 복귀를 확인했습니다. 전체 진행 흐름과 Sites/기기 수용은 아직 검증 전입니다. Unity Editor/Web 모듈 설치와 라이선스 활성화, 실제 Editor의 패키지 임포트·컴파일·`Prepare` 실행을 확인했습니다.
+`codex/unity-migration` worktree에서 현재 웹 플레이 버전의 구현 전체를 Unity 2D + URP로 이식합니다. 미구현 연구소·진화 등 확장 TODO를 이식 완료 범위에 넣지 않습니다. 기존 전투·성장·보석·모집·도감·편성·안내·계정·설정·음악을 보존합니다. 첫 안내의 렌더링과 버튼 콜백 연결, 첫 전투의 소환·시간 진행, Play Mode의 프레임 진행을 확인했습니다. 실제 IL2CPP Web 빌드와 로컬 브라우저의 서버 게스트 접속·출정/소환 클릭·종료 후 안내 복귀를 확인했습니다. Sites에서도 실제 wasm/data 로딩·서버 게스트 접속·첫 전투 시작/소환·종료 후 안내 복귀를 확인했습니다. 분리된 로컬 검증 계정에서 성장·모집 결과 공개·보석 모집/장착/재설정 취소 및 확정·편성 교체/끼워넣기/적용·적 도감의 효과 설명을 화면과 클릭으로 확인했습니다. 전체 신규 안내 진행과 기기 수용은 아직 검증 전입니다. Unity Editor/Web 모듈 설치와 라이선스 활성화, 실제 Editor의 패키지 임포트·컴파일·`Prepare` 실행을 확인했습니다.
 
 - `unity/Assets/TinyLegion/Domain`: Unity API에 의존하지 않는 데이터·전투·효과·계정·통신 계약. 계산은 `double`, 30Hz 입력, JavaScript와 같은 반올림을 사용합니다. 계정 규칙은 조회·성장·보석·모집·편성·생산·진행·저장 책임별 partial 파일로 나눕니다. 특수능력 정규화/비용과 생산 경제는 전투·계정이 같은 서비스를 사용합니다. Unity Physics2D는 보상 판정에 사용하지 않습니다.
 - `unity/Assets/TinyLegion/Presentation`: 공통 화면/입력과 전장 표시. 정의·조건·성장식을 화면에 복제하지 않습니다.
 - `unity/Assets/TinyLegion/Runtime`: 저장·Unity 생명주기·웹 통신·음악과 앱 연결.
 - `scripts/unity/export-catalog.mjs`: 유지 중인 웹 정의에서 캐릭터·스테이지·강화·효과·경제 데이터를 내보냅니다. JSON은 임의 수정하지 않습니다. 데이터 원본을 독립적으로 두 벌 유지하지 않습니다.
-- `scripts/unity/export-art.mjs`: 기존 SVG를 Unity 텍스처로 렌더링하고 CC0 음악을 복사합니다. `export-audio.mjs`로 웹의 공통 `AUDIO_CUES` 정의를 짧은 PCM 효과음으로 변환합니다. 초기 실행 시 파형을 다시 계산하지 않으며, 효과음 임포트는 정규화 없이 정의된 음량을 보존합니다. 원화를 새로 설계하지 않습니다.
+- `scripts/unity/export-art.mjs`: 기존 SVG를 Unity 텍스처로 렌더링하고 CC0 음악을 복사합니다. `export-audio.mjs`로 웹의 공통 `AUDIO_CUES` 정의를 짧은 PCM 효과음으로 변환합니다. 초기 실행 시 파형을 다시 계산하지 않으며, 효과음 임포트는 정규화 없이 정의된 음량을 보존합니다. `export-icons.mjs`로 유지 중인 웹 아이콘도 내보냅니다. 원화를 새로 설계하지 않습니다.
 - `scripts/unity/export-platform.mjs`: `dist/src/fullscreen.js`의 공통 전체화면 진입 함수를 Unity Web 브리지로 내보냅니다. 미지원/거절·수동 회전 안내와 진입 중 종료 처리를 공유하며, 브라우저에서 전체화면을 종료하면 방향 고정을 해제합니다. 생성된 `.jslib`를 직접 수정하지 않습니다. Unity 내장 JavaScript 최적화기의 문법 제한에 맞춰 exporter가 ES2017로 변환합니다. 최적화 없는 브리지 단독 링크 성공만으로 실제 Web 빌드의 최종 링크를 보장할 수 없습니다.
 - `unity/Tests`: .NET에서 순수 계산·통신을 검사하고 기존 JS 입력 재생과 비교할 경계. Unity 컴파일·실제 화면·기기 검증은 별도입니다.
 
@@ -27,6 +27,7 @@ npm ci
 node scripts/unity/export-catalog.mjs
 node scripts/unity/export-art.mjs
 node scripts/unity/export-scenery.mjs
+node scripts/unity/export-icons.mjs
 node scripts/unity/export-platform.mjs
 node scripts/unity/generate-meta.mjs
 mkdir -p .sites-local
@@ -42,6 +43,8 @@ dotnet run --project unity/Tests/TinyLegion.Domain.Checks.csproj -- unity/Assets
 로컬 저장 읽기 실패는 새 계정으로 원본을 덮어쓰지 않습니다. `JsonFileStore`가 실패 후 일반 쓰기를 거부하고, 컨트롤러가 전투·정산·복귀·종료 저장을 중지합니다. 복구 화면에서는 원본 내보내기·정상 저장 가져오기·초기화를 선택합니다. 확인 후 가져오기/초기화는 읽지 못한 원본을 고유한 복구 사본으로 먼저 보관합니다. Web PlayerPrefs 경로도 같은 복구 경계를 적용합니다. Native 파일 저장은 같은 디렉터리의 임시 파일과 원자적 교체를 사용하며, 복구 사본은 이후 저장에서 유지합니다.
 
 Editor 검증에서는 실행 전 `TINY_LEGION_TEST_SAVE_DIRECTORY`에 검증용 폴더의 절대 경로를 지정해 실제 기기 저장과 분리합니다. 이 변수는 Editor 조건에서만 적용되고 Player에는 포함되지 않습니다. 정상 검증과 손상 저장 복구 검증은 각각 별도 폴더를 사용합니다.
+
+모집·성장·보석 행동 버튼은 공통 `ButtonAvailability` 조건을 사용합니다. 방치 정산이 끝나거나 잔액이 바뀌면 기존 화면과 입력 초안을 유지하며 버튼 사용 가능 상태만 갱신합니다. 정산 중 열린 모집 화면의 버튼이 계속 잠겼던 오류를 실제 Web에서 재현해 수정했습니다.
 
 필수 안내/복구 화면 위에 열린 선택적 상세·확인 창에서 전체 닫기를 눌러도 필수 화면은 유지합니다. `ModalNavigationTests`는 Unity Test Framework의 EditMode에서 이 닫기/뒤로가기 계약을 검사합니다. 현재 Editor에서 해당 닫기/뒤로가기 검사와 전장 리소스 로딩 검사가 통과했습니다. 전체 화면/입력 수용과 구분합니다.
 
@@ -63,7 +66,7 @@ unity run unity -- -executeMethod TinyLegion.Editor.ProjectSetup.BuildWeb
 TINY_LEGION_UNITY_WEB=1 npm run build
 ```
 
-현재 빌드의 wasm 약 53MB와 data 약 23MB는 gzip 후 합계 약 27MB이며, 포함한 Worker는 약 39MB입니다. 현재 Sites 준비는 기존 Worker에 `/unity/` 파일을 추가하는 명시적 옵션입니다. wasm/data를 바이너리로 제공하고 gzip·MIME·HEAD/Range를 유지합니다. Sites의 Cloudflare Worker에는 이미 gzip한 응답을 `encodeBody: manual`로 전달해 이중 압축을 막습니다. Node 로컬 서버의 압축 검사는 이 Worker 확장을 검증하지 못합니다. 바이너리는 중간 문자 배열 없이 변환하고 HEAD/ETag 일치 응답은 디코딩을 생략합니다. Unity 바이너리는 콘텐츠 ETag와 재검증 캐시로 같은 파일명에 새 빌드를 배포해도 이전 버전을 하루 동안 고정하지 않습니다. 큰 데이터를 문자열로 내장하는 초기 경로이므로 빌드 크기·메모리·Sites 용량 검증 후 R2 등 별도 저장으로 분리할 필요가 있을 수 있습니다. 64MiB Worker 상한을 넘으면 빌드를 중단합니다. 기존 `/` 화면은 이식 수용 전 유지합니다.
+현재 빌드의 wasm 약 53MB와 data 약 23MB는 gzip 후 합계 약 27MB이며, 포함한 Worker는 약 39MB입니다. 상하단 막대를 제거하고 중앙 5×2 정사각 소환 카드와 안전 영역 안의 HUD, 파스텔 아이콘·오른쪽 메뉴, 짧은 안내/확인 창을 사용합니다. 1280×720·667×375 브라우저에서 카드 중심/정사각 비율·메뉴·모달 닫기·편성 적용 버튼 접근을 확인했습니다. 편성 모드 전환의 초안 보존과 다른 모드 적용 시 현재 방치 유지도 확인했습니다. 손가락 수용 검증은 별도로 남습니다. 현재 Sites 준비는 기존 Worker에 `/unity/` 파일을 추가하는 명시적 옵션입니다. wasm/data를 바이너리로 제공하고 gzip·MIME·HEAD/Range를 유지합니다. Sites의 Cloudflare Worker에는 이미 gzip한 응답을 `encodeBody: manual`로 전달해 이중 압축을 막습니다. Node 로컬 서버의 압축 검사는 이 Worker 확장을 검증하지 못합니다. 바이너리는 중간 문자 배열 없이 변환하고 HEAD/ETag 일치 응답은 디코딩을 생략합니다. HTML에서 loader/framework/wasm/data URL에 각 파일의 콘텐츠 해시를 붙여 Unity·브라우저 캐시가 이전 실행 코드를 재사용하거나 서로 다른 빌드의 파일을 섞지 않도록 합니다. 바이너리의 콘텐츠 ETag와 재검증도 유지합니다. 큰 데이터를 문자열로 내장하는 초기 경로이므로 빌드 크기·메모리·Sites 용량 검증 후 R2 등 별도 저장으로 분리할 필요가 있을 수 있습니다. 64MiB Worker 상한을 넘으면 빌드를 중단합니다. 기존 `/` 화면은 이식 수용 전 유지합니다.
 
 `node scripts/unity/check-unity-source.mjs`와 `--web`는 `.asmdef`의 프로젝트 참조·외부 참조·`noEngineReferences`를 따르는 별도 어셈블리로 설치된 Unity API에 정적으로 컴파일합니다. 화면은 `IGameController`를 통해 저장 내보내기/가져오기를 요청하며 Runtime의 플랫폼 브리지를 직접 참조하지 않습니다. `--web`는 Editor 전용 코드를 제외하고 Web 조건부 코드를 검사합니다. 이 검사는 패키지 임포트·Editor/IL2CPP 실행을 대신하지 않습니다. 다른 기기는 `TINY_LEGION_UNITY_EDITOR`, `TINY_LEGION_DOTNET`로 실행 경로를 지정합니다.
 
@@ -73,6 +76,6 @@ TINY_LEGION_UNITY_WEB=1 npm run build
 
 ## 구현과 수용 상태
 
-C# 전투·공통 효과·능력치·계정 규칙, 전장/HUD·안내·모집·성장·보석·도감·편성·기록·일일 수령·설정·로그인/관리자 화면의 소스와 연결을 작성했습니다. 현재 JS 전투/능력치 비교와 계정 명령/정규화/기록 비교, 응답 유실·인증 만료·저장 가져오기 검사는 통과합니다. 기존 서버 테스트·웹 전체 테스트·기본 Worker 빌드와 Unity 파일 대역의 MIME/바이너리 제공도 확인했습니다. 이 증거는 실제 Editor 플레이·모바일 화면·실제 Unity 웹 빌드 또는 Sites 수용을 증명하지 않습니다.
+C# 전투·공통 효과·능력치·계정 규칙, 전장/HUD·안내·모집·성장·보석·도감·편성·기록·일일 수령·설정·로그인/관리자 화면의 소스와 연결을 작성했습니다. 현재 JS 전투/능력치 비교와 계정 명령/정규화/기록 비교, 응답 유실·인증 만료·저장 가져오기 검사는 통과합니다. 기존 서버 테스트·웹 전체 테스트·기본 Worker 빌드와 Unity 파일 대역의 MIME/바이너리 제공도 확인했습니다. 이 자동 증거와 별도로 위 범위의 Editor/Web/Sites 실행을 확인했습니다. 전체 시나리오와 모바일 기기 수용은 별도입니다.
 
-라이선스 활성화 뒤 실제 Editor에서 안내부터 모든 화면·전투를 확인하고 `BuildWeb`를 실행합니다. URP 설정/패키지 임포트/폰트·스프라이트·음악의 실제 임포트와 IL2CPP 컴파일을 먼저 확인합니다. 이어 Sites `/unity/`에서 인증·계정·전투 완료와 파일 로딩을 확인하고, 마지막에 실제 기기 수용 검증을 진행합니다. 이식 완료 여부는 [TODO](../TODO.md#unity-이식)의 남은 조건으로 판단합니다.
+남은 검증은 신규 안내 전체 진행·손상 저장/파일 선택 UI·사이트 계정 연결/세션 교체/전투 보상과 실제 모바일 기기 수용입니다. Mac 잠금 중에는 실제 Editor UI 조작을 보류하고, CLI 컴파일/빌드와 브라우저 검증만 진행합니다. 이식 완료 여부는 [TODO](../TODO.md#unity-이식)의 남은 조건으로 판단합니다.

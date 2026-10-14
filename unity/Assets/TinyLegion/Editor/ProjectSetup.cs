@@ -58,11 +58,12 @@ namespace TinyLegion.Editor
                 scenery.textureCompression=TextureImporterCompression.Uncompressed;
                 return;
             }
-            if(!assetPath.StartsWith("Assets/TinyLegion/Resources/Art/"))return;
+            bool icon=assetPath.StartsWith("Assets/TinyLegion/Resources/Icons/");
+            if(!icon&&!assetPath.StartsWith("Assets/TinyLegion/Resources/Art/"))return;
             var importer=(TextureImporter)assetImporter;importer.textureType=TextureImporterType.Sprite;
-            importer.spriteImportMode=SpriteImportMode.Single;importer.spritePixelsPerUnit=384;
+            importer.spriteImportMode=SpriteImportMode.Single;importer.spritePixelsPerUnit=icon?96:384;
             importer.alphaIsTransparency=true;importer.mipmapEnabled=false;importer.textureCompression=TextureImporterCompression.Uncompressed;
-            var settings=new TextureImporterSettings();importer.ReadTextureSettings(settings);settings.spriteAlignment=(int)SpriteAlignment.BottomCenter;importer.SetTextureSettings(settings);
+            var settings=new TextureImporterSettings();importer.ReadTextureSettings(settings);settings.spriteAlignment=(int)(icon?SpriteAlignment.Center:SpriteAlignment.BottomCenter);importer.SetTextureSettings(settings);
         }
     }
 }

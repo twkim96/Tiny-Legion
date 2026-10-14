@@ -20,6 +20,21 @@ namespace TinyLegion.Unity
         {var rect=Node("Text",parent);var text=rect.gameObject.AddComponent<Text>();text.font=Font;text.text=value;text.fontSize=size;text.color=Ink;text.alignment=alignment;text.horizontalOverflow=HorizontalWrapMode.Wrap;text.verticalOverflow=VerticalWrapMode.Overflow;text.raycastTarget=false;return text;}
         public Button Button(Transform parent,string title,Action action,bool enabled=true)
         {var rect=Panel(parent,new Color32(239,232,211,255));var button=rect.gameObject.AddComponent<Button>();button.interactable=enabled;var text=Label(rect,title,16,TextAnchor.MiddleCenter);Fill(text.rectTransform,7,3,7,3);button.onClick.AddListener(()=>action?.Invoke());var element=rect.gameObject.AddComponent<LayoutElement>();element.minHeight=38;element.preferredHeight=38;element.flexibleWidth=1;return button;}
+        public Button Button(Transform parent,string title,Action action,Func<bool> available)
+        {
+            var button=Button(parent,title,action,available());
+            var binding=button.gameObject.AddComponent<ButtonAvailability>();binding.Condition=available;
+            return button;
+        }
+        public Button IconButton(Transform parent,string icon,string title,Action action,bool enabled=true)
+        {
+            var button=Button(parent,title,action,enabled);button.GetComponent<Image>().color=new Color32(227,236,212,245);
+            var label=button.GetComponentInChildren<Text>();label.fontSize=11;label.rectTransform.anchorMax=new Vector2(1,.28f);
+            var rect=Node("Icon",button.transform);rect.anchorMin=new Vector2(.2f,.3f);rect.anchorMax=new Vector2(.8f,.92f);rect.offsetMin=rect.offsetMax=Vector2.zero;
+            var image=rect.gameObject.AddComponent<Image>();image.sprite=Resources.Load<Sprite>("Icons/"+icon);image.preserveAspect=true;image.raycastTarget=false;
+            var element=button.GetComponent<LayoutElement>();element.minHeight=56;element.preferredHeight=56;element.minWidth=56;element.preferredWidth=56;element.flexibleWidth=0;
+            return button;
+        }
         public RectTransform Column(Transform parent,int spacing=8)
         {var rect=Node("Column",parent);var layout=rect.gameObject.AddComponent<VerticalLayoutGroup>();layout.spacing=spacing;layout.padding=new RectOffset(10,10,10,10);layout.childControlHeight=true;layout.childControlWidth=true;layout.childForceExpandHeight=false;return rect;}
         public RectTransform Row(Transform parent,int height=42)
@@ -40,9 +55,9 @@ namespace TinyLegion.Unity
     }
     public sealed class ModalNavigation
     {
-        sealed class Page { public string Title;public Action<RectTransform> Render;public float Scroll=1;public bool Required; }
+        sealed class Page { public string Title,Presentation;public Action<RectTransform> Render;public float Scroll=1;public bool Required; }
         readonly UiKit ui; readonly RectTransform overlay,panel,body;readonly Text title;readonly Stack<Page> pages=new Stack<Page>();
-        ScrollRect scroll;Button closeButton;
+        ScrollRect scroll;Button closeButton;RectTransform content;Vector2 lastSize;
         public bool Open=>pages.Count>0;
         public string CurrentTitle=>Open?pages.Peek().Title:null;
         public event Action<bool> OpenChanged;
@@ -54,18 +69,30 @@ namespace TinyLegion.Unity
             closeButton=ui.Button(panel,"닫기",Close);var cr=(RectTransform)closeButton.transform;cr.anchorMin=cr.anchorMax=Vector2.one;cr.pivot=Vector2.one;cr.anchoredPosition=new Vector2(-10,-10);cr.sizeDelta=new Vector2(80,35);
             body=ui.Node("Body",panel);UiKit.Fill(body,12,12,12,58);overlay.gameObject.SetActive(false);
         }
-        public void Show(string title,Action<RectTransform> render,bool replace=false,bool required=false)
-        {if(Open&&scroll)pages.Peek().Scroll=scroll.verticalNormalizedPosition;if(replace&&Open)pages.Pop();pages.Push(new Page{Title=title,Render=render,Required=required});Refresh(false);}
+        public void Show(string title,Action<RectTransform> render,bool replace=false,bool required=false,string presentation="panel")
+        {if(Open&&scroll)pages.Peek().Scroll=scroll.verticalNormalizedPosition;if(replace&&Open)pages.Pop();pages.Push(new Page{Title=title,Render=render,Required=required,Presentation=presentation});Refresh(false);}
+        public void Resize(bool force=false)
+        {
+            if(!Open)return;var size=((RectTransform)overlay.parent).rect.size;if(!force&&size==lastSize)return;lastSize=size;
+            string kind=pages.Peek().Presentation;bool drawer=kind=="drawer";
+            panel.anchorMin=panel.anchorMax=panel.pivot=new Vector2(drawer?1:.5f,.5f);
+            panel.anchoredPosition=new Vector2(drawer?-12:0,0);
+            float width=Mathf.Min(Mathf.Max(100,size.x-24),drawer?340:kind=="message"?480:760);
+            float height=Mathf.Max(100,size.y-24);
+            panel.sizeDelta=new Vector2(width,height);
+            if(kind=="message"&&content){Canvas.ForceUpdateCanvases();height=Mathf.Min(height,Mathf.Max(160,LayoutUtility.GetPreferredHeight(content)+72));panel.sizeDelta=new Vector2(width,height);}
+            panel.GetComponent<Image>().color=drawer?new Color32(52,62,44,255):ui.Paper;title.color=drawer?Color.white:ui.Ink;
+        }
         public void Refresh(bool capture=true)
         {
             if(!Open){overlay.gameObject.SetActive(false);OpenChanged?.Invoke(false);return;}
             if(capture&&scroll)pages.Peek().Scroll=scroll.verticalNormalizedPosition;OpenChanged?.Invoke(true);overlay.gameObject.SetActive(true);overlay.SetAsLastSibling();title.text=pages.Peek().Title;closeButton.interactable=!pages.Peek().Required;UiKit.Clear(body);
             var viewport=ui.Panel(body,new Color(0,0,0,0));UiKit.Fill(viewport);viewport.gameObject.AddComponent<RectMask2D>();
-            var content=ui.Column(viewport);content.anchorMin=new Vector2(0,1);content.anchorMax=Vector2.one;content.pivot=new Vector2(.5f,1);content.offsetMin=content.offsetMax=Vector2.zero;
+            content=ui.Column(viewport);content.anchorMin=new Vector2(0,1);content.anchorMax=Vector2.one;content.pivot=new Vector2(.5f,1);content.offsetMin=content.offsetMax=Vector2.zero;
             content.gameObject.AddComponent<ContentSizeFitter>().verticalFit=ContentSizeFitter.FitMode.PreferredSize;
-            scroll=viewport.gameObject.AddComponent<ScrollRect>();scroll.viewport=viewport;scroll.content=content;scroll.horizontal=false;scroll.movementType=ScrollRect.MovementType.Clamped;
-            pages.Peek().Render(content);Canvas.ForceUpdateCanvases();scroll.verticalNormalizedPosition=pages.Peek().Scroll;
-            if(pages.Count>1)ui.Button(content,"뒤로",Back);
+            scroll=viewport.gameObject.AddComponent<ScrollRect>();scroll.viewport=viewport;scroll.content=content;scroll.horizontal=false;scroll.scrollSensitivity=30;scroll.movementType=ScrollRect.MovementType.Clamped;
+            pages.Peek().Render(content);Resize(true);Canvas.ForceUpdateCanvases();scroll.verticalNormalizedPosition=pages.Peek().Scroll;
+            if(pages.Count>1&&pages.Peek().Presentation!="message")ui.Button(content,"뒤로",Back);
         }
         public void Back(){if(!Open||pages.Peek().Required)return;pages.Pop();Refresh(false);}
         public void Close()
