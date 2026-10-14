@@ -1,0 +1,8 @@
+{
+  "appId": "com.twkim.tinylegion.webqa",
+  "appName": "Tiny Legion Web QA",
+  "webDir": ".sites-local/android-web",
+  "android": {
+    "backgroundColor": "#d8dfca"
+  }
+}

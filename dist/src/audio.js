@@ -1,4 +1,8 @@
 export const AUDIO_DEFAULTS = Object.freeze({ musicEnabled: true, sfxEnabled: true, musicVolume: 0.3, sfxVolume: 0.6 });
+export const AUDIO_CUES = Object.freeze(Object.fromEntries([
+  ['tap', 720, 440], ['summon', 600, 440], ['win', 880, 1100],
+].map(([id, from, to]) => [id, Object.freeze({ from, to, frequencyRampSeconds: 0.12,
+  gain: 0.18, endGain: 0.0001, gainRampSeconds: 0.21, durationSeconds: 0.22 })])));
 export function normalizeAudioSettings(value = {}) {
   const volume = (key) => typeof value?.[key] === 'number' && Number.isFinite(value[key])
     ? Math.max(0, Math.min(1, value[key])) : AUDIO_DEFAULTS[key];
@@ -49,14 +53,25 @@ export class GameAudio {
   chirp(type = 'tap') {
     if (!this.unlocked || !this.visible || !this.settings.sfxEnabled || this.settings.sfxVolume <= 0) return;
     try {
-      this.context ??= this.createContext(); this.context.resume()?.catch(() => {});
+      this.context ??= this.createContext();
+      if (this.context.state === 'suspended') {
+        Promise.resolve(this.context.resume()).then(() => this.playTone(type)).catch(() => {});
+        return;
+      }
+      this.playTone(type);
+    } catch {}
+  }
+  playTone(type) {
+    if (!this.unlocked || !this.visible || !this.settings.sfxEnabled || this.settings.sfxVolume <= 0 || this.context?.state === 'closed') return;
+    try {
       const oscillator = this.context.createOscillator(), gain = this.context.createGain(), t = this.context.currentTime;
-      oscillator.type = 'sine';
-      oscillator.frequency.setValueAtTime(type === 'win' ? 660 : type === 'summon' ? 360 : 440, t);
-      oscillator.frequency.exponentialRampToValueAtTime(type === 'win' ? 880 : 250, t + 0.09);
-      gain.gain.setValueAtTime(0.06 * this.settings.sfxVolume, t);
-      gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.14);
-      oscillator.connect(gain); gain.connect(this.context.destination); oscillator.start(t); oscillator.stop(t + 0.15);
+      const cue = Object.hasOwn(AUDIO_CUES, type) ? AUDIO_CUES[type] : AUDIO_CUES.tap;
+      oscillator.type = 'triangle';
+      oscillator.frequency.setValueAtTime(cue.from, t);
+      oscillator.frequency.exponentialRampToValueAtTime(cue.to, t + cue.frequencyRampSeconds);
+      gain.gain.setValueAtTime(cue.gain * this.settings.sfxVolume, t);
+      gain.gain.exponentialRampToValueAtTime(cue.endGain, t + cue.gainRampSeconds);
+      oscillator.connect(gain); gain.connect(this.context.destination); oscillator.start(t); oscillator.stop(t + cue.durationSeconds);
     } catch {}
   }
   stop() { this.visible = false; this.player?.pause(); void this.context?.suspend()?.catch(() => {}); }

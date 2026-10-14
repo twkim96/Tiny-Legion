@@ -2,7 +2,7 @@
 
 ## 실행 환경
 
-Node.js 22 이상과 Python 3을 사용합니다. 서버 배포 준비에는 `npm ci`, `npm run db:generate`(스키마 변경 시), `npm run build`를 사용합니다. 정적 로컬 개발은 설치 없이 가능합니다. 저장소 루트에서 실행합니다.
+Node.js 22 LTS와 Python 3을 사용합니다. Node 26의 기본 전역 sessionStorage는 기존 서버 클라이언트 테스트의 저장 대역과 동작이 달라, 현재 회귀 검증은 Node 22로 실행합니다. 서버 배포 준비에는 `npm ci`, `npm run db:generate`(스키마 변경 시), `npm run build`를 사용합니다. 정적 로컬 개발은 설치 없이 가능합니다. 저장소 루트에서 실행합니다.
 
 ```sh
 npm run dev
@@ -47,6 +47,8 @@ npm run dev
 캐릭터를 추가·변경할 때는 [캐릭터 관리 계약](../SPEC/characters.md)을 따릅니다. 도감이나 엔진에 별도 속성/스탯 정의를 넣지 않습니다.
 
 `dist/`는 실제 게임 소스입니다. 서버 빌드는 게임 소스를 읽어 `dist/server/`·`dist/.openai/`만 생성하며 이 두 경로는 Git에서 제외합니다. `server/`는 API·명령·전투 재생, `db/schema.ts`·`drizzle/`는 서버 스키마, `dist/src/account-client.js`는 서버 요청을 담당합니다. 정적 개발의 로컬 저장을 서버로 업로드하지 않습니다.
+
+Android 앱 빌드와 기기 수용 범위는 [Android 웹 검증 앱](android.md)을 따릅니다.
 
 ## 로컬 Git 관리
 

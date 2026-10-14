@@ -9,11 +9,18 @@
     "check": "node scripts/check-source.mjs",
     "build": "node scripts/build-server.mjs",
     "db:generate": "drizzle-kit generate",
-    "dev:server": "npm run build && node scripts/dev-server.mjs"
+    "dev:server": "npm run build && node scripts/dev-server.mjs",
+    "android:sync": "node scripts/prepare-android-web.mjs && cap sync android",
+    "android:build": "npm run android:sync && cd android && ./gradlew assembleDebug"
   },
   "devDependencies": {
+    "@capacitor/cli": "8.5.3",
     "drizzle-kit": "^0.31.10",
     "drizzle-orm": "^0.45.2",
     "esbuild": "^0.25.12"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.5.3",
+    "@capacitor/core": "8.5.3"
   }
 }

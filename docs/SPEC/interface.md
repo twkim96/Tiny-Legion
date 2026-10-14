@@ -113,6 +113,11 @@
 ## 배경음과 효과음
 
 - 설정에서 배경음과 효과음을 각각 켜거나 끄고 0~100% 볼륨을 조절합니다. 기본 배경음 30%·효과음 60%이며 0%는 무음입니다. 온라인에서는 서버 계정 설정, 정적 개발에서는 기기 저장에 보관합니다.
-- 첫 클릭·터치·키 입력 이후 재생합니다. 숨긴 탭과 세션 종료에서는 소리를 멈추며 복귀하면 현재 스테이지 곡을 이어 재생합니다. 메뉴·일시 정지에는 배경음을 유지합니다.
+- 첫 클릭·터치·키 입력 이후 재생합니다. 숨긴 탭·Android 앱 백그라운드와 세션 종료에서는 소리를 멈추며 복귀하면 현재 스테이지 곡을 이어 재생합니다. 메뉴·일시 정지에는 배경음을 유지합니다.
 - 첫 안내는 Journey, 1지역 일반은 Meadow, 2지역 일반은 Workshop, 각 지역 5·10스테이지는 Boss 곡을 반복합니다. 스테이지별 선택은 `dist/src/audio.js`의 `stageMusic`, 음원은 `dist/assets/music/`에 모읍니다.
-- Juhani Junkala의 [Chiptune Adventures](https://opengameart.org/content/4-chiptunes-adventure)는 저자가 CC0으로 배포한 곡입니다. 출처·라이선스·변환 내역은 `dist/assets/music/LICENSE.txt`에 보관합니다. 효과음은 게임에서 합성합니다.
+- Juhani Junkala의 [Chiptune Adventures](https://opengameart.org/content/4-chiptunes-adventure)는 저자가 CC0으로 배포한 곡입니다. 출처·라이선스·변환 내역은 `dist/assets/music/LICENSE.txt`에 보관합니다. 효과음은 게임에서 합성합니다. 중지된 효과음 컨텍스트는 재개 완료 후 소리를 예약하며, 그 사이 숨김·음소거로 바뀌면 소리를 내지 않습니다.
+
+## Android 앱 입력과 저장 내보내기
+
+- Android 뒤로가기는 열린 모달의 이전 단계로 이동하거나 닫습니다. 필수 신규 안내는 닫지 않습니다. 모달이 없으면 방치 결과를 먼저 닫고, 게임 화면에서는 앱을 백그라운드로 보냅니다. 웹의 Esc 동작은 유지합니다.
+- 저장 파일 내려받기는 Android 문서 생성 창에서 위치를 선택합니다. 취소는 저장 성공으로 표시하지 않으며 쓰기 실패는 재시도 안내를 표시합니다. 웹에서는 기존 JSON 다운로드를 사용합니다. Android 구현·실기기 수용 경계는 [Android 개발 안내](../development/android.md)에 기록합니다.

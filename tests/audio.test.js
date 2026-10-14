@@ -4,12 +4,12 @@ import { GameAudio, normalizeAudioSettings, stageMusic } from '../dist/src/audio
 import { newAccount, normalizeAccount } from '../dist/src/account.js';
 
 function harness() {
-  const played = [], tones = [];
+  const played = [], tones = [], frequencies = [];
   const player = { paused: true, pause() { this.paused = true; }, load() {}, play() { this.paused = false; played.push(this.src); return Promise.resolve(); } };
   const context = { currentTime: 1, resume: () => Promise.resolve(), suspend: () => Promise.resolve(), destination: {},
-    createOscillator: () => ({ frequency: { setValueAtTime() {}, exponentialRampToValueAtTime() {} }, connect() {}, start() { tones.push('start'); }, stop() {} }),
+    createOscillator: () => ({ frequency: { setValueAtTime(value) { frequencies.push(value); }, exponentialRampToValueAtTime(value) { frequencies.push(value); } }, connect() {}, start() { tones.push('start'); }, stop() {} }),
     createGain: () => ({ gain: { setValueAtTime(value) { tones.push(value); }, exponentialRampToValueAtTime() {} }, connect() {} }) };
-  return { player, played, tones, audio: new GameAudio({ createPlayer: () => player, createContext: () => context }) };
+  return { player, played, tones, frequencies, context, audio: new GameAudio({ createPlayer: () => player, createContext: () => context }) };
 }
 test('music waits for input, loops the stage track, and pauses while hidden', async () => {
   const h = harness(); h.audio.configure({}, 1); assert.equal(h.played.length, 0);
@@ -20,10 +20,11 @@ test('music waits for input, loops the stage track, and pauses while hidden', as
   await Promise.resolve(); await Promise.resolve();
   h.audio.configure({}, 11, true); assert.equal(h.player.src, '/assets/music/workshop.mp3'); assert.equal(h.player.paused, false);
 });
+
 test('music and effect mute and volume are independent and persist', () => {
   const h = harness(), settings = { musicEnabled: false, sfxEnabled: true, musicVolume: 0.5, sfxVolume: 0.2 };
   h.audio.configure(settings, 1); h.audio.unlock(); h.audio.chirp('summon');
-  assert.equal(h.played.length, 0); assert.ok(h.tones.includes(0.012));
+  assert.equal(h.played.length, 0); assert.ok(h.tones.includes(0.036));
   h.audio.configure({ ...settings, musicEnabled: true, sfxEnabled: false }, 1); h.audio.chirp();
   assert.equal(h.played.length, 1); assert.equal(h.player.volume, 0.5); assert.equal(h.tones.filter(t => t === 'start').length, 1);
   const a = newAccount(); a.settings.audio = settings;
@@ -37,4 +38,22 @@ test('volume validation clamps saves and blocked playback waits for the next inp
   h.audio.configure({}, 1); h.audio.configure({}, 1); assert.equal(attempts, 1);
   h.audio.unlock(); assert.equal(attempts, 2); await Promise.resolve(); await Promise.resolve();
   assert.equal(stageMusic(0), 'journey'); assert.equal(stageMusic(20), 'boss');
+});
+
+test('a suspended SFX context schedules the short tone after resume and skips it if hidden meanwhile', async () => {
+  const h=harness();let resume;
+  h.context.state='suspended';h.context.resume=()=>new Promise(resolve=>{resume=resolve;});
+  h.audio.unlock();h.audio.chirp('summon');
+  assert.equal(h.tones.length,0);
+  h.context.currentTime=20;h.context.state='running';resume();await Promise.resolve();
+  assert.equal(h.tones.filter(t=>t==='start').length,1);
+  h.context.state='suspended';h.audio.chirp();h.audio.stop();resume();await Promise.resolve();
+  assert.equal(h.tones.filter(t=>t==='start').length,1);
+});
+
+
+test('tap, summon and victory retain distinct tones and unknown cues use tap', () => {
+  const h = harness(); h.audio.unlock();
+  for (const cue of ['tap','summon','win','unknown','constructor']) h.audio.chirp(cue);
+  assert.deepEqual(h.frequencies,[720,440,600,440,880,1100,720,440,720,440]);
 });

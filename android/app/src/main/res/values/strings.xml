@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Tiny Legion Web QA</string>
+    <string name="title_activity_main">Tiny Legion Web QA</string>
+    <string name="package_name">com.twkim.tinylegion.webqa</string>
+    <string name="custom_url_scheme">com.twkim.tinylegion.webqa</string>
+</resources>

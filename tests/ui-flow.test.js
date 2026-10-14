@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
-import { newAccount, currentMission, recordMissionBattle, claimMission, accrue, recordIdle, isOnboarding, recruitOnboardingCompanion, growthUnlocked, sequenceUnlocked, sequenceForMode, setSequence, playableSequence, growUnit, refundUnitLevels, unitLevelRefund, levelCost, recruitEarlyRabbit, applyGuideSequence, canUseUnit, ownsUnit, speedrunStageRecord, speedrunProgress, speedrunReward } from '../dist/src/account.js';
+import { newAccount, normalizeAccount, currentMission, recordMissionBattle, claimMission, accrue, recordIdle, isOnboarding, recruitOnboardingCompanion, growthUnlocked, sequenceUnlocked, sequenceForMode, setSequence, playableSequence, growUnit, refundUnitLevels, unitLevelRefund, levelCost, recruitEarlyRabbit, applyGuideSequence, canUseUnit, ownsUnit, speedrunStageRecord, speedrunProgress, speedrunReward } from '../dist/src/account.js';
 import { STAGES, UNITS, stageLabel, battleDuration } from '../dist/src/data.js';
 import { SPEEDRUN_LIMIT_SECONDS, SPEEDRUN_TARGET_SECONDS, SPEEDRUN_STAGES, speedrunStageReward } from '../dist/src/speedrun.js';
 import { recruitPanel } from '../dist/src/recruitment-ui.js';
@@ -68,6 +68,7 @@ function harness(names) {
     battle: {result: {won:true, survival:120, hpRatio:1, reward:80}, finished:true, time:120, events:[]},
     battleSnapshot: {stageId:1, gem:null}, idleIncome:{gold:12,diamonds:.1},
     paused:false, lastFrame:0, accumulator:0, lastAccrual:Date.now(), lastUi:0, skillRemaining:0,
+    gameHidden(){return context.document.hidden || context.nativeHidden;}, nativeHidden:false,
     document: {hidden:false}, matchMedia:()=>({matches:false}), performance:{now:()=>100},
     renderer:{consumeEvents(){},render(){}}, requestAnimationFrame(){},
     stepBattle(battle, dt){battle.time += dt; calls.push('step');},
@@ -1131,4 +1132,39 @@ test('shared keyword presentation separates mechanic names and tuning details in
   assert.match(panel, /<dt>둔화<\/dt>/);
   assert.match(panel, /<dt>회복 억제<\/dt>/);
   assert.match(panel, /이동속도 25% 감소 · 2초/);
+});
+
+test('native background prevents frame-driven battle advancement and repeated production settlement',()=>{
+  const c=harness(['frame']);c.battle={time:0,finished:false,events:[]};
+  c.nativeHidden=true;c.frame(3200);assert.equal(c.battle.time,0);assert.ok(!c.calls.includes('save'));
+  c.nativeHidden=false;c.frame(3300);assert.ok(c.battle.time>0);
+});
+
+
+test('Android Back navigates modal history, closes results, and backgrounds only from the battlefield', async () => {
+  const c=harness(['openModal','closeModal','closeIdleResult','handleAndroidBack']);
+  let backgrounds=0;c.backgroundNativeApp=async()=>{backgrounds++;};
+  c.openModal('메뉴','menu',()=>{});c.openModal('설정','settings',()=>{});
+  c.handleAndroidBack();assert.equal(c.modalKind,'menu');assert.equal(backgrounds,0);
+  c.handleAndroidBack();assert.equal(c.$('modal-backdrop').hidden,true);assert.equal(backgrounds,0);
+  c.$('idle-result-popup').hidden=false;c.handleAndroidBack();assert.equal(c.$('idle-result-popup').hidden,true);assert.equal(backgrounds,0);
+  c.handleAndroidBack();assert.equal(backgrounds,1);
+  c.account.onboarding.phase='intro';c.openModal('안내','onboarding',()=>{});
+  c.handleAndroidBack();assert.equal(c.$('modal-backdrop').hidden,false);assert.equal(backgrounds,1);
+});
+
+
+test('a save import does not replace current progress when storage refuses the imported snapshot', async () => {
+  const c=harness(['renderSettings']);
+  c.audioSettingsMarkup=()=>'';c.bindAudioSettings=()=>{};
+  c.document.querySelectorAll=()=>[];
+  c.normalizeAccount=normalizeAccount;c.saveAccount=()=>false;
+  c.currentMission=()=>null;
+  c.renderSettings();
+  const before=c.account;
+  const imported=newAccount();imported.gold=1234;
+  await c.$('save-file').onchange({target:{files:[{size:100,text:async()=>JSON.stringify(imported)}]}});
+  c.$('confirm-import').onclick();
+  assert.equal(c.account,before);assert.ok(c.calls.includes('저장할 수 없어 불러오지 않았습니다. 현재 진행도는 유지됩니다.'));
+  assert.ok(!c.calls.includes('start'));
 });

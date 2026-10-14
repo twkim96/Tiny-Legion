@@ -1,6 +1,8 @@
+import { bindGameVisibility } from "./app-visibility.js";
 import { familyName, attributeLabel } from './character-tags.js';
 import { CloudSessionUI } from "./cloud-session-ui.js";
 import { idleRecordMarkup } from "./idle-result-ui.js";
+import { exportNativeSave, backgroundNativeApp, bindNativeBack } from "./native-app.js";
 import { GameAudio } from "./audio.js";
 import { bindRotationPrompt, enterLandscapeFullscreen } from "./fullscreen.js";
 import { enemyCombatStats } from "./character-stats.js";
@@ -339,6 +341,7 @@ let toastTimer,
   lastAccrual = Date.now(),
   lastSound = 0;
 const gameAudio = new GameAudio();
+const gameHidden = bindGameVisibility(handleGameVisibility);
 let audioPreview = null;
 let storageWarning = false;
 function persist() {
@@ -438,7 +441,7 @@ function toast(text) {
   toastTimer = setTimeout(() => ($("toast").hidden = true), 3300);
 }
 function syncAudio() {
-  gameAudio.configure({ ...account.settings.audio, ...audioPreview }, stageId, !document.hidden && !hostedHalted);
+  gameAudio.configure({ ...account.settings.audio, ...audioPreview }, stageId, !gameHidden() && !hostedHalted);
 }
 function chirp(type = "tap") {
   syncAudio();
@@ -1627,6 +1630,15 @@ function closeModal(force = false) {
   lastFocused?.focus?.();
   hideTooltip();
 }
+function handleAndroidBack() {
+  if (!$("modal-backdrop").hidden) {
+    if (!backModal()) closeModal();
+    hideTooltip();
+    return;
+  }
+  if (!$("idle-result-popup").hidden) { closeIdleResult(); return; }
+  void backgroundNativeApp().catch(() => toast("앱을 백그라운드로 보내지 못했습니다."));
+}
 function renderStages() {
   const unlocked = firstIdleMissionPending() ? 1 : Math.min(growthUnlocked(account) ? STAGES.length : 2, account.highestCleared + 1);
   $("modal-content").innerHTML =
@@ -2241,8 +2253,14 @@ function renderSettings() {
     }
   };
   $("export-save").onclick = () => {
-    const download = () => {
-      const blob = new Blob([JSON.stringify(account, null, 2)], {
+    const download = async () => {
+      const contents = JSON.stringify(account, null, 2);
+      const nativeResult = await exportNativeSave(contents);
+      if (nativeResult !== null) {
+        if (!nativeResult.cancelled) toast("저장 파일을 내보냈습니다.");
+        return;
+      }
+      const blob = new Blob([contents], {
         type: "application/json",
       }),
       url = URL.createObjectURL(blob),
@@ -2252,8 +2270,9 @@ function renderSettings() {
       a.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     };
-    if (hostedMode) void settleServer(true).then(download);
-    else { settleProduction(); download(); persist(); }
+    const failed = () => toast("저장 파일을 내보내지 못했습니다. 다시 시도해 주세요.");
+    if (hostedMode) void settleServer(true).then(download).catch(failed);
+    else { settleProduction(); persist(); void download().catch(failed); }
   };
   if (!hostedMode) $("import-save").onclick = () => $("save-file").click();
   $("reset-account").onclick = () => {
@@ -2318,14 +2337,18 @@ function renderSettings() {
         $("cancel-import").onclick = () =>
           returnModal("설정", "settings", renderSettings);
         $("confirm-import").onclick = () => {
+          accrue(imported);
+          if (!saveAccount(imported)) {
+            toast("저장할 수 없어 불러오지 않았습니다. 현재 진행도는 유지됩니다.");
+            return;
+          }
           recruitReceipt = null;
           pendingReturnIncome = null;
           sequenceDraft = null;
           sequenceDrafts = null;
           closeIdleResult();
           account = imported;
-          accrue(account);
-          persist();
+          storageWarning = false;
           closeModal(true);
           if (isOnboarding(account)) resumeOnboarding();
           else {
@@ -2407,6 +2430,7 @@ document.addEventListener("pointerdown", (e) => {
 document.addEventListener("pointerup", () => clearTimeout(longPressTimer));
 document.addEventListener("pointercancel", hideTooltip);
 document.addEventListener("scroll", hideTooltip, true);
+bindNativeBack(handleAndroidBack);
 document.addEventListener("keydown", (e) => {
   syncAudio(); gameAudio.unlock();
   if (e.key === "Escape") {
@@ -2502,9 +2526,9 @@ $("skill").onclick = () => {
   chirp("summon");
   updateUi();
 };
-document.addEventListener("visibilitychange", () => {
+function handleGameVisibility(visible) {
   if (hostedMode) {
-    if (document.hidden) void settleServer(true);
+    if (!visible) void settleServer(true);
     else {
       void accountClient.resumeSession().then((envelope) => {
         if (!envelope) return;
@@ -2517,7 +2541,7 @@ document.addEventListener("visibilitychange", () => {
         updateUi();
       }).catch(() => {});
     }
-  } else if(document.hidden) settleProduction();
+  } else if(!visible) settleProduction();
   else {
     const summary = collectReturnIncome(account);
     if(summary) pendingReturnIncome = pendingReturnIncome
@@ -2527,8 +2551,9 @@ document.addEventListener("visibilitychange", () => {
   if (!hostedMode) persist();
   accumulator = 0;
   lastFrame = performance.now();
+  syncAudio();
   updateUi();
-});
+}
 window.addEventListener("pagehide", () => {
   gameAudio.stop();
   settleProduction();
@@ -2553,7 +2578,7 @@ if (loadError)
   );
 
 function frame(now) {
-  if(pendingReturnIncome && !isOnboarding(account) && $("modal-backdrop").hidden && !document.hidden) showReturnIncome();
+  if(pendingReturnIncome && !isOnboarding(account) && $("modal-backdrop").hidden && !gameHidden()) showReturnIncome();
   const dt = Math.min(0.12, (now - lastFrame) / 1000);
   lastFrame = now;
   const portraitMode = matchMedia(
@@ -2562,7 +2587,7 @@ function frame(now) {
   const modalPauses = !$("modal-backdrop").hidden && mode !== "idle";
   const shouldAdvance =
     !hostedHalted &&
-    !document.hidden &&
+    !gameHidden() &&
     !portraitMode &&
     !paused &&
     !modalPauses &&
@@ -2586,11 +2611,11 @@ function frame(now) {
     now >= restartAt &&
     !hostedHalted &&
     !paused &&
-    !document.hidden &&
+    !gameHidden() &&
     !portraitMode
   )
     startBattle();
-  if (!document.hidden && Date.now() - lastAccrual >= 1000) {
+  if (!gameHidden() && Date.now() - lastAccrual >= 1000) {
     settleProduction();
     if (!hostedMode) persist();
     lastAccrual = Date.now();
