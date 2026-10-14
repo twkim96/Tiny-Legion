@@ -20,6 +20,7 @@ Sites 배포의 진행도는 서버 D1에 저장하며 [서버 계정과 보상]
 - 기존 운영 방침은 기획 검증용 Sites 비공개 배포입니다. Sites source helper를 통한 Git 동기화·아카이브 경로를 사용합니다. 현재 저장소에는 별도 배포 스크립트가 없습니다.
 - 비공개 접근 로그인은 게임 서버 계정 저장과 별개입니다. 실제 접근·배포 상태는 배포 시 Sites에서 확인해야 하며 문서 초기화로 확인한 상태가 아닙니다.
 - D1 스키마는 `db/schema.ts`와 `drizzle/`가 관리합니다. `npm run db:generate`로 새 SQL을 생성하고 이후 적용된 SQL·스냅샷·저널을 수정하지 않습니다. Sites가 배포 중 마이그레이션을 적용합니다. 클라이언트 파일 불러오기를 서버 복구 수단으로 사용하지 않습니다. 운영 DB 백업·관리자 복구 절차는 추후 결정합니다.
+- 외부 테스트는 기존 [Tiny Legion Sites 웹](https://tiny-legion.space-9004.chatgpt.site)을 사용합니다. Android APK 설치와 별개로 배포된 소스/버전을 확인합니다. 비교용 `/unity/`를 포함한 Sites 소스에는 Unity 브랜치의 빌드 연결부가 남아 있습니다. 해당 Sites 소스에서 `TINY_LEGION_UNITY_WEB=1`과 `TINY_LEGION_UNITY_WEB_ROOT`로 보존한 Unity Web 빌드 경로를 지정해 Worker에 함께 포함합니다. 주력 `main`의 일반 빌드는 이 옵션을 구현하지 않으므로 그 결과로 비교용 배포를 덮어쓰면 `/unity/`가 빠집니다. Unity 소스·빌드의 보존 범위는 [플랫폼 방향](../SPEC/platforms.md#unity-보존)을 따릅니다.
 - 현재 Sites 접근 정책을 유지합니다. 비공개 사이트 앞단은 익명 방문을 허용하지 않을 수 있으므로 서버 게스트 기능과 익명 공개 접근은 별개입니다. 공개 전환은 별도 요청으로 진행합니다.
 - 테스트 아이디 로그인은 Sites 접근 정책 안에서 사용합니다. 운영 환경의 `TEST_LOGIN_ENABLED`와 비밀 값 `TEST_LOGIN_ACCOUNTS`가 관리하며 상세 계약은 [테스트 로그인](../SPEC/server-account.md#테스트-로그인과-관리자-기능)을 따릅니다. 테스트 종료 시 스위치를 `false`로 바꾸고 배포해 테스트 세션·지급 API를 함께 닫습니다. 해시 목록을 소스나 호스팅 manifest에 넣지 않습니다.
 - `dist/style.css`는 Google Fonts의 DM Sans·Noto Sans KR을 불러옵니다. CSS의 대체 글꼴을 사용하므로 네트워크 제한 시 글꼴이 달라질 수 있습니다. 캐릭터 리소스는 직접 관리하는 SVG입니다.

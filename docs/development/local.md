@@ -41,6 +41,8 @@ npm run dev
 | `dist/src/recruitment-ui.js` | 동료 모집·확률·카드 공개 연출 |
 | `dist/src/cloud-session-ui.js`, `dist/src/idle-result-ui.js` | 온라인 연결/인증 안내·일시 정지와 생산 기록 비교 표시 |
 | `dist/src/main.js` | UI·입력·전투/계정 연결 |
+| `dist/src/native-app.js`, `dist/src/app-visibility.js` | 네이티브 저장·뒤로가기·웹/앱 활성 상태 통합 |
+| `android/`, `capacitor.config.json`, `scripts/prepare-android-web.mjs` | Android QA 네이티브 연결과 번들 웹 준비 |
 | `dist/src/audio.js`, `dist/assets/music/` | 채널별 소리 설정·입력 후 재생·스테이지 곡과 CC0 라이선스 |
 | `tests/` | Node 기본 테스트 러너로 검증하는 동작 |
 
