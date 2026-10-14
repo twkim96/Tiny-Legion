@@ -1,9 +1,38 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { exportNativeSave, backgroundNativeApp, bindNativeBack } from '../dist/src/native-app.js';
+import { exportNativeSave, backgroundNativeApp, bindNativeBack, bindNativeExportResults } from '../dist/src/native-app.js';
 
 test('ordinary web exports stay on the browser path', async () => {
   assert.equal(await exportNativeSave('{"gold":20}'),null);
+  assert.equal(bindNativeExportResults(()=>{},new EventTarget()),false);
+});
+
+test('export outcomes recovered after process recreation are consumed once and include cancellation and failure', async () => {
+  const results=[{status:'saved'},{},{status:'cancelled'},{status:'failed'}],seen=[];
+  globalThis.Capacitor={getPlatform:()=> 'android',isPluginAvailable:()=>true,
+    Plugins:{NativeGame:{consumeExportResult:async()=>results.shift()??{}}}};
+  try {
+    const target=new EventTarget();bindNativeExportResults(status=>seen.push(status),target);
+    await new Promise(resolve=>setImmediate(resolve));
+    assert.deepEqual(seen,['saved']);
+    for(let i=0;i<3;i++){
+      target.dispatchEvent(new Event('tiny-legion-export-restored'));
+      await new Promise(resolve=>setImmediate(resolve));
+    }
+    assert.deepEqual(seen,['saved','cancelled','failed']);
+  } finally {delete globalThis.Capacitor;}
+});
+
+test('an export result arriving during the initial read is drained after the older empty response', async () => {
+  let release,reads=0;const seen=[];
+  globalThis.Capacitor={getPlatform:()=> 'android',isPluginAvailable:()=>true,
+    Plugins:{NativeGame:{consumeExportResult:()=>++reads===1?new Promise(resolve=>{release=resolve;}):Promise.resolve({status:'saved'})}}};
+  try {
+    const target=new EventTarget();bindNativeExportResults(status=>seen.push(status),target);
+    target.dispatchEvent(new Event('tiny-legion-export-restored'));
+    release({});await new Promise(resolve=>setImmediate(resolve));
+    assert.equal(reads,2);assert.deepEqual(seen,['saved']);
+  } finally {delete globalThis.Capacitor;}
 });
 test('Android export preserves the snapshot and cancellation and wires native Back', async () => {
   const calls=[];

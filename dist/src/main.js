@@ -2,7 +2,7 @@ import { bindGameVisibility } from "./app-visibility.js";
 import { familyName, attributeLabel } from './character-tags.js';
 import { CloudSessionUI } from "./cloud-session-ui.js";
 import { idleRecordMarkup } from "./idle-result-ui.js";
-import { exportNativeSave, backgroundNativeApp, bindNativeBack } from "./native-app.js";
+import { exportNativeSave, backgroundNativeApp, bindNativeBack, bindNativeExportResults } from "./native-app.js";
 import { GameAudio } from "./audio.js";
 import { bindRotationPrompt, enterLandscapeFullscreen } from "./fullscreen.js";
 import { enemyCombatStats } from "./character-stats.js";
@@ -2430,6 +2430,11 @@ document.addEventListener("pointerdown", (e) => {
 document.addEventListener("pointerup", () => clearTimeout(longPressTimer));
 document.addEventListener("pointercancel", hideTooltip);
 document.addEventListener("scroll", hideTooltip, true);
+bindNativeExportResults(status => {
+  if (status === 'saved') toast("저장 파일을 내보냈습니다.");
+  else if (status === 'cancelled') toast("파일 저장을 취소했습니다.");
+  else toast("저장 파일을 내보내지 못했습니다. 다시 시도해 주세요.");
+});
 bindNativeBack(handleAndroidBack);
 document.addEventListener("keydown", (e) => {
   syncAudio(); gameAudio.unlock();
