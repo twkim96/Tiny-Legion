@@ -57,8 +57,14 @@ namespace TinyLegion.Unity
         }
         void ShowIncome()
         {
-            modal.Show("기록 기반 생산",p=>{
-                ui.Paragraph(p,"한 스테이지의 최고 기록으로 생산합니다. 성장은 새 기록에 반영됩니다. 오프라인 정산은 최대 8시간입니다.");
+            modal.Show("도토리 획득량",p=>{
+                int selected=(int?)game.Account["idleStage"]??1;var current=game.Account["records"]?[selected.ToString()];double duration=Math.Max(1,(double?)current?["productionSeconds"]??120);double hourly=((double?)current?["gold"]??0)*3600/duration;double diamonds=((double?)current?["diamonds"]??0)*3600/duration;
+                ui.Paragraph(p,$"보유 도토리 {N(game.Account["gold"])}",18).fontStyle=FontStyle.Bold;
+                ui.Paragraph(p,$"현재 생산 스테이지 {StageLabel(selected)}\n도토리 {hourly:N0} / 시간 · {hourly/60:N0} / 분\n다이아 {diamonds:0.###} / 시간");
+                if(current==null)ui.Paragraph(p,"방치 전투가 끝나면 생산 기록이 생기고 재화가 쌓입니다.");
+                else ui.Paragraph(p,$"최고 기록: {(double?)current["gold"]??0:N0} 도토리 / {duration:0.##}초\n게임을 닫았을 때 8시간 기준: 도토리 {hourly*8:N0} · 다이아 {diamonds*8:0.###} (현재 기록에 따른 예상량)");
+                ui.Paragraph(p,"최고 기록으로 다른 전투 중에도 생산합니다. 성장은 새 기록에 반영됩니다. 기록 수치는 즉시 지급되는 보상이 아니며, 오프라인 정산은 최대 8시간입니다.");
+                ui.Paragraph(p,"스테이지별 생산 기록",16).fontStyle=FontStyle.Bold;
                 foreach(var record in ((JObject)game.Account["records"]).Properties())
                 {int id=int.Parse(record.Name);var r=(JObject)record.Value;double seconds=(double?)r["productionSeconds"]??120;ui.Paragraph(p,$"{StageLabel(id)} · 도토리 {(double?)r["gold"]*3600/seconds:0} / 시간 · 다이아 {(double?)r["diamonds"]*3600/seconds:0.###} / 시간");ui.Button(p,(int?)game.Account["idleStage"]==id?"현재 생산 중":"생산 선택",()=>Run(async()=>{await game.Command("idle.select",new JObject{["stageId"]=id});modal.Refresh();}));}
             });
