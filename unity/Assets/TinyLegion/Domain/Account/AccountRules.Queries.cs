@@ -16,6 +16,13 @@ namespace TinyLegion.Domain.Account
                 account["abilities"]?[id] as JObject, GemModifiers(account, mode));
         }
 
+        public double CombatPower(JObject account)
+        {
+            double total=0;
+            foreach(var unit in catalog.Units){string id=(string)unit["id"];if(!Owns(account,id))continue;var stats=CompanionStats(account,id);total+=Number(stats["hp"])+10*Number(stats["attack"])/Number(stats["attackInterval"]);}
+            return GameNumbers.Round(total);
+        }
+
         public JObject RefundQuote(JObject account, string id)
         {
             var refund = UnitLevelRefund(account, id);

@@ -116,3 +116,15 @@ test('Unity failed exit reports browser controls and keeps the current screen', 
   assert.match(state.notices[0], /종료 버튼/);
   assert.ok(!state.calls.includes('unlock'));
 });
+
+test('Unity maps high DPI framebuffer pixels back to browser layout units', () => {
+  const library = {};
+  const context = vm.createContext({Module: {canvas: {width: 2440, clientWidth: 1220}}, LibraryManager: {library}, mergeInto: Object.assign});
+  vm.runInContext(bridge, context);
+  assert.equal(library.TL_DisplayScale(), 2);
+  context.Module.canvas.width = 667;
+  context.Module.canvas.clientWidth = 667;
+  assert.equal(library.TL_DisplayScale(), 1);
+  context.Module.canvas.clientWidth = 0;
+  assert.equal(library.TL_DisplayScale(), 1);
+});

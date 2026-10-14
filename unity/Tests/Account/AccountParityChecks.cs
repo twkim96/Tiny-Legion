@@ -82,6 +82,7 @@ namespace TinyLegion.Tests.Account
                     ["gemRecruitUnlocked"] = rules.GemRecruitUnlocked(account),
                     ["growthCost"] = rules.GrowthCost(account, (string)scenario["unitId"]),
                     ["effectiveLevel"] = rules.EffectiveLevel(account, (string)scenario["unitId"]),
+                    ["combatPower"] = rules.CombatPower(account),
                     ["companionStats"] = rules.CompanionStats(account, (string)scenario["unitId"], (string)scenario["mode"] ?? "idle"),
                     ["refundQuote"] = rules.RefundQuote(account, (string)scenario["unitId"]),
                     ["gemDescription"] = rules.GemDescription(scenario["gem"] as JObject),

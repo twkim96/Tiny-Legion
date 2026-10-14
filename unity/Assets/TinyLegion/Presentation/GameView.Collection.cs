@@ -41,6 +41,14 @@ namespace TinyLegion.Unity
             var layout=panel.gameObject.AddComponent<VerticalLayoutGroup>();layout.padding=new RectOffset(10,10,8,8);layout.spacing=5;layout.childControlHeight=true;layout.childControlWidth=true;layout.childForceExpandHeight=false;
             return panel;
         }
+        RectTransform CollectionGrid(RectTransform parent,int count,float height)
+        {
+            var root=ui.Node("Collection grid",parent);var grid=root.gameObject.AddComponent<GridLayoutGroup>();grid.constraint=GridLayoutGroup.Constraint.FixedColumnCount;grid.constraintCount=5;grid.spacing=new Vector2(12,12);var responsive=root.gameObject.AddComponent<ResponsiveGrid>();responsive.Columns=5;responsive.Height=height;var layout=root.gameObject.AddComponent<LayoutElement>();layout.preferredHeight=layout.minHeight=Mathf.Max(1,Mathf.CeilToInt(count/5f))*(height+12)-12;return root;
+        }
+        void CollectionTile(RectTransform parent,JObject unit,string subtitle,Action open)
+        {
+            var button=ui.Button(parent,"",open);ui.Style((RectTransform)button.transform,new Color32(252,250,238,255),new Color32(252,250,238,255),new Color32(216,216,196,255),14);var label=button.GetComponentInChildren<Text>();label.text=CText(unit["name"])+"\n"+subtitle;label.fontSize=11;label.alignment=TextAnchor.MiddleCenter;label.rectTransform.anchorMin=Vector2.zero;label.rectTransform.anchorMax=new Vector2(1,.35f);label.rectTransform.offsetMin=new Vector2(5,4);label.rectTransform.offsetMax=new Vector2(-5,0);var art=ui.Portrait(button.transform,CText(unit["id"]),76);art.rectTransform.anchorMin=new Vector2(.1f,.38f);art.rectTransform.anchorMax=new Vector2(.9f,.9f);art.rectTransform.offsetMin=art.rectTransform.offsetMax=Vector2.zero;
+        }
         void CollectionHeading(Transform parent,JObject definition,string subtitle)
         {
             var row=ui.Row(parent,82);ui.Portrait(row,CText(definition["artId"]??definition["id"]),76);
@@ -63,14 +71,16 @@ namespace TinyLegion.Unity
             modal.Show("동료 성장",p=>{
                 if(!rules.GrowthUnlocked(game.Account)){ui.Paragraph(p,"1-2 방치 미션을 완료하면 레벨업이 열립니다.");return;}
                 var roster=rules.BaseLevelRoster(game.Account);ui.Paragraph(p,$"레벨 기준 · 공유 Lv. {rules.SharedLevel(game.Account)}",20);
-                var basis=ui.Row(p,70);for(int i=0;i<5;i++){string id=i<roster.Count?(string)roster[i]:null;if(id==null){ui.Button(basis,"—",null,false);continue;}var d=game.Catalog.Character(id);ui.Button(basis,$"{CText(d["name"])}\n개인 Lv. {N(game.Account["levels"]?[id])}",()=>ShowUnitDetail(id));}
-                ui.Paragraph(p,"직접 올린 레벨이 높은 5명의 최저 레벨을 다른 동료도 따라갑니다."+(roster.Count<5?" 동료 5명을 모으면 시작됩니다.":""));
-                foreach(var unit in game.Catalog.Units.Where(u=>OwnsCollection(CText(u["id"]))))
+                var basis=CollectionGrid(p,5,100);for(int i=0;i<5;i++){string id=i<roster.Count?(string)roster[i]:null;if(id==null){ui.Button(basis,"—",null,false);continue;}var unit=game.Catalog.Character(id);CollectionTile(basis,unit,$"Lv. {N(game.Account["levels"]?[id])}",()=>ShowUnitDetail(id));}
+                ui.Paragraph(p,"직접 올린 레벨이 높은 5명의 최저 레벨을 다른 동료도 따라갑니다."+(roster.Count<5?" 동료 5명을 모으면 시작됩니다.":""),12);
+                var owned=game.Catalog.Units.Where(u=>OwnsCollection(CText(u["id"]))).ToArray();bool compact=Screen.height/UiKit.DisplayScale<=560;var grid=CollectionGrid(p,owned.Length,compact?210:270);
+                foreach(var unit in owned)
                 {
-                    var id=CText(unit["id"]);var level=rules.EffectiveLevel(game.Account,id);var stats=rules.CompanionStats(game.Account,id,game.Mode);var card=CollectionCard(p);
-                    CollectionHeading(card,unit,$"{RarityName(unit)} · Lv. {level} · 체력 {N(stats["hp"])} / 공격력 {N(stats["attack"])}");
-                    var row=ui.Row(card);ui.Button(row,"상세 · 특수능력",()=>ShowUnitDetail(id));var cost=rules.GrowthCost(game.Account,id);
-                    ui.Button(row,level>=100?"레벨 완료":$"레벨 올리기 · 도토리 {N(new JValue(cost))}",()=>Run(async()=>{await CollectionCommand("unit.grow",new JObject{["id"]=id});}),()=>CanCollect&&level<100&&CValue(game.Account["gold"])>=cost);
+                    var id=CText(unit["id"]);var level=rules.EffectiveLevel(game.Account,id);var stats=rules.CompanionStats(game.Account,id,game.Mode);var card=CollectionCard(grid);ui.Style(card,new Color32(252,250,238,255),new Color32(252,250,238,255),new Color32(216,216,196,255),14);
+                    var rarity=ui.Paragraph(card,RarityName(unit),10);rarity.alignment=TextAnchor.MiddleCenter;
+                    var detail=ui.Button(card,"",()=>ShowUnitDetail(id));detail.GetComponent<Image>().color=Color.clear;detail.GetComponent<LayoutElement>().minHeight=detail.GetComponent<LayoutElement>().preferredHeight=compact?110:160;var label=detail.GetComponentInChildren<Text>();label.text=$"Lv. {level}\n{CText(unit["name"])}";label.fontSize=11;label.rectTransform.anchorMin=Vector2.zero;label.rectTransform.anchorMax=new Vector2(1,.3f);label.rectTransform.offsetMin=label.rectTransform.offsetMax=Vector2.zero;var art=ui.Portrait(detail.transform,id,106);art.rectTransform.anchorMin=new Vector2(0,.35f);art.rectTransform.anchorMax=new Vector2(1,1);art.rectTransform.offsetMin=art.rectTransform.offsetMax=Vector2.zero;
+                    var values=ui.Row(card,20);values.GetComponent<HorizontalLayoutGroup>().spacing=3;values.GetComponent<HorizontalLayoutGroup>().childForceExpandWidth=false;values.GetComponent<HorizontalLayoutGroup>().childAlignment=TextAnchor.MiddleCenter;ui.Icon(values,"heart",12);ui.Paragraph(values,N(stats["hp"]),11);ui.Icon(values,"swords",12);ui.Paragraph(values,N(stats["attack"]),11);
+                    var cost=rules.GrowthCost(game.Account,id);var grow=ui.Button(card,level>=100?"완료":$"{N(new JValue(cost))} ↑",()=>Run(async()=>{await CollectionCommand("unit.grow",new JObject{["id"]=id});}),()=>CanCollect&&level<100&&CValue(game.Account["gold"])>=cost);grow.GetComponent<LayoutElement>().minHeight=grow.GetComponent<LayoutElement>().preferredHeight=32;grow.GetComponentInChildren<Text>().fontSize=11;ui.Primary(grow);
                 }
                 ui.Paragraph(p,$"도토리 {N(game.Account["gold"])} · 강화는 다음 전투부터 적용됩니다.");
             });
@@ -115,12 +125,12 @@ namespace TinyLegion.Unity
         {
             var tabs=ui.Row(p);ui.Button(tabs,enemy?"동료":"✓ 동료",()=>{modal.Show("도감",q=>RenderCollectionCodex(q,false),true);},enemy);ui.Button(tabs,enemy?"✓ 적":"적",()=>{modal.Show("도감",q=>RenderCollectionCodex(q,true),true);},!enemy);
             // Tabs replace their frame so repeated switching preserves a bounded back stack.
-            if(enemy){foreach(var unit in game.Catalog.Enemies){var id=CText(unit["id"]);var card=CollectionCard(p);CollectionHeading(card,unit,Descriptions.Attribute(CText(unit["attribute"]))+((bool?)unit["boss"]==true?" · 거대 적":""));ui.Button(card,"기본 능력치 · 특성",()=>ShowCollectionDetail(id,true));}return;}
+            if(enemy){var enemyGrid=CollectionGrid(p,game.Catalog.Enemies.Count(),180);foreach(var unit in game.Catalog.Enemies){var id=CText(unit["id"]);CollectionTile(enemyGrid,unit,Descriptions.Attribute(CText(unit["attribute"]))+((bool?)unit["boss"]==true?" · 거대 적":""),()=>ShowCollectionDetail(id,true));}return;}
             ui.Paragraph(p,$"동료 {game.Catalog.Units.Count(u=>OwnsCollection(CText(u["id"])))}/{game.Catalog.Units.Count()}");
             var filters=ui.Row(p);ui.Button(filters,collectionRarity=="all"?"✓ 전체 등급":"전체 등급",()=>{collectionRarity="all";modal.Refresh();});foreach(var rarity in CollectionItems("rarities")){var id=CText(rarity["id"]);ui.Button(filters,(collectionRarity==id?"✓ ":"")+CText(rarity["name"]),()=>{collectionRarity=id;modal.Refresh();});}
             ui.Button(p,collectionOwned?"보유 동료만 · 전체 보기":"전체 동료 · 보유만 보기",()=>{collectionOwned=!collectionOwned;modal.Refresh();});
             var units=game.Catalog.Units.Where(u=>(collectionRarity=="all"||CText(u["rarity"])==collectionRarity)&&(!collectionOwned||OwnsCollection(CText(u["id"])))).ToArray();
-            if(units.Length==0)ui.Paragraph(p,"해당 동료가 없습니다.");foreach(var unit in units){var id=CText(unit["id"]);var card=CollectionCard(p);CollectionHeading(card,unit,RarityName(unit)+" · "+(OwnsCollection(id)?$"보유 · Lv. {rules.EffectiveLevel(game.Account,id)}":"미보유"));ui.Button(card,"도감 상세",()=>ShowCollectionDetail(id,false));}
+            if(units.Length==0)ui.Paragraph(p,"해당 동료가 없습니다.");var unitGrid=CollectionGrid(p,units.Length,180);foreach(var unit in units){var id=CText(unit["id"]);CollectionTile(unitGrid,unit,RarityName(unit)+" · "+(OwnsCollection(id)?$"보유 · Lv. {rules.EffectiveLevel(game.Account,id)}":"미보유"),()=>ShowCollectionDetail(id,false));}
         }
         void ShowCollectionDetail(string id,bool enemy,bool replace=false)
         {

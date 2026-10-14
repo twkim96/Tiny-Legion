@@ -1,5 +1,9 @@
 // Generated from dist/src/fullscreen.js; export-platform.mjs lowers syntax for Unity.
 mergeInto(LibraryManager.library, {
+  TL_DisplayScale: function() {
+    var canvas = Module.canvas;
+    return canvas && canvas.clientWidth ? canvas.width / canvas.clientWidth : 1;
+  },
   $TL_EnterLandscapeFullscreen: async function(doc = document, orientation = ((_a) => (_a = globalThis.screen) == null ? void 0 : _a.orientation)()) {
     var _a2;
     if (!doc.fullscreenElement) {

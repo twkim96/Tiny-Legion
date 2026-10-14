@@ -145,6 +145,7 @@ function queryScenario(name, a, { mode = 'idle', stageId = 1, lineupIndex = 0, u
     sequence: accountRules.sequenceForMode(normalized, mode, lineupIndex), owns: accountRules.ownsUnit(normalized, unitId),
     canUse: accountRules.canUseUnit(normalized, unitId), gemRecruitUnlocked: normalized.onboarding.phase === 'complete' && normalized.highestCleared >= 11,
     growthCost: accountRules.levelCost(accountRules.effectiveUnitLevel(normalized, unitId)), effectiveLevel: accountRules.effectiveUnitLevel(normalized, unitId),
+    combatPower: accountRules.combatPower(normalized),
     companionStats: characterStats(unitId, { team: 'player', level: statLevel, abilities: normalized.abilities?.[unitId], modifiers: accountRules.gemModifiers(normalized) }),
     refundQuote: { id: unitId, refund: accountRules.unitLevelRefund(normalized, unitId), enabled: accountRules.growthUnlocked(normalized) && accountRules.unitLevelRefund(normalized, unitId) > 0, personalLevel: normalized.levels?.[unitId] ?? 1, effectiveLevel: accountRules.effectiveUnitLevel(normalized, unitId) },
     gemDescription: gems.gemDescription(gem), gemUpgradeCost: gems.gemUpgradeCost(gem), gemRerollCost: gems.gemRerollCost(gem),

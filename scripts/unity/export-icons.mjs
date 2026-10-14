@@ -13,5 +13,6 @@ for (const name of names) {
     .replaceAll('currentColor', '#343e2c');
   const png = new Resvg(svg, { fitTo: { mode: 'width', value: 96 } }).render().asPng();
   await writeFile(resolve(directory, name + '.png'), png);
+  if(name!=='acorn'){const mask=svg.replaceAll('#343e2c','#ffffff');await writeFile(resolve(directory, 'white-'+name+'.png'),new Resvg(mask,{fitTo:{mode:'width',value:96}}).render().asPng());}
 }
 console.log('Exported maintained browser icons for Unity');

@@ -13,11 +13,11 @@ namespace TinyLegion.Unity
         {
             modal.Show("군단 메뉴",p=>{
                 if(game.Account==null){ui.Button(p,"로그인",ShowLogin);return;}
-                if(Intro||(game.Battle!=null&&!game.Battle.State.Finished&&game.Mode!="idle")){ui.IconButton(p,"settings","설정",ShowSettings);return;}
-                var row=ui.Row(p,72);ui.IconButton(row,"units","동료",ShowGrowth);ui.IconButton(row,"envelope","모집",()=>ShowRecruit());ui.IconButton(row,"book","도감",()=>ShowCodex());
-                var next=ui.Row(p,72);ui.IconButton(next,"map","전장",ShowStages);ui.IconButton(next,"sequence","순서",ShowSequence);ui.IconButton(next,"flag","미션",ShowMission);
-                var economy=ui.Row(p,72);ui.IconButton(economy,"purse","생산 기록",ShowIncome);ui.IconButton(economy,"bolt","속공",ShowDaily,rules.AdvancedContentUnlocked(game.Account));ui.IconButton(economy,"gem","보석",ShowGems,rules.AdvancedContentUnlocked(game.Account));
-                ui.IconButton(p,"settings","설정",ShowSettings);
+                if(Intro||(game.Battle!=null&&!game.Battle.State.Finished&&game.Mode!="idle")){ui.MenuItem(p,"settings","설정",ShowSettings);return;}
+                var row=ui.Row(p,85);ui.MenuItem(row,"units","동료",ShowGrowth);ui.MenuItem(row,"envelope","모집",()=>ShowRecruit());ui.MenuItem(row,"book","도감",()=>ShowCodex());
+                var next=ui.Row(p,85);ui.MenuItem(next,"map","전장",ShowStages);ui.MenuItem(next,"sequence","순서",ShowSequence);ui.MenuItem(next,"flag","미션",ShowMission);
+                var economy=ui.Row(p,85);ui.MenuItem(economy,"purse","생산 기록",ShowIncome);ui.MenuItem(economy,"bolt","속공",ShowDaily,rules.AdvancedContentUnlocked(game.Account));ui.MenuItem(economy,"gem","보석",ShowGems,rules.AdvancedContentUnlocked(game.Account));
+                ui.MenuItem(p,"settings","설정",ShowSettings);
                 if((bool?)game.Identity?["isAdmin"]==true)ui.Button(p,"관리자 기능",ShowAdmin);
                 if(game.Battle!=null)ui.Button(p,"전투 나가기",()=>Confirm("전투 나가기","진행 중인 전투를 종료하고 방치로 돌아갑니다.",async()=>{await game.LeaveBattle();if(!Intro)await game.StartBattle("idle",(int?)game.Account["idleStage"]??1);}));
             },presentation:"drawer");
@@ -87,18 +87,23 @@ namespace TinyLegion.Unity
             else if(phase=="complete"&&early=="idle-retry")Guide("다시 측정","방어에 맞춘 순서로 1-2를 다시 측정하세요.","방치 측정",()=>game.StartBattle("idle",2));
         }
         void Guide(string title,string text,string action,Func<Task> run)
-        {modal.Show(title,p=>{ui.Portrait(p,"sheep",96);ui.Paragraph(p,text,18);ui.Button(p,action,()=>Run(async()=>{modal.ForceClose();await run();}));},required:true,presentation:"message");}
+        {modal.Show(title,p=>{ui.Portrait(p,"sheep",96);var paragraph=ui.Paragraph(p,text,14);paragraph.alignment=TextAnchor.MiddleCenter;var actions=ui.Row(p,40);actions.GetComponent<HorizontalLayoutGroup>().childForceExpandWidth=false;actions.GetComponent<HorizontalLayoutGroup>().childAlignment=TextAnchor.MiddleCenter;var button=ui.Button(actions,action,()=>Run(async()=>{modal.ForceClose();await run();}));button.GetComponent<LayoutElement>().preferredWidth=120;button.GetComponent<LayoutElement>().flexibleWidth=0;ui.Primary(button);},required:true,presentation:"message");}
         JObject pendingIdleResult;RectTransform idlePopup;
         void ShowPendingIdleResult(){if(pendingIdleResult!=null&&!modal.Open){var outcome=pendingIdleResult;pendingIdleResult=null;ShowIdlePopup(outcome);}}
         void ShowIdlePopup(JObject outcome)
         {
             if(idlePopup)Destroy(idlePopup.gameObject);
-            idlePopup=ui.Panel(root,new Color32(249,245,232,245));idlePopup.anchorMin=new Vector2(.69f,.36f);idlePopup.anchorMax=new Vector2(.985f,.71f);idlePopup.offsetMin=idlePopup.offsetMax=Vector2.zero;
-            var content=ui.Column(idlePopup,3);UiKit.Fill(content);var result=outcome["battleResult"] as JObject??outcome;
-            ui.Paragraph(content,"방치 측정",18);ui.Paragraph(content,$"성 체력 {((double?)result["hpRatio"]??0)*100:0}% · {(double?)result["survival"]:0.#}초",14);
-            var record=game.Account["records"]?[game.StageId.ToString()];ui.Paragraph(content,$"최고 도토리 {(double?)record?["gold"]*3600/((double?)record?["productionSeconds"]??120):0} / 시간",14);
-            var income=outcome["income"];if(income!=null)ui.Paragraph(content,$"이번 생산 도토리 {N(income["gold"])} · 다이아 {(double?)income["diamonds"]:0.###}",14);
-            var row=ui.Row(content,30);ui.Button(row,"숨기기",()=>Run(async()=>{await game.Command("idle.popup",new JObject{["stageId"]=game.StageId,["hidden"]=true});if(idlePopup)Destroy(idlePopup.gameObject);}));ui.Button(row,"확인",()=>{if(idlePopup)Destroy(idlePopup.gameObject);});
+            idlePopup=ui.Panel(root);ui.Style(idlePopup,ui.Paper,ui.Paper,new Color32(221,220,205,255),16);idlePopup.anchorMin=idlePopup.anchorMax=idlePopup.pivot=new Vector2(.5f,.52f);idlePopup.anchoredPosition=Vector2.zero;idlePopup.sizeDelta=new Vector2(Mathf.Min(Screen.height/UiKit.DisplayScale<=560?310:340,root.rect.width-32),Mathf.Min(380,root.rect.height-24));
+            var content=ui.Column(idlePopup,8);UiKit.Fill(content,6,6,6,6);var result=outcome["battleResult"] as JObject??outcome;
+            var title=ui.Paragraph(content,(bool?)result["won"]==true?"방치 완료":"방치 종료",Screen.height/UiKit.DisplayScale<=560?16:19);title.fontStyle=FontStyle.Bold;
+            ui.Paragraph(content,$"{StageLabel(game.StageId)} · 0:{(double?)result["survival"]:00.0}",12);
+            ui.Paragraph(content,"이 전투 동안 실제 지급된 재화",11);
+            var income=outcome["income"];ui.Paragraph(content,$"도토리  +{N(income?["gold"])}\n다이아  +{(double?)income?["diamonds"]??0:0.##}",14);
+            var record=game.Account["records"]?[game.StageId.ToString()];ui.Paragraph(content,$"이번에 측정한 생산 기록 · 성 체력 {((double?)result["hpRatio"]??0)*100:0}%\n최고 기록 · 시간당 도토리 {(double?)record?["gold"]*3600/((double?)record?["productionSeconds"]??120):N0}",11);
+            ui.Paragraph(content,"생산 기록은 즉시 지급되는 보상이 아닙니다.\n최고 기록에 따라 재화가 쌓이며 방치도 계속 진행됩니다.",11);
+            bool hide=false;ui.Toggle(content,"이 스테이지에서 다시 보지 않기",false,value=>hide=value);
+            var confirm=ui.Button(content,"확인",()=>Run(async()=>{if(hide)await game.Command("idle.popup",new JObject{["stageId"]=game.StageId,["hidden"]=true});if(idlePopup)Destroy(idlePopup.gameObject);}));ui.Primary(confirm);
+
         }
         void ShowBattleResult(JObject outcome)
         {

@@ -52,7 +52,7 @@ namespace TinyLegion.Editor
             {
                 var scenery=(TextureImporter)assetImporter;
                 scenery.textureType=TextureImporterType.Default;
-                scenery.textureShape=TextureImporterShape.Texture2D;
+                scenery.textureShape=TextureImporterShape.Texture2D;scenery.npotScale=TextureImporterNPOTScale.None;
                 scenery.alphaIsTransparency=true;scenery.mipmapEnabled=false;
                 scenery.wrapMode=TextureWrapMode.Clamp;
                 scenery.textureCompression=TextureImporterCompression.Uncompressed;

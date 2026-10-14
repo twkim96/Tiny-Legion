@@ -27,6 +27,7 @@ namespace TinyLegion.Unity
             if(game.ConnectionStatus=="connecting"||game.ConnectionStatus=="retrying")return;
             if(shownConnection==game.ConnectionStatus)return;shownConnection=game.ConnectionStatus;
             modal.Show("온라인 연결",p=>{ui.Paragraph(p,game.ConnectionStatus=="auth-required"?"로그인이 만료되었습니다. 다시 로그인한 뒤 필요한 행동을 선택해 주세요.":game.ConnectionStatus=="replaced"?"다른 곳에서 접속하여 현재 세션이 종료되었습니다.":"서버 처리 결과를 확인하지 못했습니다. 재연결하면 같은 요청으로 결과를 확인합니다.");
+                if(game.ConnectionStatus=="auth-required")ui.Button(p,"ChatGPT 로그인 페이지",()=>game.SignIn());
                 if(game.ConnectionStatus=="offline")ui.Button(p,"다시 연결",()=>Run(()=>game.RetryConnection()));
                 ui.Button(p,"계정 접속",ShowLogin);
             },true);
@@ -34,12 +35,13 @@ namespace TinyLegion.Unity
         void ShowLogin()
         {
             modal.Show("계정 접속",p=>{
-                ui.Paragraph(p,"계정으로 이어서 플레이하거나 게스트로 시작할 수 있습니다.");
-                ui.Button(p,"ChatGPT 계정 로그인",()=>Run(async()=>{modal.Close();await game.StartSession("account");Refresh();}),game.Online);
-                ui.Button(p,"ChatGPT 로그인 페이지",()=>game.SignIn(),game.Online);
+                if(game.Account==null){var login=ui.Button(p,"계정 로그인",()=>Run(async()=>{modal.Close();await game.StartSession("account");Refresh();}),game.Online);ui.Primary(login);}
+                else {ui.Paragraph(p,"계정으로 이어서 플레이하거나 게스트로 시작할 수 있습니다.");ui.Button(p,"ChatGPT 계정 로그인",()=>Run(async()=>{modal.Close();await game.StartSession("account");Refresh();}),game.Online);ui.Button(p,"ChatGPT 로그인 페이지",()=>game.SignIn(),game.Online);}
                 ui.Button(p,"게스트로 시작",()=>Run(async()=>{modal.Close();await game.StartSession("guest");Refresh();}),game.Online);
                 if(game.TestLoginAvailable)ui.Button(p,"테스트 로그인",ShowTestLogin);
-            });
+                if(game.Account==null){var caption=ui.Paragraph(p,"ChatGPT 계정",12);caption.color=new Color32(178,185,168,255);caption.alignment=TextAnchor.MiddleCenter;}
+
+            },presentation:game.Account==null?"entry":"panel");
         }
         void ShowTestLogin()
         {

@@ -14,6 +14,9 @@ await mkdir(resolve(root, 'unity/Assets/Plugins/WebGL'), { recursive: true });
 const bridge = `// Generated from dist/src/fullscreen.js by scripts/unity/export-platform.mjs.
 // Edit the maintained browser function, then export; do not maintain a second copy.
 mergeInto(LibraryManager.library, {
+  TL_DisplayScale: function() {
+    var canvas=Module.canvas; return canvas && canvas.clientWidth ? canvas.width/canvas.clientWidth : 1;
+  },
   $TL_EnterLandscapeFullscreen: ${enter},
   $TL_FullscreenHooks: {
     installed: false,
