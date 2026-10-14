@@ -1,0 +1,30 @@
+<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Tiny Legion 성능 검증</title><style>body{margin:0;background:#d8dfca;color:#283627;font:16px system-ui}header{position:fixed;z-index:2;background:#d8dfca;display:flex;gap:16px;align-items:center;padding:8px}button{font:inherit;padding:8px 14px}canvas{display:block;width:100vw;height:100vh}pre{margin:8px;white-space:pre-wrap;font:14px monospace}</style><header><strong>후반 스트레스 검증 · 실제 저장에 접근하지 않음</strong><button id="start">측정 시작</button></header><canvas id="field" aria-label="성능 검증 전장"></canvas><pre id="result">이미지 준비 중</pre><script type="module">
+import {createBattle,stepBattle} from './src/engine.js';
+import {Renderer} from './src/renderer.js';
+import {UNITS} from './src/data.js';
+const canvas=document.querySelector('#field'),out=document.querySelector('#result'),button=document.querySelector('#start');
+const renderer=new Renderer(canvas);
+const ids=UNITS.slice(0,10).map(unit=>unit.id);
+const battle=createBattle({mode:'idle',stageId:20,duration:600,sequence:ids,ownedUnits:ids,levels:Object.fromEntries(ids.map(id=>[id,35])),modifiers:{hp:100,attack:.001,goldIncome:100,goldCapacity:10},enemyModifiers:{attack:.001,hp:100}});
+let peak=0;for(let i=0;i<3600&&!battle.finished;i++){stepBattle(battle,1/30);peak=Math.max(peak,battle.units.filter(u=>!u.dead).length);if(peak===80)break;}
+renderer.consumeEvents(battle.events,battle);renderer.render(battle,performance.now()/1000);
+out.textContent=`준비 완료: ${peak} units. 소환/생존 보너스를 높여 80유닛 상한을 재현한 인공 부하입니다. 게임 밸런스 평가가 아닙니다.`;
+let running=false;
+button.onclick=()=>{if(running)return;running=true;button.disabled=true;
+let previous=performance.now(),start=previous,ticks=0,simulationTicks=0,accumulator=0;const intervals=[],renderTimes=[],engineTimes=[];let maxProjectiles=0;
+function frame(now){
+ if(document.hidden){out.textContent='중단: 화면이 숨겨졌습니다.';running=false;button.disabled=false;return;}
+ intervals.push(now-previous);accumulator+=Math.min(.12,(now-previous)/1000);previous=now;
+ const s=performance.now();while(accumulator>=1/30){stepBattle(battle,1/30);renderer.consumeEvents(battle.events,battle);accumulator-=1/30;simulationTicks++;}engineTimes.push(performance.now()-s);
+ const r=performance.now();renderer.render(battle,now/1000);renderTimes.push(performance.now()-r);
+ peak=Math.max(peak,battle.units.filter(u=>!u.dead).length);maxProjectiles=Math.max(maxProjectiles,battle.projectiles.length);ticks++;
+ if(now-start>=30000){
+ const percentile=(list,p)=>[...list].sort((a,b)=>a-b)[Math.floor((list.length-1)*p)];
+ const stats={durationMs:Math.round(now-start),frames:ticks,simulationTicks,fps:Number((1000*ticks/(now-start)).toFixed(1)),peakUnits:peak,maxProjectiles,width:renderer.width,height:renderer.height,dpr:renderer.dpr,frameP50:percentile(intervals,.5),frameP95:percentile(intervals,.95),renderP95:percentile(renderTimes,.95),engineP95:percentile(engineTimes,.95),over33ms:intervals.filter(x=>x>33.4).length,finished:battle.finished,userAgent:navigator.userAgent};
+ out.textContent=JSON.stringify(stats,null,2);button.textContent='측정 완료';running=false;return;
+ }
+ if(ticks%30===0)out.textContent=`측정 중 ${Math.round((now-start)/1000)} / 30초 · ${peak} units · ${battle.projectiles.length} projectiles`;
+ requestAnimationFrame(frame);
+}requestAnimationFrame(frame);
+};
+</script></html>

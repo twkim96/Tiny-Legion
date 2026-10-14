@@ -1168,3 +1168,16 @@ test('a save import does not replace current progress when storage refuses the i
   assert.equal(c.account,before);assert.ok(c.calls.includes('저장할 수 없어 불러오지 않았습니다. 현재 진행도는 유지됩니다.'));
   assert.ok(!c.calls.includes('start'));
 });
+
+test('native export write failure keeps progress and offers retry without a browser download fallback', async () => {
+  const c=harness(['renderSettings']);
+  c.audioSettingsMarkup=()=>'';c.bindAudioSettings=()=>{};
+  c.settleProduction=()=>{};
+  c.exportNativeSave=async()=>{throw new Error('Cannot write save file');};
+  c.renderSettings();const before=c.account;
+  c.$('export-save').onclick();
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(c.account,before);
+  assert.ok(c.calls.includes('저장 파일을 내보내지 못했습니다. 다시 시도해 주세요.'));
+  assert.ok(c.calls.includes('save'));
+});
