@@ -14,7 +14,7 @@ namespace TinyLegion.Unity
     {
         IGameController game;AccountRules rules;UiKit ui;ModalNavigation modal;RectTransform root,hand,hudLeft,hudRight,contentIcons,combatIcons;
         Vector2 hudSize;BattleEngine displayedBattle;
-        Text diamonds,power,battleInfo,stageTitle,gold,notice;Image walletFill;RectTransform menuControls,profileRect,walletRect,strengthRect,stageRect,missionRect,incomeRect;Text missionText;Button start,cannon,pause,speedButton;readonly List<(Button Button,Text Label,string Id,Image Portrait,RectTransform Auto,Image Cooldown)> cards=new List<(Button,Text,string,Image,RectTransform,Image)>();
+        Text resources,diamonds,power,battleInfo,stageTitle,gold,notice;Image walletFill;RectTransform menuControls,profileRect,walletRect,strengthRect,stageRect,missionRect,incomeRect;Text missionText;Button start,cannon,pause,speedButton;readonly List<(Button Button,Text Label,string Id,Image Portrait,RectTransform Auto,Image Cooldown)> cards=new List<(Button,Text,string,Image,RectTransform,Image)>();
         float noticeUntil;string shownGuide;long shownReturnTo;string shownConnection;bool sessionPresented;
         public void Initialize(IGameController controller)
         {
@@ -26,7 +26,7 @@ namespace TinyLegion.Unity
             var shade=ui.Node("HUD shade",root);shade.anchorMin=new Vector2(0,1);shade.anchorMax=Vector2.one;shade.offsetMin=new Vector2(0,-200);shade.offsetMax=Vector2.zero;var tint=shade.gameObject.AddComponent<RawImage>();tint.texture=Resources.Load<Texture2D>("Scenery/hud-shade");tint.raycastTarget=false;
             var profile=ui.Button(root,"",ShowGrowth);profileRect=(RectTransform)profile.transform;profile.GetComponent<Image>().color=Color.clear;var portrait=ui.Portrait(profile.transform,"sheep",60);UiKit.Fill(portrait.rectTransform);Place((RectTransform)profile.transform,new Vector2(0,1),new Vector2(24,-22),new Vector2(60,60),new Vector2(0,1));
             var wallet=ui.Node("Account resources",root);walletRect=wallet;Place(wallet,new Vector2(0,1),new Vector2(96,-22),new Vector2(150,60),new Vector2(0,1));
-            diamonds=Resource(wallet,"gem",Vector2.zero,new Color32(136,222,255,255));
+            resources=Resource(wallet,"acorn",Vector2.zero,Color.white);diamonds=Resource(wallet,"gem",new Vector2(0,-30),new Color32(136,222,255,255));
             var strength=ui.Node("Combat power",root);strengthRect=strength;Place(strength,new Vector2(0,1),new Vector2(24,-86),new Vector2(180,24),new Vector2(0,1));power=Resource(strength,"swords",Vector2.zero,Color.white);
             var stage=ui.Node("Stage status",root);stageRect=stage;Place(stage,new Vector2(.5f,1),new Vector2(0,-22),new Vector2(240,74),new Vector2(.5f,1));
             var stageButton=ui.Button(stage,"",ShowStages);stageButton.GetComponent<Image>().color=Color.clear;Place((RectTransform)stageButton.transform,new Vector2(.5f,1),Vector2.zero,new Vector2(240,32),new Vector2(.5f,1));stageTitle=stageButton.GetComponentInChildren<Text>();stageTitle.fontSize=19;stageTitle.color=Color.white;
@@ -64,11 +64,11 @@ namespace TinyLegion.Unity
         {int stage=Intro?(int?)game.Catalog.Raw["onboarding"]?[Phase]?["id"]??1:game.Mode=="idle"?Math.Min(((JArray)game.Catalog.Raw["stages"]).Count,(int?)game.Account?["highestCleared"]+1??1):Math.Max(1,game.StageId);modal.Close();await game.StartBattle(Intro||game.Mode=="idle"?"challenge":game.Mode,stage);}
         void Refresh()
         {
-            if(game.SaveRecoveryRequired){diamonds.text="저장 복구 필요";ShowSaveRecovery();return;}
+            if(game.SaveRecoveryRequired){resources.text="저장 복구 필요";diamonds.text="";ShowSaveRecovery();return;}
             if(game.Account==null){if(game.Online&&game.ConnectionStatus!="idle")ShowConnection();return;}
             bool firstSession=!sessionPresented;sessionPresented=true;
             if(firstSession&&game.Online)modal.ForceClose();
-            diamonds.text=$"{((double?)game.Account["diamonds"]??0):0}";power.text=$"{rules.CombatPower(game.Account):N0}";
+            resources.text=N(game.Account["gold"]);diamonds.text=$"{((double?)game.Account["diamonds"]??0):0}";power.text=$"{rules.CombatPower(game.Account):N0}";
             var mission=rules.CurrentMission(game.Account);missionRect.gameObject.SetActive(mission!=null&&!Intro);if(mission!=null){bool ready=(bool?)mission["ready"]??(bool?)mission["completed"]??false;missionText.text=$"{(ready?"미션 완료":"미션")}\n{(string)(mission["title"]??mission["name"])}\n{(ready?"보상 받기":"진행 중")}\n도토리 {N(mission["gold"]??mission["reward"]?["gold"])}  다이아 {N(mission["diamonds"]??mission["reward"]?["diamonds"])}";}
 
             UiKit.Clear(hand);cards.Clear();var sequence=game.Battle?.State.Sequence??rules.PlayableSequence(game.Account,game.Mode).Select(x=>x.Type==JTokenType.String?(string)x:null).ToList();
@@ -96,7 +96,7 @@ namespace TinyLegion.Unity
                 hudLeft.sizeDelta=new Vector2(compact?76:120,compact?82:100);hudLeft.anchoredPosition=new Vector2(-width*.5f-(compact?46:78),hand.anchoredPosition.y+hand.sizeDelta.y*.5f);gold.fontSize=compact?28:36;
                 Place((RectTransform)cannon.transform,new Vector2(.5f,0),new Vector2(width*.5f+(compact?46:74),hand.anchoredPosition.y+hand.sizeDelta.y*.5f),new Vector2(compact?76:112,compact?76:112),new Vector2(.5f,.5f));Place((RectTransform)start.transform,new Vector2(1,0),new Vector2(compact?-12:-22,compact?12:23),new Vector2(compact?76:114,compact?42:58),new Vector2(1,0));start.GetComponentInChildren<Text>().fontSize=compact?10:14;
                 menuControls.anchoredPosition=new Vector2(compact?-12:-22,compact?-12:-22);foreach(var menu in menuControls.GetComponentsInChildren<Button>(true)){var le=menu.GetComponent<LayoutElement>();le.minWidth=le.preferredWidth=compact?36:51;le.minHeight=le.preferredHeight=compact?52:70;menu.GetComponentInChildren<Text>().fontSize=compact?8:11;var badge=menu.transform.Find("Menu medallion") as RectTransform;if(badge){badge.sizeDelta=new Vector2(compact?36:51,compact?36:51);var image=badge.GetComponentInChildren<Image>();if(badge.childCount>0)UiKit.Fill((RectTransform)badge.GetChild(0),compact?7:10,compact?7:10,compact?7:10,compact?7:10);}}menuControls.sizeDelta=new Vector2(menuControls.sizeDelta.x,compact?52:70);foreach(var controls in new[]{contentIcons,combatIcons}){var layout=controls.GetComponent<LayoutElement>();layout.minHeight=layout.preferredHeight=compact?52:70;}
-                Place(profileRect,new Vector2(0,1),new Vector2(compact?12:24,compact?-12:-22),new Vector2(compact?43:60,compact?43:60),new Vector2(0,1));walletRect.anchoredPosition=new Vector2(compact?62:96,compact?-12:-22);diamonds.fontSize=compact?12:16;strengthRect.anchoredPosition=new Vector2(compact?12:24,compact?-61:-86);power.fontSize=compact?12:16;stageRect.anchoredPosition=new Vector2(0,compact?-12:-22);stageTitle.fontSize=compact?15:19;battleInfo.fontSize=compact?11:13;
+                Place(profileRect,new Vector2(0,1),new Vector2(compact?12:24,compact?-12:-22),new Vector2(compact?43:60,compact?43:60),new Vector2(0,1));walletRect.anchoredPosition=new Vector2(compact?62:96,compact?-12:-22);diamonds.transform.parent.GetComponent<RectTransform>().anchoredPosition=new Vector2(0,compact?-22:-30);resources.fontSize=diamonds.fontSize=compact?12:16;strengthRect.anchoredPosition=new Vector2(compact?12:24,compact?-61:-86);power.fontSize=compact?12:16;stageRect.anchoredPosition=new Vector2(0,compact?-12:-22);stageTitle.fontSize=compact?15:19;battleInfo.fontSize=compact?11:13;
                 missionRect.anchoredPosition=new Vector2(compact?12:24,compact?-91:-122);missionRect.sizeDelta=new Vector2(compact?186:224,compact?65:100);missionText.fontSize=compact?10:12;incomeRect.anchoredPosition=new Vector2(compact?12:24,compact?12:18);
             }
             modal.Resize();
