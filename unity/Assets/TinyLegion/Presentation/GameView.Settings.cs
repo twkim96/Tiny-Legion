@@ -24,6 +24,7 @@ namespace TinyLegion.Unity
         }
         void ShowConnection()
         {
+            if(game.ConnectionStatus=="connecting"||game.ConnectionStatus=="retrying")return;
             if(shownConnection==game.ConnectionStatus)return;shownConnection=game.ConnectionStatus;
             modal.Show("온라인 연결",p=>{ui.Paragraph(p,game.ConnectionStatus=="auth-required"?"로그인이 만료되었습니다. 다시 로그인한 뒤 필요한 행동을 선택해 주세요.":game.ConnectionStatus=="replaced"?"다른 곳에서 접속하여 현재 세션이 종료되었습니다.":"서버 처리 결과를 확인하지 못했습니다. 재연결하면 같은 요청으로 결과를 확인합니다.");
                 if(game.ConnectionStatus=="offline")ui.Button(p,"다시 연결",()=>Run(()=>game.RetryConnection()));

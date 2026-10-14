@@ -1,6 +1,8 @@
 {
   "name": "TinyLegion.Editor.Tests",
-  "references": ["TinyLegion.Presentation", "UnityEngine.UI"],
+  "references": ["TinyLegion.Domain", "TinyLegion.Presentation", "TinyLegion.Runtime", "UnityEngine.UI"],
+  "overrideReferences": true,
+  "precompiledReferences": ["Newtonsoft.Json.dll", "nunit.framework.dll"],
   "includePlatforms": ["Editor"],
   "optionalUnityReferences": ["TestAssemblies"],
   "autoReferenced": false
