@@ -2,7 +2,9 @@
 mergeInto(LibraryManager.library, {
   TL_DisplayScale: function() {
     var canvas = Module.canvas;
-    return canvas && canvas.clientWidth ? canvas.width / canvas.clientWidth : 1;
+    if (!canvas || !canvas.clientWidth || !canvas.clientHeight) return 1;
+    var fit = Math.min(1, canvas.clientWidth / 667, canvas.clientHeight / 375);
+    return canvas.width / canvas.clientWidth * fit;
   },
   $TL_EnterLandscapeFullscreen: async function(doc = document, orientation = ((_a) => (_a = globalThis.screen) == null ? void 0 : _a.orientation)()) {
     var _a2;

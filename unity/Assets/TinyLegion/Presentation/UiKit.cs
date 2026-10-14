@@ -9,7 +9,7 @@ namespace TinyLegion.Unity
     {
 #if UNITY_WEBGL && !UNITY_EDITOR
         [System.Runtime.InteropServices.DllImport("__Internal")] static extern float TL_DisplayScale();
-        public static float DisplayScale => Mathf.Max(1,TL_DisplayScale());
+        public static float DisplayScale => Mathf.Max(.1f,TL_DisplayScale());
 #else
         public static float DisplayScale => 1;
 #endif

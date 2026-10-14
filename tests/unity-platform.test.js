@@ -119,12 +119,24 @@ test('Unity failed exit reports browser controls and keeps the current screen', 
 
 test('Unity maps high DPI framebuffer pixels back to browser layout units', () => {
   const library = {};
-  const context = vm.createContext({Module: {canvas: {width: 2440, clientWidth: 1220}}, LibraryManager: {library}, mergeInto: Object.assign});
+  const context = vm.createContext({Module: {canvas: {width: 2440, clientWidth: 1220, clientHeight: 686.25}}, LibraryManager: {library}, mergeInto: Object.assign});
   vm.runInContext(bridge, context);
   assert.equal(library.TL_DisplayScale(), 2);
   context.Module.canvas.width = 667;
   context.Module.canvas.clientWidth = 667;
+  context.Module.canvas.clientHeight = 375;
   assert.equal(library.TL_DisplayScale(), 1);
   context.Module.canvas.clientWidth = 0;
   assert.equal(library.TL_DisplayScale(), 1);
+});
+
+test('Unity narrow portrait canvas scales the whole landscape HUD instead of overlapping fixed controls', () => {
+  const library = {};
+  const context = vm.createContext({Module: {canvas: {width: 1074, clientWidth: 358, clientHeight: 358*9/16}}, LibraryManager: {library}, mergeInto: Object.assign});
+  vm.runInContext(bridge, context);
+  const scale=library.TL_DisplayScale();
+  assert.ok(Math.abs(1074/scale-667)<.01);
+  assert.ok(Math.abs(358*9/16*3/scale-375.1875)<.01);
+  context.Module.canvas.width=358;
+  assert.ok(library.TL_DisplayScale()<1);
 });

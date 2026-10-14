@@ -15,7 +15,9 @@ const bridge = `// Generated from dist/src/fullscreen.js by scripts/unity/export
 // Edit the maintained browser function, then export; do not maintain a second copy.
 mergeInto(LibraryManager.library, {
   TL_DisplayScale: function() {
-    var canvas=Module.canvas; return canvas && canvas.clientWidth ? canvas.width/canvas.clientWidth : 1;
+    var canvas=Module.canvas; if (!canvas || !canvas.clientWidth || !canvas.clientHeight) return 1;
+    var fit=Math.min(1,canvas.clientWidth/667,canvas.clientHeight/375);
+    return canvas.width/canvas.clientWidth*fit;
   },
   $TL_EnterLandscapeFullscreen: ${enter},
   $TL_FullscreenHooks: {
@@ -50,3 +52,6 @@ mergeInto(LibraryManager.library, {
 const compatible = await transform(bridge, { target: 'es2017', legalComments: 'inline' });
 await writeFile(output, '// Generated from dist/src/fullscreen.js; export-platform.mjs lowers syntax for Unity.\n' + compatible.code);
 console.log('Exported the maintained browser fullscreen behavior to the Unity bridge');
+
+const templateBridge = await transform(source, { target: 'es2017', format: 'iife', globalName: 'TinyLegionFullscreen' });
+await writeFile(resolve(root, 'unity/Assets/WebGLTemplates/TinyLegion/fullscreen.js'), '// Generated from dist/src/fullscreen.js; do not edit.\n' + templateBridge.code);
