@@ -40,7 +40,7 @@ function browser({ unsupported = false, denied = false, lock, exit } = {}) {
   vm.runInContext(bridge, context);
   // Emscripten exposes $library helpers without their leading dollar sign.
   for (const dependency of library.TL_Fullscreen__deps) context[dependency.slice(1)] = library[dependency];
-  return { click: library.TL_Fullscreen, calls, notices, doc, listeners };
+  return { click: library.TL_Fullscreen, calls, notices, doc, listeners, context };
 }
 
 test('Unity unsupported fullscreen reports manual rotation without throwing or locking', async () => {
@@ -139,4 +139,19 @@ test('Unity narrow portrait canvas scales the whole landscape HUD instead of ove
   assert.ok(Math.abs(358*9/16*3/scale-375.1875)<.01);
   context.Module.canvas.width=358;
   assert.ok(library.TL_DisplayScale()<1);
+});
+
+test('Portrait HTML fullscreen button calls the shared request synchronously and restores its enabled state', async () => {
+  const state=browser();
+  const button={disabled:false,textContent:'전체 화면'},status={textContent:'가로 화면에서 플레이해 주세요.'};
+  state.doc.getElementById=id=>id==='rotate-fullscreen'?button:id==='rotate-status'?status:null;
+  const source=await readFile(new URL('../unity/Assets/WebGLTemplates/TinyLegion/fullscreen.js',import.meta.url),'utf8');
+  vm.runInContext(source,state.context);
+  vm.runInContext('TinyLegionFullscreen.bindRotationPrompt()',state.context);
+  const completion=button.onclick();
+  assert.deepEqual(state.calls,['request']);
+  assert.equal(button.disabled,true);
+  await completion;
+  assert.equal(button.disabled,false);
+  assert.equal(status.textContent,'');
 });
