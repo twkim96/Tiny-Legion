@@ -18,7 +18,9 @@ public class NativeGamePlugin extends Plugin {
 
     @PluginMethod public void ready(PluginCall call) {
         getActivity().runOnUiThread(() -> {
-            ((MainActivity) getActivity()).webReady = true;
+            MainActivity activity = (MainActivity) getActivity();
+            activity.webReady = true;
+            bridge.triggerWindowJSEvent("tiny-legion-app-state", "{\"isActive\":" + activity.appActive + "}");
             call.resolve();
         });
     }

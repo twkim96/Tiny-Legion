@@ -9,6 +9,7 @@ import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
     boolean webReady;
+    boolean appActive;
     private void hideSystemBars() {
         WindowInsetsControllerCompat controller = WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
         controller.hide(WindowInsetsCompat.Type.systemBars());
@@ -27,10 +28,12 @@ public class MainActivity extends BridgeActivity {
     }
     @Override public void onResume() {
         super.onResume();
-        if (bridge != null) bridge.triggerWindowJSEvent("tiny-legion-app-state", "{\"isActive\":true}");
+        appActive = true;
+        if (webReady && bridge != null) bridge.triggerWindowJSEvent("tiny-legion-app-state", "{\"isActive\":true}");
     }
     @Override public void onPause() {
-        if (bridge != null) bridge.triggerWindowJSEvent("tiny-legion-app-state", "{\"isActive\":false}");
+        appActive = false;
+        if (webReady && bridge != null) bridge.triggerWindowJSEvent("tiny-legion-app-state", "{\"isActive\":false}");
         super.onPause();
     }
     @Override public void onWindowFocusChanged(boolean focus) {
