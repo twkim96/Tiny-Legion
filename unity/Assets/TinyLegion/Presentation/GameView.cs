@@ -69,7 +69,7 @@ namespace TinyLegion.Unity
             bool firstSession=!sessionPresented;sessionPresented=true;
             if(firstSession&&game.Online)modal.ForceClose();
             resources.text=N(game.Account["gold"]);diamonds.text=$"{((double?)game.Account["diamonds"]??0):0}";power.text=$"{rules.CombatPower(game.Account):N0}";
-            var mission=rules.CurrentMission(game.Account);missionRect.gameObject.SetActive(mission!=null&&!Intro);if(mission!=null)missionText.text=$"{((bool?)mission["ready"]==true?"미션 완료":"미션")}\n{(string)(mission["title"]??mission["name"])}\n{((bool?)mission["ready"]==true?"보상 받기":"진행 중")}\n도토리 {N(mission["gold"]??mission["reward"]?["gold"])}  다이아 {N(mission["diamonds"]??mission["reward"]?["diamonds"])}";
+            var mission=rules.CurrentMission(game.Account);missionRect.gameObject.SetActive(mission!=null&&!Intro);if(mission!=null){bool ready=(bool?)mission["ready"]??(bool?)mission["completed"]??false;missionText.text=$"{(ready?"미션 완료":"미션")}\n{(string)(mission["title"]??mission["name"])}\n{(ready?"보상 받기":"진행 중")}\n도토리 {N(mission["gold"]??mission["reward"]?["gold"])}  다이아 {N(mission["diamonds"]??mission["reward"]?["diamonds"])}";}
             var record=game.Account["records"]?[(game.Account["idleStage"]??new JValue(1)).ToString()];incomeText.text=$"{((double?)record?["gold"]??0)*3600/Math.Max(1,(double?)record?["productionSeconds"]??120):N0} / 시간";
 
             UiKit.Clear(hand);cards.Clear();var sequence=game.Battle?.State.Sequence??rules.PlayableSequence(game.Account,game.Mode).Select(x=>x.Type==JTokenType.String?(string)x:null).ToList();
