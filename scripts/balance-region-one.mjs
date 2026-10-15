@@ -79,7 +79,7 @@ export function optionsFor(a, stageId, mode='challenge') {
 export function growEvenly(a, units) {
   for (let pass=0;pass<100;pass++) for (const id of units) account.growUnit(a,id);
 }
-export function idleAlternatives(source, stageId, seconds=300) {
+export function idleAlternatives(source, stageId, seconds=8*3600) {
   const a=structuredClone(source);
   for (const id of ROSTER) account.refundUnitLevels(a,id,0);
   growEvenly(a,['sheep','squirrel','rabbit']);

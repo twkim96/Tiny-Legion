@@ -1,7 +1,8 @@
+import { stageMissionReward } from "./economy.js";
 import { UNITS, getEnemy } from "./characters.js";
 export { UNITS, ENEMIES, ATTRIBUTES, NEUTRAL_ATTRIBUTE, SHIELD_BONUS_CAP, stageLabel } from "./characters.js";
 // Initial tuning, subject to play acceptance. Permanent equipment/specialty bonuses add.
-export const BALANCE_VERSION = "region-one-tactics-21";
+export const BALANCE_VERSION = "long-economy-22";
 export const RARITIES = [
   { id: "common", name: "일반", color: "#7b8974", rate: 0.6 },
   { id: "rare", name: "희귀", color: "#6094a4", rate: 0.28 },
@@ -425,10 +426,6 @@ export const STAGES = [
   },
 ];
 
-// First-region mission income funds the next fight; region two keeps its normal rewards.
-for (const [id, gold] of [[3, 240], [4, 400], [5, 800], [6, 1000], [7, 1300], [8, 1600], [9, 2000], [10, 2400]]) {
-  STAGES.find((stage) => stage.id === id).missionReward = { gold, diamonds: 30 };
-}
 // Introduce each silhouette separately, then mix the familiar threats.
 for (const stage of STAGES) {
   for (const [index, wave] of stage.waves.entries()) {
@@ -599,6 +596,10 @@ STAGES[6].description = "모여 오는 무리를 범위 공격으로 정리하�
 STAGES[7].description = "호저 증원이 모일 때 대포를 쓰고 앞줄 뒤로 돌파할 동료를 보내 보세요.";
 STAGES[8].description = "전선 유지와 성 공략에 필요한 레벨을 나누어 투자해 보세요.";
 STAGES[9].description = "앞줄을 지키며 원거리 화력을 모으고 마지막 성 공략까지 준비해 보세요.";
+
+// Current regions have a mission at each stage. Future regions use the shared
+// boss/midboss cadence; reward scaling is independent of authored combat waves.
+for (const stage of STAGES) stage.missionReward = stageMissionReward(stage.id);
 
 export const RECRUIT_BANNERS = [
   { id: "forest", name: "숲속 친구들", attribute: "wild", unlock: 0,

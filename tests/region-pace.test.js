@@ -1,3 +1,4 @@
+import { idleFullReward } from "../dist/src/economy.js";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { ENEMIES, STAGES } from "../dist/src/data.js";
@@ -52,7 +53,7 @@ test("region entry cuts total enemy pressure and pays more for the preceding bos
   assert.equal(entry.result.won, true);
   assert.equal(entry.result.survival, 90);
   assert.ok(entry.result.hpRatio >= 0.9);
-  assert.ok(entry.result.reward >= stageById.get(11).baseReward * 0.9);
+  assert.ok(entry.result.reward >= idleFullReward(11) * 0.9);
   assert.ok(entry.result.reward > oldIdle.result.reward);
   const oldPressure = pressure(10), entryPressure = pressure(11);
   assert.ok(entryPressure.hp < oldPressure.hp * 0.35);

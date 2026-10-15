@@ -1,3 +1,4 @@
+import { ECONOMY_VERSION, contentUnlockReward } from "../dist/src/economy.js";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {newAccount,normalizeAccount,collectReturnIncome,sequenceForMode,setSequence,gemModifiers,currentMission,claimMission,recordIdle,advancedContentUnlocked} from '../dist/src/account.js';
@@ -56,7 +57,7 @@ test('gem guide follows the claimed 2-1 mission; free recruitment and equipment 
  const first=drawGem(a,{free:true,random:()=>0});assert.equal(first.type,'income');
  assert.equal(currentMission(a).completed,false);
  assert.ok(equipGem(a,first.uid));assert.equal(currentMission(a).completed,true);
- const gold=a.gold;assert.equal(claimMission(a).id,'gem-intro');assert.equal(a.gold,gold+600);
+ const gold=a.gold;assert.equal(claimMission(a).id,'gem-intro');assert.equal(a.gold,gold+contentUnlockReward(11).gold);
  assert.equal(currentMission(a).id,'challenge-12');assert.equal(claimMission(a),null);
  assert.equal(drawGem(a,{free:true,random:()=>0}),null);
  const locked=account();locked.highestCleared=10;assert.equal(advancedContentUnlocked(locked),false);
@@ -124,7 +125,7 @@ test('stronger 2-2 blocks an undergrown formation, while guided gem growth or la
 test('existing legacy conversion registers one kind once without changing old production records',()=>{
  const old=account();delete old.gemItems;delete old.gemEquipment;
  old.gems={attack:7,hp:2,gold:1};old.equippedGem='gold';
- old.records[1]={gold:80,diamonds:.1,snapshot:{gem:'gold'}};
+ old.records[1]={economyVersion:ECONOMY_VERSION,gold:80,diamonds:.1,snapshot:{gem:'gold'}};
  const migrated=normalizeAccount(old,now);
  assert.equal(migrated.gemItems.length,3);assert.equal(migrated.gemReserves.attack,6);
  assert.equal(migrated.gemItems.find(g=>g.uid===migrated.gemEquipment.gold).type,'gold');

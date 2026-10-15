@@ -1,3 +1,4 @@
+import { ECONOMY_VERSION } from "../dist/src/economy.js";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { activeEffects } from '../dist/src/combat-effects.js';
@@ -93,7 +94,7 @@ test('duplicates award the correct rarity and banner marks, and reveal reports t
 test('old fragments migrate exactly once, preserve purchased levels and records, and corrupt ranks are bounded',()=>{
   const old=account();delete old.marks; delete old.abilities;
   old.fragments.sheep=3;old.fragments.turtle=2;old.special.sheep=4;old.levels.sheep=12;
-  old.records[1]={gold:80,diamonds:.1,snapshot:{levels:{sheep:16}}};
+  old.records[1]={economyVersion:ECONOMY_VERSION,gold:80,diamonds:.1,snapshot:{levels:{sheep:16}}};
   const migrated=normalizeAccount(old);
   assert.equal(migrated.marks.wild,3*DUPLICATE_MARKS.common);
   assert.equal(migrated.marks.machine,2*DUPLICATE_MARKS.legendary);
@@ -249,7 +250,7 @@ test('unknown and unassigned ability ranks are dropped without currency compensa
   raw.abilities.rabbit={move:2,range:2};
   raw.abilities.whale={move:1,range:3};
   raw.levels.sheep=8;
-  raw.records[1]={gold:80,diamonds:.1,snapshot:{abilities:structuredClone(raw.abilities)}};
+  raw.records[1]={economyVersion:ECONOMY_VERSION,gold:80,diamonds:.1,snapshot:{abilities:structuredClone(raw.abilities)}};
   const clean=normalizeAccount(raw);
   assert.equal(clean.gold,raw.gold);
   assert.deepEqual(clean.marks,raw.marks);

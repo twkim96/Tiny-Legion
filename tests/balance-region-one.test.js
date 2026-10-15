@@ -47,7 +47,7 @@ test('after 1-5 the same budget needs a suitable investment and summon plan; def
   }});
 });
 
-test('five minutes of measured income on an already cleared stage opens a simple growth alternative', () => {
+test('eight hours of measured income on an already cleared stage opens a simple growth alternative', () => {
   runCampaign({onStage(a,row){
     if(row.stage<5)return;
     const alternative=idleAlternatives(a,row.stage);

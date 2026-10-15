@@ -1,3 +1,4 @@
+import { idleFullReward, ECONOMY_VERSION } from "../dist/src/economy.js";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
@@ -232,6 +233,24 @@ test('server time accrues idle income once; replay rejects fake result, future c
   assert.equal(income.result.gold, 90); assert.equal(income.account.gold, 690);
   assert.equal((await h.command(b, 'settle', {}, 'income-request')).account.gold, 690);
   assert.equal((await h.command(b, 'settle')).result.gold, 0);
+});
+
+test('stored server accounts reprice old idle records before settlement and retry only pays once', async () => {
+  const h=harness(), b=h.browser(); await h.call(b,'session/start');
+  h.seed({economyVersion:'region-one-tactics-21',gold:600,onboarding:{phase:'complete'},highestCleared:11,idleStage:11,
+    records:{11:{gold:3262,diamonds:.163,productionSeconds:90,survival:90,hpRatio:1,
+      snapshot:{stageId:11,balanceVersion:'region-one-tactics-21',gemEffects:{acorn:1}}}}});
+  h.advance(8*3600000);
+  const first=await h.command(b,'settle',{},'economic-settle');
+  assert.equal(first.status,200);
+  assert.ok(Math.abs(first.result.gold-idleFullReward(11)*320)<1e-6);
+  assert.ok(first.account.gold<11000);
+  assert.equal(first.account.economyVersion,ECONOMY_VERSION);
+  assert.equal(first.account.records[11].economyVersion,ECONOMY_VERSION);
+  const again=await h.command(b,'settle',{},'economic-settle');
+  assert.deepEqual(again.result,first.result);
+  assert.equal(again.account.gold,first.account.gold);
+  assert.equal((await h.command(b,'settle')).result.gold,0);
 });
 
 test('cross-origin writes and missing sessions are rejected', async () => {

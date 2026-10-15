@@ -671,7 +671,7 @@ function showIdleResult(result, previousRecord) {
   if (account.settings.hiddenIdleResults.includes(stageId) || !$("idle-result-popup").hidden) return;
   idleResultStage = stageId;
   const bonus = battleSnapshot.gemEffects?.acorn ?? 1;
-  const gold = Math.floor(result.reward * bonus);
+  const gold = result.reward * bonus;
   const income = idleIncome;
   $("idle-result-title").textContent = result.won ? "방치 완료" : "방치 실패";
   $("idle-result-content").innerHTML = `<p class="idle-result-stage">${stageLabel(stageId)} · ${precise(result.survival)}</p><p class="settings-note">이 전투 동안 실제 지급된 재화</p><div class="idle-earned"><span>${icon("acorn")}도토리 <strong>+${fmt(income.gold)}</strong></span><span>${icon("gem")}다이아 <strong>+${income.diamonds.toFixed(2)}</strong></span></div>${idleRecordMarkup({ gold, duration: battleSnapshot.duration ?? battleDuration(stageId), previousRecord, icon, fmt })}<p class="settings-note">생산 기록은 즉시 지급되는 보상이 아닙니다.<br>최고 기록에 따라 재화가 계속 쌓이며 방치 전투도 계속 진행됩니다.</p>`;

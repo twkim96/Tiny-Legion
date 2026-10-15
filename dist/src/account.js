@@ -1,12 +1,12 @@
 import { normalizeAudioSettings } from "./audio-settings.js";
-import { idleFullReward, idleDiamondReward, levelUpgradeCost } from "./economy.js";
+import { ECONOMY_VERSION, contentUnlockReward, hasStageMission, idleFullReward, idleDiamondReward, levelUpgradeCost } from "./economy.js";
 import { UNITS, getUnit } from "./characters.js";
 import { unitCombatStats } from "./character-stats.js";
 import { STAGES, battleDuration, RARITIES, bannerById, bannerPool, bannerRarities, stageLabel } from "./data.js";
 import { SPEEDRUN_STAGE_COUNT, SPEEDRUN_TARGET_SECONDS, SPEEDRUN_LIMIT_SECONDS, speedrunStageReward } from "./speedrun.js";
 import { MARK_TYPES, DUPLICATE_MARKS, markTypeFor, unitAbilities, normalizeAbilities, abilityCost } from "./abilities.js";
 import { initialGemState, normalizeGemState, gemEffects, drawGem } from "./gems.js";
-import { legacyStarterSave, restoreLegacyProgress } from "./save-compat.js";
+import { legacyLevelInvestmentLimit, legacyStarterSave, levelInvestmentLimit, repriceLegacyIdleRecords, restoreLegacyProgress } from "./save-compat.js";
 export const SAVE_KEY = "tiny-legion.save.v1";
 const ONBOARDING_PHASES = new Set([
   "intro",
@@ -22,7 +22,7 @@ const MISSION_IDS = new Set([
   "idle-second",
   "growth-intro",
   "gem-intro",
-  ...STAGES.slice(1).map((stage) => `challenge-${stage.id}`),
+  ...STAGES.slice(1).filter((stage) => hasStageMission(stage.id)).map((stage) => `challenge-${stage.id}`),
 ]);
 const MISSION_MAIL = new Map([
   ["challenge-3", { id: "mission:challenge-3:fox", missionId: "challenge-3", unitId: "fox" }],
@@ -56,6 +56,7 @@ export function dailyKey(now = Date.now()) {
 export function newAccount(now = Date.now()) {
   const account = {
     version: 1,
+    economyVersion: ECONOMY_VERSION,
     gold: 600,
     diamonds: 60,
     tickets: 0,
@@ -99,6 +100,8 @@ export function normalizeAccount(raw, now = Date.now()) {
   const a = newAccount(now);
   if (!raw || raw.version !== 1) return a;
   raw = legacyStarterSave(raw);
+  const legacyRecords = repriceLegacyIdleRecords(raw.records);
+  a.economyVersion = ECONOMY_VERSION;
   const rawPhase = raw.onboarding?.phase;
   a.onboarding = {
     phase: ONBOARDING_PHASES.has(rawPhase) ? rawPhase : "intro",
@@ -109,9 +112,13 @@ export function normalizeAccount(raw, now = Date.now()) {
       u.id === "sheep" ||
       raw.owned?.[u.id] === true;
     a.levels[u.id] = Math.floor(cap(raw.levels?.[u.id] ?? 1, 1, 100));
-    a.levelSpent[u.id] = Number.isFinite(raw.levelSpent?.[u.id]) && raw.levelSpent[u.id] >= 0
-      ? Math.min(cap(raw.levelSpent[u.id], 0, 1e12), cumulativeLevelCost(a.levels[u.id]))
-      : cumulativeLevelCost(a.levels[u.id]);
+    const investmentLimit = levelInvestmentLimit(a.levels[u.id]);
+    const storedInvestment = raw.levelSpent?.[u.id];
+    a.levelSpent[u.id] = Number.isFinite(storedInvestment) && storedInvestment >= 0
+      ? Math.min(cap(storedInvestment, 0, 1e12), investmentLimit)
+      : storedInvestment === undefined && raw.economyVersion !== ECONOMY_VERSION
+        ? legacyLevelInvestmentLimit(a.levels[u.id])
+        : cumulativeLevelCost(a.levels[u.id]);
     a.fragments[u.id] = Math.floor(cap(raw.fragments?.[u.id], 0, 1e6));
     a.special[u.id] = Math.floor(cap(raw.special?.[u.id], 0, 20));
     a.abilities[u.id] = normalizeAbilities(u.id, raw.abilities?.[u.id]);
@@ -143,7 +150,7 @@ export function normalizeAccount(raw, now = Date.now()) {
     cap(raw.idleStage ?? 1, 1, Math.min(STAGES.length, a.highestCleared + 1)),
   );
   for (const s of STAGES) {
-    const r = raw.records?.[s.id];
+    const r = legacyRecords?.[s.id];
     if (
       r &&
       Number.isFinite(r.gold) &&
@@ -299,25 +306,33 @@ function cumulativeLevelCost(level) {
   return spent;
 }
 function levelSpentFor(a, id) {
+  const level = a.levels?.[id] ?? 1;
+  const limit = levelInvestmentLimit(level);
   const stored = a.levelSpent?.[id];
   return Number.isFinite(stored) && stored >= 0
-    ? Math.min(stored, cumulativeLevelCost(a.levels?.[id] ?? 1))
+    ? Math.min(stored, limit)
     : cumulativeLevelCost(a.levels?.[id] ?? 1);
 }
 function ensureLevelSpent(a) {
   a.levelSpent ??= {};
   for (const unit of UNITS) {
+    const level = a.levels?.[unit.id] ?? 1;
+    const limit = levelInvestmentLimit(level);
     if (!Number.isFinite(a.levelSpent[unit.id]) || a.levelSpent[unit.id] < 0) {
-      a.levelSpent[unit.id] = cumulativeLevelCost(a.levels?.[unit.id] ?? 1);
+      a.levelSpent[unit.id] = cumulativeLevelCost(level);
     } else {
       a.levelSpent[unit.id] = Math.min(
         a.levelSpent[unit.id],
-        cumulativeLevelCost(a.levels?.[unit.id] ?? 1),
+        limit,
       );
     }
   }
 }
 export function accrue(a, now = Date.now()) {
+  if (a.economyVersion !== ECONOMY_VERSION) {
+    a.records = repriceLegacyIdleRecords(a.records) ?? {};
+    a.economyVersion = ECONOMY_VERSION;
+  }
   const seconds = cap((now - a.lastSettled) / 1000, 0, 8 * 3600),
     r = a.records[a.idleStage];
   let gold = 0,
@@ -440,12 +455,13 @@ export function recordIdle(a, result, snapshot, now = Date.now()) {
     ? snapshot.duration
     : battleDuration(snapshot.stageId);
   const r = {
-    gold: Math.floor(result.reward * rateBonus),
+    gold: result.reward * rateBonus,
     productionSeconds,
     diamonds: idleDiamondReward(snapshot.stageId, result.survival, productionSeconds, result.hpRatio),
     hpRatio: result.hpRatio,
     survival: result.survival,
     snapshot,
+    economyVersion: ECONOMY_VERSION,
     version: 1,
     recordedAt: now,
   };
@@ -498,9 +514,10 @@ export function currentMission(account) {
   }
   for (const stage of STAGES.slice(1)) {
     if(stage.id === 12 && claimed.has("challenge-11") && !claimed.has("gem-intro")) return {
-      id: "gem-intro", kind: "gem", title: "보석 모집하고 장착하기", gold: 600, diamonds: 30,
+      id: "gem-intro", kind: "gem", title: "보석 모집하고 장착하기", ...contentUnlockReward(11),
       completed: account.gemGuide?.drawn === true && account.gemGuide?.equipped === true,
     };
+    if (!hasStageMission(stage.id)) continue;
     const id = `challenge-${stage.id}`;
     if (claimed.has(id)) continue;
     const mail = MISSION_MAIL.get(id);

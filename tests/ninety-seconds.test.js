@@ -67,7 +67,7 @@ test('idle full rewards scale with duration and shorter failures earn less per c
   for (const stage of STAGES) {
     const period = battleDuration(stage.id);
     const full = calculateIdleReward(stage.id, period, 1, period);
-    assert.equal(full, Math.round(idleFullReward(stage.id) * period / 90));
+    assert.ok(Math.abs(full - idleFullReward(stage.id) * period / 90) < 1e-9);
     for (const duration of [40, 60, 90]) {
       assert.ok(Math.abs(calculateIdleReward(stage.id, duration, 1, duration) / duration - idleFullReward(stage.id) / 90) <= 0.5 / duration);
       assert.ok(Math.abs(idleDiamondReward(stage.id, duration, duration, 1) / duration - idleDiamondReward(stage.id, 90, 90, 1) / 90) <= 0.0005 / duration + 0.0005 / 90);
@@ -83,19 +83,14 @@ test('idle full rewards scale with duration and shorter failures earn less per c
   }
 });
 
-test('previous 100% and next 90% defenses have equal hourly income across 40/60/90-second boundaries', () => {
-  for (let index = 0; index < STAGES.length - 1; index++) {
-    const previous = STAGES[index];
-    const next = STAGES[index + 1];
-    const previousDuration = battleDuration(previous.id, 'idle');
-    const nextDuration = battleDuration(next.id, 'idle');
-    const previousGold = calculateIdleReward(previous.id, previousDuration, 1, previousDuration);
-    const nextGold = calculateIdleReward(next.id, nextDuration, 0.9, nextDuration);
-    assert.ok(Math.abs(previousGold / previousDuration - nextGold / nextDuration) <= 0.5 / previousDuration + 0.5 / nextDuration, `stages ${previous.id}/${next.id} acorns per second`);
-
-    const previousDiamonds = idleDiamondReward(previous.id, previousDuration, previousDuration, 1);
-    const nextDiamonds = idleDiamondReward(next.id, nextDuration, nextDuration, 0.9);
-    assert.ok(Math.abs(previousDiamonds / previousDuration - nextDiamonds / nextDuration) <= 0.0005 / previousDuration + 0.0005 / nextDuration, `stages ${previous.id}/${next.id} diamonds per second`);
+test('stage income grows ten percent across different cycle lengths while damaged defenses earn less', () => {
+  for(let index=0;index<STAGES.length-1;index++) {
+    const previous=STAGES[index], next=STAGES[index+1];
+    const oldDuration=battleDuration(previous.id,'idle'), duration=battleDuration(next.id,'idle');
+    const before=calculateIdleReward(previous.id,oldDuration,1,oldDuration)/oldDuration;
+    const after=calculateIdleReward(next.id,duration,1,duration)/duration;
+    assert.ok(Math.abs(after/before-1.1)<1e-12);
+    assert.ok(calculateIdleReward(next.id,duration,.9,duration)/duration<before);
   }
 });
 

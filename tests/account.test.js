@@ -34,6 +34,8 @@ import {
 import { saveAccount, loadAccount, resetAccount } from "../dist/src/account-storage.js";
 import { calculateIdleReward, createBattle, summonUnit } from "../dist/src/engine.js";
 import { STARTER_UNIT_IDS, STAGES, UNITS, battleDuration } from "../dist/src/data.js";
+import { ECONOMY_VERSION, contentUnlockReward, hasStageMission, idleAcornReward, idleDiamondReward } from "../dist/src/economy.js";
+import { legacyLevelInvestmentLimit } from "../dist/src/save-compat.js";
 const now = Date.UTC(2026, 9, 11, 3);
 test("account reset persists only a fresh intro account and preserves saves on write failure", () => {
   const previous = newAccount(now);
@@ -138,19 +140,21 @@ test("short cycles earn proportionally less and have the same hourly income with
   const hourlyIncome = [];
   for (const duration of [40, 60, 90]) {
     const a = newAccount(now);
+    const reward = calculateIdleReward(1, duration, 1, duration);
     recordIdle(
       a,
-      { reward: calculateIdleReward(1, duration, 1, duration), survival: duration, hpRatio: 1 },
+      { reward, survival: duration, hpRatio: 1 },
       { stageId: 1, duration },
       now,
     );
-    assert.equal(a.records[1].gold, Math.round(500 * duration / 90));
+    assert.equal(a.records[1].gold, reward);
     assert.equal(a.records[1].productionSeconds, duration);
-    assert.equal(a.records[1].diamonds, Math.round(0.025 * duration / 90 * 1000) / 1000);
+    assert.equal(a.records[1].diamonds, idleDiamondReward(1, duration, duration, 1));
+    assert.equal(a.records[1].economyVersion, ECONOMY_VERSION);
     hourlyIncome.push(accrue(a, now + 3600000));
   }
   for (const income of hourlyIncome) {
-    assert.ok(Math.abs(income.gold - 20000) <= 30);
+    assert.ok(Math.abs(income.gold - 480) <= 0.001);
     assert.ok(Math.abs(income.diamonds - 1) <= 0.03);
   }
 });
@@ -158,10 +162,10 @@ test("only the unscaled test balance records require remeasurement", () => {
   const a = newAccount(now);
   a.records = {
     1: { gold: 500, diamonds: 0.025, productionSeconds: 40, snapshot: { balanceVersion: "idle-economy-15" } },
-    2: { gold: 100, diamonds: 0.1, productionSeconds: 120, snapshot: { balanceVersion: "castle-entry-14" } },
-    3: { gold: 323, diamonds: 0.016, productionSeconds: 40, snapshot: { balanceVersion: "idle-time-scaled-16" } },
+    2: { gold: 100, diamonds: 0.1, productionSeconds: 120, snapshot: { balanceVersion: "castle-entry-14" }, economyVersion: ECONOMY_VERSION },
+    3: { gold: 323, diamonds: 0.016, productionSeconds: 40, snapshot: { balanceVersion: "idle-time-scaled-16" }, economyVersion: ECONOMY_VERSION },
     4: { gold: 878, diamonds: 0.044, productionSeconds: 60, snapshot: { balanceVersion: "idle-economy-15" } },
-    5: { gold: 1059, diamonds: 0.053, productionSeconds: 90, snapshot: { balanceVersion: "idle-economy-15" } },
+    5: { gold: 400, diamonds: 0.053, productionSeconds: 90, snapshot: { balanceVersion: "idle-economy-15" }, economyVersion: ECONOMY_VERSION },
   };
   const restored = normalizeAccount(a, now);
   assert.equal(restored.records[1], undefined);
@@ -174,7 +178,8 @@ test("only the unscaled test balance records require remeasurement", () => {
   assert.deepEqual(normalizeAccount(restored, now).records, restored.records);
   const result = {reward: calculateIdleReward(1, 40, 1, 40), survival: 40, hpRatio: 1};
   assert.equal(recordIdle(restored, result, {stageId: 1, duration: 40, balanceVersion: "idle-time-scaled-16"}, now), true);
-  assert.equal(restored.records[1].gold, 222);
+  assert.equal(restored.records[1].gold, result.reward);
+  assert.equal(restored.records[1].economyVersion, ECONOMY_VERSION);
 });
 test("short failed idle cycles keep their full cycle duration in the accrual rate", () => {
   const full = newAccount(now);
@@ -197,18 +202,77 @@ test("short failed idle cycles keep their full cycle duration in the accrual rat
   assert.ok(failed.records[1].diamonds / 90 < full.records[1].diamonds / 90);
   assert.ok(accrue(failed, now + 3600000).gold < accrue(full, now + 3600000).gold);
 });
-test("record normalization keeps old valid rewards and accepts the larger economy cap", () => {
-  const oldRecord = { gold: 400, diamonds: 0.4, productionSeconds: 120 };
+test("record normalization keeps valid current-economy rates and rejects an overstated rate", () => {
+  const oldRecord = { gold: 400, diamonds: 0.4, productionSeconds: 120, economyVersion: ECONOMY_VERSION };
   const old = normalizeAccount({ ...newAccount(now), records: { 1: oldRecord } }, now);
   assert.deepEqual(old.records[1], oldRecord);
 
-  const currentRecord = { gold: 500, diamonds: 0.025, productionSeconds: 40 };
+  const currentRecord = { gold: 400, diamonds: 0.025, productionSeconds: 40, economyVersion: ECONOMY_VERSION };
   const current = normalizeAccount({ ...newAccount(now), records: { 1: currentRecord } }, now);
   assert.deepEqual(current.records[1], currentRecord);
 
   const overCap = { ...currentRecord, gold: 2001 };
   const rejected = normalizeAccount({ ...newAccount(now), records: { 1: overCap } }, now);
   assert.equal(rejected.records[1], undefined);
+});
+test("legacy idle records reprice before normalization without changing earned balances or metadata", () => {
+  const legacyRecord = {
+    gold: 100,
+    diamonds: 0.5,
+    productionSeconds: 90,
+    snapshot: { balanceVersion: "old", gem: null },
+    recordedAt: now - 5000,
+  };
+  const raw = {
+    ...newAccount(now),
+    economyVersion: "old-economy",
+    records: { 1: legacyRecord },
+    gold: 777,
+    diamonds: 88,
+    lastSettled: now - 5000,
+  };
+  const restored = normalizeAccount(raw, now);
+  assert.equal(restored.records[1].gold, 2.4);
+  assert.equal(restored.records[1].diamonds, legacyRecord.diamonds);
+  assert.deepEqual(restored.records[1].snapshot, legacyRecord.snapshot);
+  assert.equal(restored.records[1].recordedAt, legacyRecord.recordedAt);
+  assert.equal(restored.economyVersion, ECONOMY_VERSION);
+  assert.equal(restored.gold, raw.gold);
+  assert.equal(restored.diamonds, raw.diamonds);
+  assert.equal(restored.lastSettled, raw.lastSettled);
+  assert.deepEqual(normalizeAccount(restored, now).records, restored.records);
+
+  const measured = {
+    ...newAccount(now),
+    records: { 11: { ...legacyRecord, gold: 3262, survival: 90, hpRatio: 1 } },
+  };
+  const repriced = normalizeAccount(measured, now).records[11];
+  assert.equal(repriced.gold, idleAcornReward(11, 90, 90, 1));
+  assert.equal(repriced.diamonds, idleDiamondReward(11, 90, 90, 1));
+});
+test("direct accrual reprices unversioned server records before paying and only once", () => {
+  const account = {
+    ...newAccount(now),
+    economyVersion: undefined,
+    records: { 1: { gold: 100, diamonds: 0.5, productionSeconds: 90 } },
+  };
+  const expectedRate = (12 * 100 / 500) / 90;
+  const first = accrue(account, now + 1000);
+  assert.equal(first.gold, expectedRate);
+  assert.equal(account.economyVersion, ECONOMY_VERSION);
+  const savedRecord = structuredClone(account.records[1]);
+  const second = accrue(account, now + 1000);
+  assert.equal(second.gold, 0);
+  assert.deepEqual(account.records[1], savedRecord);
+
+  const unscaled = newAccount(now);
+  delete unscaled.economyVersion;
+  unscaled.records[1] = { gold: 500, diamonds: 0.025, productionSeconds: 40,
+    snapshot: { balanceVersion: "idle-economy-15" } };
+  const balance = unscaled.gold;
+  assert.equal(accrue(unscaled, now + 3600000).gold, 0);
+  assert.equal(unscaled.records[1], undefined);
+  assert.equal(unscaled.gold, balance);
 });
 test("level refund restores spent gold and invalidates production records", () => {
   const a = completedAccount();
@@ -404,8 +468,7 @@ test("missions claim sequentially once, survive reload, and remain separate from
     kind: "challenge",
     stageId: 2,
     title: "도전 1-2 클리어",
-    gold: STAGES[1].baseReward,
-    diamonds: 10,
+    ...STAGES[1].missionReward,
     completed: false,
   });
   recordMissionBattle(account, { mode: "challenge", stageId: 2, won: true });
@@ -422,13 +485,12 @@ test("missions claim sequentially once, survive reload, and remain separate from
   const diamondsBeforeMission = account.diamonds;
   assert.deepEqual(claimMission(account), {
     id: "challenge-2",
-    gold: STAGES[1].baseReward,
-    diamonds: 10,
+    ...STAGES[1].missionReward,
   });
-  assert.equal(account.gold - goldBeforeMission, STAGES[1].baseReward);
-  assert.equal(account.diamonds - diamondsBeforeMission, 10);
-  assert.equal(account.gold - goldBeforeFirstClear, STAGES[1].baseReward * 3);
-  assert.equal(account.diamonds - diamondsBeforeFirstClear, 20);
+  assert.equal(account.gold - goldBeforeMission, STAGES[1].missionReward.gold);
+  assert.equal(account.diamonds - diamondsBeforeMission, STAGES[1].missionReward.diamonds);
+  assert.equal(account.gold - goldBeforeFirstClear, STAGES[1].baseReward * 2 + STAGES[1].missionReward.gold);
+  assert.equal(account.diamonds - diamondsBeforeFirstClear, 10 + STAGES[1].missionReward.diamonds);
   assert.deepEqual(completeChallenge(account, 2), { gold: 0, diamonds: 0 });
   assert.equal(claimMission(account), null);
 
@@ -448,9 +510,8 @@ test("missions claim sequentially once, survive reload, and remain separate from
 
   completeChallenge(restored, 3);
   assert.deepEqual(claimMission(restored), {
+    ...STAGES[2].missionReward,
     id: "challenge-3",
-    gold: 240,
-    diamonds: 30,
   });
   saveAccount(restored, storage);
   restored = loadAccount(storage, now).account;
@@ -460,6 +521,30 @@ test("missions claim sequentially once, survive reload, and remain separate from
     "challenge-2",
     "challenge-3",
   ]);
+});
+
+test("gem intro mission uses the content unlock reward for stage eleven", () => {
+  const account = completedAccount();
+  account.highestCleared = 11;
+  account.earlyGuide = { phase: "complete", legacy: false };
+  account.missions = {
+    idleCompleted: true,
+    claimed: [
+      "idle-intro",
+      "idle-second",
+      "growth-intro",
+      ...STAGES.slice(1, 11)
+        .filter((stage) => hasStageMission(stage.id))
+        .map((stage) => `challenge-${stage.id}`),
+    ],
+  };
+
+  const mission = currentMission(account);
+  assert.equal(mission.id, "gem-intro");
+  assert.deepEqual(
+    { gold: mission.gold, diamonds: mission.diamonds },
+    contentUnlockReward(11),
+  );
 });
 
 test("legacy mission migration avoids retroactive rewards and respects onboarding", () => {
@@ -486,8 +571,7 @@ test("legacy mission migration avoids retroactive rewards and respects onboardin
     kind: "challenge",
     stageId: 6,
     title: "도전 1-6 클리어",
-    gold: 1000,
-    diamonds: 30,
+    ...STAGES[5].missionReward,
     completed: false,
   });
 
@@ -605,9 +689,14 @@ test("stored legacy level spending is refunded as recorded and oversized ledgers
   const legacy = completedAccount();
   legacy.levels.sheep = 4;
   legacy.levelSpent.sheep = 400;
+  legacy.levels.squirrel = 3;
+  legacy.owned.squirrel = true;
+  legacy.levelSpent.squirrel = 109;
   const restored = normalizeAccount(legacy, now);
   assert.equal(restored.levelSpent.sheep, 400);
   assert.equal(unitLevelRefund(restored, "sheep"), 400);
+  assert.equal(restored.levelSpent.squirrel, 109);
+  assert.equal(unitLevelRefund(restored, "squirrel"), 109);
   const balance = restored.gold;
   assert.equal(refundUnitLevels(restored, "sheep", now), 400);
   assert.equal(restored.gold, balance + 400);
@@ -618,6 +707,41 @@ test("stored legacy level spending is refunded as recorded and oversized ledgers
   const capped = normalizeAccount(malicious, now);
   assert.equal(capped.levelSpent.sheep, levelCost(1));
   assert.equal(unitLevelRefund(capped, "sheep"), levelCost(1));
+});
+
+test("old level spending plus new upgrades survives the mixed-price refund cap", () => {
+  const oldAccount = completedAccount();
+  oldAccount.economyVersion = "previous-economy";
+  oldAccount.gold = 1e12;
+  oldAccount.levels.sheep = 14;
+  delete oldAccount.levelSpent.sheep;
+  oldAccount.owned.squirrel = true;
+  oldAccount.levels.squirrel = 3;
+  oldAccount.levelSpent.squirrel = 109;
+
+  const account = normalizeAccount(oldAccount, now);
+  const startingGold = account.gold;
+  const oldInvestment = legacyLevelInvestmentLimit(14);
+  assert.equal(account.levelSpent.sheep, oldInvestment);
+  assert.equal(unitLevelRefund(account, "sheep"), oldInvestment);
+  assert.equal(unitLevelRefund(account, "squirrel"), 109);
+
+  let newInvestment = 0;
+  for (let level = 14; level < 30; level++) {
+    const cost = levelCost(level);
+    assert.equal(growUnit(account, "sheep"), true);
+    newInvestment += cost;
+  }
+  assert.equal(account.levels.sheep, 30);
+  assert.equal(account.levelSpent.sheep, oldInvestment + newInvestment);
+  assert.equal(account.gold, startingGold - newInvestment);
+
+  const restored = normalizeAccount(JSON.parse(JSON.stringify(account)), now);
+  const exactRefund = oldInvestment + newInvestment;
+  assert.equal(unitLevelRefund(restored, "sheep"), exactRefund);
+  const balanceBeforeRefund = restored.gold;
+  assert.equal(refundUnitLevels(restored, "sheep", now), exactRefund);
+  assert.equal(restored.gold, balanceBeforeRefund + exactRefund);
 });
 
 
@@ -654,7 +778,7 @@ test("shared legacy lineups migrate without aliasing, and tutorial rabbit return
     delete raw.sequencePresets;
     raw.earlyGuide={phase:tutorial?'growth':'complete',legacy:!tutorial};
     raw.sequence=['sheep',null,'squirrel','sheep',...Array(6).fill(null)];
-    raw.records[1]={gold:100,diamonds:.1};
+    raw.records[1]={gold:100,diamonds:.1,economyVersion:ECONOMY_VERSION};
     const a=normalizeAccount(raw,now);
     assert.deepEqual(a.sequence,raw.sequence);
     assert.deepEqual(a.sequencePresets.speedrun,raw.sequence);

@@ -1,3 +1,4 @@
+import { ECONOMY_VERSION } from "../dist/src/economy.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { UNITS } from "../dist/src/data.js";
@@ -114,7 +115,7 @@ test("legacy personal levels migrate their exact spend once and old callers rema
 });
 
 test("production keeps legacy 120-second rates and stores new 90-second snapshots", () => {
-  const oldRecord = { gold: 120, diamonds: 0.4, snapshot: { levels: { sheep: 2 } } };
+  const oldRecord = { economyVersion:ECONOMY_VERSION, gold: 120, diamonds: 0.4, snapshot: { levels: { sheep: 2 } } };
   const account = normalizeAccount({
     ...completedAccount(),
     records: { 1: oldRecord },

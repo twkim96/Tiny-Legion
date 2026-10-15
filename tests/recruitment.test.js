@@ -1,3 +1,4 @@
+import { ECONOMY_VERSION } from "../dist/src/economy.js";
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
@@ -45,7 +46,7 @@ test("legacy saves preserve progress and starter ownership without granting new 
   legacy.highestCleared = 3;
   legacy.challengeRewards = [1, 2, 3];
   legacy.sequence = ["fox", "rabbit", "rabbit"];
-  legacy.records[1] = { gold: 100, diamonds: 0.125 };
+  legacy.records[1] = { economyVersion:ECONOMY_VERSION, gold: 100, diamonds: 0.125 };
   const account = normalizeAccount(legacy, now);
   assert.equal(account.levels.sheep, 12);
   assert.equal(account.fragments.rabbit, 4);
@@ -153,7 +154,7 @@ test("forest-only opening rejects locked banners atomically and 1-10 opens count
   assert.equal(canUseUnit(restored, "teapot"), true);
   completeChallenge(restored, 11);
   restored.idleStage = 11;
-  restored.records[11] = { gold: 100, diamonds: .1 };
+  restored.records[11] = { economyVersion:ECONOMY_VERSION, gold: 100, diamonds: .1 };
   const roundTrip = normalizeAccount(restored, now);
   assert.equal(roundTrip.highestCleared, 11);
   assert.equal(roundTrip.idleStage, 11);

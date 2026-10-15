@@ -1,3 +1,4 @@
+import { ECONOMY_VERSION } from "../dist/src/economy.js";
 import { applyEffect, remainingEffect, activeEffects } from '../dist/src/combat-effects.js';
 import { effect } from '../dist/src/effects.js';
 import test from "node:test";
@@ -232,6 +233,7 @@ test("attribute updates preserve version-1 saves and frozen production records",
   const now = Date.UTC(2026, 9, 11, 3);
   const a = newAccount(now);
   const old = {
+    economyVersion:ECONOMY_VERSION,
     gold: 100,
     diamonds: 0.125,
     snapshot: { stageId: 1, gem: null },

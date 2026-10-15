@@ -224,7 +224,7 @@ test("same inputs produce identical deterministic battles", () => {
   assert.equal(left.finished, true);
 });
 
-test("idle survival completes with normalized raw HP and integer reward", () => {
+test("idle survival completes with normalized raw HP and fractional reward", () => {
   const state = createBattle({
     mode: "idle",
     stageId: 1,
@@ -240,10 +240,10 @@ test("idle survival completes with normalized raw HP and integer reward", () => 
   assert.ok(Math.abs(state.result.survival - 3) < 1e-9);
   assert.equal(state.result.hpRatio, 0.5);
   assert.equal(state.result.reward, calculateIdleReward(1, 3, 0.5, state.duration));
-  assert.equal(Number.isInteger(state.result.reward), true);
+  assert.ok(Number.isFinite(state.result.reward) && state.result.reward > 0);
   assert.equal(
     calculateIdleReward(1, battleDuration(1), 1),
-    Math.round(idleFullReward(1) * battleDuration(1) / 90),
+    idleFullReward(1) * battleDuration(1) / 90,
   );
 });
 

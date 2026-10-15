@@ -9,7 +9,7 @@ import { earlyGuideEncounter, onboardingEncounter } from "./onboarding.js";
 import { normalizeAbilities } from "./abilities.js";
 import { SPEEDRUN_LIMIT_SECONDS, SPEEDRUN_STAGES } from "./speedrun.js";
 import { WORLD_MIN, WORLD_MAX, PLAYER_CASTLE_X, ENEMY_CASTLE_X, PLAYER_SPAWN_X, ENEMY_SPAWN_X } from "./battlefield.js";
-import { idleFullReward, idleRewardFactor } from "./economy.js";
+import { idleAcornReward } from "./economy.js";
 export { UNIT_LEVEL_GROWTH } from "./abilities.js";
 
 const MAX_ACTIVE_UNITS = 80;
@@ -147,7 +147,7 @@ function setFinished(state, won) {
 
 export function calculateIdleReward(stageId, survival, hpRatio, duration = battleDuration(stageId)) {
   const stage = STAGE_BY_ID.get(Number(stageId)) ?? STAGES[0];
-  return Math.round(idleFullReward(stage.id) * idleRewardFactor(survival, duration, hpRatio));
+  return idleAcornReward(stage.id, survival, duration, hpRatio);
 }
 
 export function createBattle(options = {}) {
