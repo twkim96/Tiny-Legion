@@ -221,12 +221,13 @@ test('server time accrues idle income once; replay rejects fake result, future c
     stepBattle(state, 1 / 30);
   }
   assert.equal(state.result.won, true);
-  assert.equal((await h.command(b, 'battle.finish', { battleId: run.battleId, actions, result: { won: true, reward: 999999 } })).error, 'battle_too_early');
+  const endStep = Math.round(state.time * 30);
+  assert.equal((await h.command(b, 'battle.finish', { battleId: run.battleId, endStep, actions, result: { won: true, reward: 999999 } })).error, 'battle_too_early');
   h.advance(90000);
-  assert.equal((await h.command(b, 'battle.finish', { battleId: run.battleId, actions: [{ step: 0, type: 'summon', id: 'whale' }] })).error, 'invalid_summon');
-  const finish = await h.command(b, 'battle.finish', { battleId: run.battleId, actions, result: { won: false, reward: 999999 } }, 'finish-request');
+  assert.equal((await h.command(b, 'battle.finish', { battleId: run.battleId, endStep, actions: [{ step: 0, type: 'summon', id: 'whale' }] })).error, 'invalid_summon');
+  const finish = await h.command(b, 'battle.finish', { battleId: run.battleId, endStep, actions, result: { won: false, reward: 999999 } }, 'finish-request');
   assert.equal(finish.status, 200); assert.equal(finish.account.onboarding.phase, 'first-battle'); assert.equal(finish.account.gold, 600);
-  assert.equal((await h.command(b, 'battle.finish', { battleId: run.battleId, actions }, 'other-finish')).error, 'battle_not_found');
+  assert.equal((await h.command(b, 'battle.finish', { battleId: run.battleId, endStep, actions }, 'other-finish')).error, 'battle_not_found');
   h.seed({ onboarding: { phase: 'complete' }, records: { 1: { gold: 90, diamonds: .1, productionSeconds: 90 } } });
   h.advance(90000);
   const income = await h.command(b, 'settle', {}, 'income-request');

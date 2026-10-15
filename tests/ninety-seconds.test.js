@@ -13,7 +13,7 @@ function play(stageId, level, mode = 'challenge', lineup = STARTERS, modifiers =
     ownedUnits: lineup, levels: Object.fromEntries(lineup.map(id => [id, level])), modifiers });
   let next = 0, index = 0, cannon = 8;
   const bosses = new Map();
-  while (!state.finished) {
+  while (!state.finished && state.time < 600) {
     if (mode === 'challenge' && state.time >= next) {
       if (summonUnit(state, lineup[index])) index = (index + 1) % lineup.length;
       next = state.time + 1;
@@ -24,11 +24,12 @@ function play(stageId, level, mode = 'challenge', lineup = STARTERS, modifiers =
       if (unit.team === 'enemy' && ENEMIES.find(enemy => enemy.id === unit.id)?.boss) bosses.set(unit.uid, unit);
     }
   }
+  assert.ok(state.finished, `battle must resolve naturally: ${mode}/${stageId}/${level}`);
   return { state, bosses: [...bosses.values()] };
 }
 
-test('ordinary battles use stage limits; speedrun stays at 90 seconds with authored waves', () => {
-  for (const stage of STAGES) for (const mode of ['idle', 'challenge']) {
+test('idle keeps stage limits, challenge has no deadline and speedrun stays at 90 seconds', () => {
+  for (const stage of STAGES) for (const mode of ['idle']) {
     const limit = battleDuration(stage.id, mode);
     assert.equal(createBattle({ mode, stageId: stage.id }).duration, limit);
     for (const duration of [120, 900, Infinity, NaN]) {
@@ -45,7 +46,18 @@ test('ordinary battles use stage limits; speedrun stays at 90 seconds with autho
   }
   for (const stageId of [1, 2, 3, 4, 10, 11, 20]) {
     assert.equal(battleDuration(stageId, 'idle'), stageId <= 3 ? 40 : stageId <= 10 ? 60 : 90);
-    assert.equal(battleDuration(stageId, 'challenge'), stageId <= 2 ? 40 : stageId <= 10 ? 60 : 90);
+    assert.equal(battleDuration(stageId, 'challenge'), null);
+    for (const duration of [undefined, 40, 60, 90, 120, Infinity]) {
+      const challenge = createBattle({ mode: 'challenge', stageId, duration });
+      assert.equal(challenge.duration, null);
+      challenge._spawnSchedule = [];
+      stepBattle(challenge, 200);
+      assert.ok(challenge.time > 199);
+      assert.equal(challenge.finished, false);
+      challenge.enemyHp = 0;
+      stepBattle(challenge, 1 / 30);
+      assert.equal(challenge.result.won, true);
+    }
   }
   const speedrun = createBattle({ mode: 'speedrun', stageId: 1 });
   assert.equal(speedrun.duration, 90);
@@ -59,7 +71,7 @@ test('ordinary battles use stage limits; speedrun stays at 90 seconds with autho
   }
   for (const phase of ['intro', 'first-battle', 'retry-battle']) {
     assert.equal(createBattle({ mode: 'challenge', onboardingPhase: phase, duration: 900 }).duration,
-      40);
+      null);
   }
 });
 
@@ -97,7 +109,7 @@ test('stage income grows ten percent across different cycle lengths while damage
 test('region relief, gem baseline and ordinary growth retain their combat outcomes', () => {
   const previous = play(10, 35).state;
   assert.equal(previous.result.won, true);
-  assert.ok(previous.time < battleDuration(10, 'challenge'));
+  assert.ok(previous.enemyHp === 0);
   const oldIdle = play(10, 35, 'idle').state;
   const entry = play(11, 35, 'idle').state;
   assert.equal(entry.result.won, true);
@@ -118,16 +130,16 @@ test('region relief, gem baseline and ordinary growth retain their combat outcom
     play(12, 50).state, play(12, 35, 'challenge', ['sheep', 'teapot', 'rabbit']).state]) {
     assert.equal(state.result.won, true);
     assert.equal(state.enemyHp, 0);
-    assert.ok(state.time < battleDuration(12, 'challenge'));
+    assert.ok(state.playerHp > 0);
   }
   assert.equal(play(12, 50, 'idle').state.result.won, true);
 });
 
-test('each milestone giant appears and is defeated before its stage deadline', () => {
+test('each milestone giant appears and is defeated by castle victory', () => {
   for (const [stageId, level] of [[5, 35], [10, 35], [15, 100], [20, 100]]) {
     const { state, bosses } = play(stageId, level);
     assert.equal(state.result.won, true, `stage ${stageId}`);
-    assert.ok(state.time < battleDuration(stageId, 'challenge'));
+    assert.ok(state.enemyHp === 0);
     assert.ok(bosses.length > 0);
     assert.ok(bosses.every(boss => boss.dead && boss.hp === 0));
   }

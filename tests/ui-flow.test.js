@@ -121,6 +121,7 @@ test('hosted battle finish uses server result for a completed onboarding account
   c.mode = 'challenge';
   c.battleSnapshot = { battleId: 'server-battle', dailyKey: c.account.daily.key };
   c.battle.result = { won: true, time: 42 };
+  c.battle.time = 42;
   c.manualBattleActions = [
     { step: 90, type: 'summon', id: 'squirrel' },
     { step: 95, type: 'cannon' },
@@ -141,6 +142,7 @@ test('hosted battle finish uses server result for a completed onboarding account
     type: 'battle.finish',
     args: {
       battleId: 'server-battle',
+      endStep: 1260,
       actions: [
         { step: 90, type: 'summon', id: 'squirrel' },
         { step: 95, type: 'cannon' },
@@ -151,6 +153,26 @@ test('hosted battle finish uses server result for a completed onboarding account
   assert.deepEqual(shown.rewards, { gold: 50, diamonds: 2 });
   assert.equal(c.account.highestCleared, 1);
 });
+test('hosted long challenge resumes pending verification before showing its result', async () => {
+  const c = harness(['finishHostedBattle']);
+  c.mode = 'challenge'; c.battle.time = 180;
+  c.battleSnapshot = { battleId: 'long-battle' };
+  c.manualBattleActions = [];
+  let requests = 0, shown = 0;
+  c.sendCommand = async (type, args) => {
+    assert.equal(type, 'battle.finish');
+    assert.equal(args.endStep, 5400);
+    assert.equal(shown, 0);
+    requests++;
+    return requests === 1 ? { result: { pending: true } }
+      : { result: { battleResult: { won: true, time: 180 }, rewards: {} } };
+  };
+  c.showResult = () => { shown++; };
+  await c.finishHostedBattle();
+  assert.equal(requests, 2);
+  assert.equal(shown, 1);
+});
+
 test('idle failure is informational and suppression is specific to its stage', () => {
   const c=harness(['showIdleResult','closeIdleResult']);
   c.showIdleResult({won:false,survival:30,reward:7});

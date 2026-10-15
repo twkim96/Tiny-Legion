@@ -2,7 +2,7 @@ import { stageMissionReward } from "./economy.js";
 import { UNITS, getEnemy } from "./characters.js";
 export { UNITS, ENEMIES, ATTRIBUTES, NEUTRAL_ATTRIBUTE, SHIELD_BONUS_CAP, stageLabel } from "./characters.js";
 // Initial tuning, subject to play acceptance. Permanent equipment/specialty bonuses add.
-export const BALANCE_VERSION = "gem-upgrade-24";
+export const BALANCE_VERSION = "sustained-challenge-encounters-25";
 export const RARITIES = [
   { id: "common", name: "일반", color: "#7b8974", rate: 0.6 },
   { id: "rare", name: "희귀", color: "#6094a4", rate: 0.28 },
@@ -539,8 +539,9 @@ for (const stage of STAGES) {
   }
 }
 
-// Region-one sessions stay short; other regions and speedrun retain their limit.
+// Defense measurements and speedrun retain their limits; challenge has none.
 export function battleDuration(stageId, mode = "idle") {
+  if (mode === "challenge") return null;
   if (mode === "speedrun" || Number(stageId) > 10) return 90;
   return Number(stageId) <= (mode === "idle" ? 3 : 2) ? 40 : 60;
 }
@@ -596,6 +597,35 @@ STAGES[6].description = "모여 오는 무리를 범위 공격으로 정리하�
 STAGES[7].description = "호저 증원이 모일 때 대포를 쓰고 앞줄 뒤로 돌파할 동료를 보내 보세요.";
 STAGES[8].description = "전선 유지와 성 공략에 필요한 레벨을 나누어 투자해 보세요.";
 STAGES[9].description = "앞줄을 지키며 원거리 화력을 모으고 마지막 성 공략까지 준비해 보세요.";
+
+// Challenge waves recur as part of each encounter's normal second/third phase.
+// Strength is constant for the whole fight; idle waves and rewards stay intact.
+const challengeEncounters = [
+  // stage, repeating phase, period, enemy HP, enemy attack, castle HP, phase count scale
+  [3, 1, 20, .3, 1.1, 1470, 1],
+  [4, 1, 20, .7, 1.15, 1620, 1],
+  [5, 1, 36, .75, 3, 1120, 1],
+  [6, 1, 24, 1.25, 3.75, 600, 1],
+  [7, 1, 16, 1, 1.44, 600, 1],
+  [8, 2, 10, .65, 3.25, 1200, .5],
+  [9, 2, 24, .56, 3, 660, 1],
+  [10, 1, 28, .5, 2.5, 1600, 1],
+];
+for (const [id, phase, period, hp, attack, castleHp, countScale] of challengeEncounters) {
+  const stage = STAGES.find(stage => stage.id === id);
+  const waves = structuredClone(stage.waves);
+  waves[phase].repeatEvery = period;
+  for (const group of waves[phase].enemies) group.count = Math.max(1, Math.round(group.count * countScale));
+  stage.challenge = {
+    waves, enemyHp: castleHp, enemyAttack: attack,
+    enemyModifiers: { ...stage.enemyModifiers, hp },
+  };
+}
+// Returning accounts use ordinary early pressure, without the tutorial's hidden bear.
+STAGES[1].challenge = {
+  enemyHp: 1200, enemyAttack: .7, enemyModifiers: {},
+  waves: [{ time: .6, repeatEvery: 14, enemies: [{ id: "beetle", count: 2, interval: 1.3 }] }],
+};
 
 // Current regions have a mission at each stage. Future regions use the shared
 // boss/midboss cadence; reward scaling is independent of authored combat waves.

@@ -34,7 +34,7 @@ test("opening waves enter from the enemy castle and walk left in every mode", ()
     for (const stage of mode === "speedrun" ? SPEEDRUN_STAGES : STAGES) {
       const state = createBattle({ mode, stageId: stage.id, sequence: [] });
       assert.ok(state._spawnSchedule.every(spawn => spawn.x === 1132), `${mode} stage ${stage.id}: all waves share the door`);
-      const wave = stage.waves[0];
+      const wave = (mode === "challenge" ? stage.challenge?.waves ?? stage.waves : stage.waves)[0];
       const lastOpeningTime = wave.time + Math.max(...wave.enemies.map((group) => ((group.count ?? 1) - 1) * (group.interval ?? 0)));
       assert.equal(state.time, 0);
       assert.equal(state.units.length, 0);

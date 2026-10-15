@@ -67,7 +67,10 @@ export function applyCommand(a, activeBattle, type, args, now) {
       battle = null; result = true; break;
     }
     case 'battle.start': battle = startBattle(a, args, now); result = { battleId: battle.battleId, options: battle.options, snapshot: battle.snapshot }; break;
-    case 'battle.finish': result = finishBattle(a, battle, args, now); battle = null; break;
+    case 'battle.finish':
+      result = finishBattle(a, battle, args, now);
+      if (!result.pending) battle = null;
+      break;
     case 'battle.abandon':
       if (battle && args.battleId !== battle.battleId) throw new GameError('battle_not_found', 409);
       battle = null; result = true; break;

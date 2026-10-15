@@ -15,9 +15,12 @@
 body { background: radial-gradient(ellipse at 50% 30%, #326b97, #102a48); }
 button { font-weight: 700; }
 button:focus-visible, a:focus-visible { outline-color: #ffb91e; }
-.game { border-color: #123c68; border-radius: 14px; box-shadow: 0 0 0 3px #568db2, 0 20px 70px #07182b88; }
+.game { --profile-size: 60px; --account-top: 22px; border-color: #123c68; border-radius: 14px; box-shadow: 0 0 0 3px #568db2, 0 20px 70px #07182b88; }
 .battlefield::after { background: linear-gradient(180deg, #09295491, #123b5e20 62%, transparent); }
+.account-hud { top: var(--account-top); }
 .profile-button {
+  width: var(--profile-size);
+  height: var(--profile-size);
   padding: 3px;
   border: 2px solid #ffe291;
   border-radius: 12px;
@@ -26,28 +29,27 @@ button:focus-visible, a:focus-visible { outline-color: #ffb91e; }
 }
 .resources { gap: 4px; }
 .resource {
-  padding: 2px 9px 2px 4px;
-  border: 1px solid #8dc9e98c;
-  border-radius: 7px;
-  background: linear-gradient(180deg, #0c3159ed, #174875e8);
-  box-shadow: inset 0 1px 0 #ffffff21;
+  padding: 2px 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
 }
 .resource .icon { color: #ffce2e; filter: none; }
 .gem-resource .icon { color: #46e5ff; }
 .resource strong { font-weight: 800; }
-.combat-power { color: #ffeb82; }
+.combat-power { top: calc(var(--account-top) + var(--profile-size) + 6px); color: #fff; }
 .combat-power .icon { color: #ffe36c; }
 .stage-button {
-  background: linear-gradient(180deg, #20588add, #12385fe6);
-  border: 1px solid #ffe18a;
-  box-shadow: inset 0 1px 0 #ffffff30, 0 2px 0 #102f52;
+  background: none;
+  border: 0;
+  box-shadow: none;
   padding-inline: 12px;
 }
 .stage-status {
   padding: 1px 6px;
   border-radius: 6px;
-  background: #0b2e54bc;
-  box-shadow: inset 0 1px 0 #91c7ed55;
+  background: none;
+  box-shadow: none;
 }
 .game-menu { gap: 5px; }
 .menu-medallion,
@@ -59,7 +61,7 @@ button:focus-visible, a:focus-visible { outline-color: #ffb91e; }
   border-radius: 11px;
   background: linear-gradient(180deg, var(--menu-light), var(--menu-dark));
   color: #fff;
-  box-shadow: inset 0 2px 0 #fff9, inset 0 -3px 0 #0002, 0 3px 0 #102b4b;
+  box-shadow: inset 0 1px 0 #fff6, 0 2px 0 #193959;
 }
 .menu-units .menu-medallion { --menu-light: #96e24b; --menu-dark: #38a24a; }
 .menu-recruit .menu-medallion { --menu-light: #ffda48; --menu-dark: #ef981d; color: #673800; }
@@ -75,26 +77,29 @@ button:focus-visible, a:focus-visible { outline-color: #ffb91e; }
 .nav-badge { background: #ff513b; border-color: #fff0b6; }
 .menu-settings[data-unread="true"] .menu-medallion::after { background: #ff4b3a; border-color: #fff3c7; }
 .guide-mission {
-  background: linear-gradient(110deg, #123c64ed, #1b5883d9);
-  border: 1px solid #7cc4e5;
+  background: linear-gradient(90deg, #1c2c3699, #1c2c3600);
+  border: 0;
   border-left: 4px solid #ffcf38;
   border-radius: 8px;
-  box-shadow: inset 0 1px 0 #fff3, 0 3px 0 #16375060;
+  box-shadow: none;
 }
 .guide-mission > strong { color: #ffdc57; }
 .guide-mission.completed { border-left-color: #7df044; }
 .guide-mission.completed > strong { color: #b8ff74; }
-.income-button { color: #fff1b8; }
+.income-button, .game[data-mode="idle"] .income-button {
+  top: auto; bottom: max(16px, env(safe-area-inset-bottom)); left: 24px;
+  width: 44px; height: 44px; padding: 6px; display: grid; place-items: center;
+  color: #fff1b8; border: 1px solid #856633; border-radius: 10px;
+  background: #fff1bf; box-shadow: 0 2px 0 #5e482a;
+}
+.income-button .icon { width: 100%; height: 100%; filter: none; }
 .income-button > [data-icon="acorn"] {
-  background: linear-gradient(#ffe68a, #e9a431);
-  border: 2px solid #6d4b22;
-  border-radius: 10px;
-  box-shadow: inset 0 1px 0 #fff9, 0 3px 0 #51371d;
+  display: block; width: 100%; height: 100%;
 }
 .health-track { height: 7px; border: 1px solid #24425b; border-radius: 5px; background: #17394f; overflow: hidden; }
 #player-health { background: linear-gradient(#b6ed50, #39ad4b); }
 #enemy-health { background: linear-gradient(#ffb05b, #e74339); }
-.castle-health > span { padding: 1px 4px; border-radius: 4px; background: #123554a6; }
+.castle-health > span { padding: 1px 4px; background: none; }
 .unit-card {
   border: 2px solid #25486a;
   border-radius: 7px;
@@ -120,8 +125,8 @@ button:focus-visible, a:focus-visible { outline-color: #ffb91e; }
 .summon-bar .battle-wallet .icon { color: #ffc831; fill: #ffcf4655; }
 .wallet-track { background: #193b59; border: 1px solid #d6d88d; border-radius: 4px; overflow: hidden; }
 #wallet-fill { background: linear-gradient(#ffe067, #eda527); }
-.summon-bar .skill-button { border: 3px solid #ffe082; background: radial-gradient(ellipse at 50% 25%, #82daff, #2474bb 75%); color: #fff; box-shadow: inset 0 0 0 2px #153f68, 0 4px 0 #163b60; }
-.summon-bar .skill-button .icon { width: 65%; height: 65%; stroke-width: 2; }
+.summon-bar .skill-button { border: 2px solid #e9c877; background: #fff0bd; color: #fff; box-shadow: 0 3px 0 #324959; }
+.summon-bar .skill-button .icon { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 78%; height: 78%; margin: 0; }
 .skill-cooldown:not(:empty) { background: #102d5db3; color: #fff; font-weight: 800; }
 .challenge-start,
 .primary-button,
@@ -129,8 +134,8 @@ button:focus-visible, a:focus-visible { outline-color: #ffb91e; }
   color: #fff;
   border: 2px solid #17643a;
   border-radius: 10px;
-  background: linear-gradient(180deg, #8cdd42, #34ad42 52%, #26953e 53%, #2ca94a);
-  box-shadow: inset 0 2px 0 #e5ffb5, inset 0 -2px 0 #137c3b, 0 4px 0 #15512f;
+  background: linear-gradient(180deg, #69cb47, #30a346);
+  box-shadow: inset 0 1px 0 #dcffb366, 0 2px 0 #235f36;
   font-weight: 800;
 }
 .challenge-start { color: #fffbe2; border-color: #27532c; }
@@ -143,8 +148,8 @@ button:focus-visible, a:focus-visible { outline-color: #ffb91e; }
   border: 2px solid #2873a3;
   border-radius: 8px;
   color: #fff;
-  background: linear-gradient(#5cbeef, #258bc8 52%, #1d7bb9 53%, #2689c5);
-  box-shadow: inset 0 1px 0 #c6f1ff, 0 3px 0 #1e5179;
+  background: linear-gradient(#4aaee0, #2487bf);
+  box-shadow: inset 0 1px 0 #c6f1ff66, 0 2px 0 #1e5179;
   font-weight: 700;
 }
 .secondary-button.selected,
@@ -159,10 +164,10 @@ button:focus-visible, a:focus-visible { outline-color: #ffb91e; }
   border: 3px solid #153e69;
   border-radius: 14px;
   background: #e5f2fa;
-  box-shadow: 0 0 0 2px #ffe29a, inset 0 0 0 2px #fff, 0 8px 0 #102c4a, 0 16px 36px #06162d80;
+  box-shadow: 0 0 0 1px #ffe29a, 0 5px 16px #06162d50;
 }
 .modal-header {
-  background: linear-gradient(#338ed1, #1c649f 54%, #17578e 55%, #246ca4);
+  background: linear-gradient(#2d7ab2, #205e94);
   border-bottom: 3px solid #ffd05b;
   color: #fff;
   padding-top: 12px;
@@ -194,7 +199,7 @@ button:focus-visible, a:focus-visible { outline-color: #ffb91e; }
   border: 2px solid #8db6d0;
   border-radius: 10px;
   background: linear-gradient(155deg, #fff 55%, #cfe8f6);
-  box-shadow: inset 0 0 0 1px #fff, 0 3px 0 #99bad0;
+  box-shadow: 0 1px 0 #a8c5d9;
 }
 .companion-tile { border-color: var(--rarity, #75a1c1); border-bottom-width: 4px; }
 .companion-tile:hover, .growth-card:hover, .gem-card:hover, .stage-tile:hover { background: linear-gradient(155deg, #fff 30%, #b9e6ff); }
@@ -231,8 +236,8 @@ button:focus-visible, a:focus-visible { outline-color: #ffb91e; }
 .idle-result-popup { border: 3px solid #1c5687; border-radius: 14px; background: linear-gradient(#f5fbff, #d6ecfa); box-shadow: 0 0 0 2px #ffe196, 0 6px 0 #163857; }
 .idle-result-popup h2 { color: #1b6292; }
 .battle-ready, .battle-result { background: #0b244680; }
-.field-note { color: #fff; }
-.field-note > span { padding: 4px 10px; border-radius: 6px; background: #0f355ac7; }
+.field-note { color: #fff; background: none; }
+.field-note > span { padding: 4px 10px; background: none; }
 .tooltip { border: 2px solid #2d6087; background: #f4fbff; color: #173657; }
 .modal-backdrop[data-layout="drawer"] .modal { border: 0; border-left: 3px solid #e4b44e; border-radius: 0; background: #123355f5; box-shadow: -6px 0 0 #0d274380; }
 .modal-backdrop[data-layout="drawer"] .modal-header { background: linear-gradient(#245b87, #133b60); border-bottom: 2px solid #e4b44e; }
@@ -243,10 +248,11 @@ button:focus-visible, a:focus-visible { outline-color: #ffb91e; }
 .mail-item { border: 1px solid #a0c3db; background: #fff; border-radius: 9px; }
 input, select { accent-color: #219d49; }
 @media (max-height: 560px) and (orientation: landscape), (max-width: 1000px) and (orientation: landscape) {
-  .game { border: 0; border-radius: 0; box-shadow: none; }
+  .game { --profile-size: 43px; --account-top: max(12px, env(safe-area-inset-top)); border: 0; border-radius: 0; box-shadow: none; }
   .menu-medallion { border-radius: 8px; }
   .game-menu { gap: 4px; }
-  .resource { padding: 1px 6px 1px 3px; }
+  .resource { padding: 1px 0; }
+  .income-button, .game[data-mode="idle"] .income-button { left: var(--safe-left); width: 38px; height: 38px; padding: 5px; }
   .stage-button { padding: 3px 8px; }
   .stage-status { gap: 2px; padding: 0 3px; }
   .unit-card { border-radius: 5px; }
@@ -318,3 +324,11 @@ input, select { accent-color: #219d49; }
 .gem-type-card { border-top-width: 4px; }
 .gem-option-slot.is-empty { background: #c7deed; border-style: dashed; color: #386b91; box-shadow: inset 0 2px 6px #244b7022; }
 .inspect-button { text-decoration: none; }
+
+/* Scene text uses a small dark edge, without individual blue backing panels. */
+.resource, .stage-button, .stage-status, .combat-power, .castle-health, .field-note, .guide-mission, .menu-label, .battle-wallet {
+  text-shadow: 0 1px 2px #102630, 0 0 1px #102630;
+}
+@media (max-width: 740px) and (orientation: landscape) {
+  .game { --profile-size: 39px; }
+}

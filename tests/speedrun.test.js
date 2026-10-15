@@ -198,8 +198,10 @@ test("speedrun encounters use independent castles, waves, and known character de
     assert.notEqual(stage.waves, normal.waves);
     assert.notDeepEqual(sprint._spawnSchedule, challenge._spawnSchedule);
     assert.equal(sprint.enemyMaxHp, stage.enemyHp);
-    assert.equal(challenge.enemyMaxHp, normal.enemyHp);
-    assert.deepEqual(idle._spawnSchedule, challenge._spawnSchedule);
+    assert.equal(challenge.enemyMaxHp, normal.challenge?.enemyHp ?? normal.enemyHp);
+    assert.equal(idle.enemyMaxHp, normal.enemyHp);
+    assert.ok(idle._spawnSchedule.every(spawn => !spawn.repeatEvery));
+    assert.equal(idle._spawnSchedule.length, normal.waves.reduce((count, wave) => count + wave.enemies.reduce((n, group) => n + (group.count ?? 1), 0), 0));
     assert.equal(sprint.scene, stage.scene);
     assert.equal(challenge.scene, null);
     const authored = stage.waves.flatMap(wave => wave.enemies.flatMap(group => {

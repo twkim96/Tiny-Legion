@@ -255,10 +255,10 @@ function stageIntelMarkup(stage) {
         : [],
     )
     .join("　·　");
-  const limit = battleDuration(stage.id, mode);
+  const limit = battleDuration(stage.id, mode) ?? Math.max(60, ...((stage.challenge ?? stage).waves ?? []).map(wave => wave.time));
   const boundaries = [0, Math.round(limit / 3), Math.round(limit * 2 / 3), limit];
   const phases = ["초반", "중반", "후반"].map((name, index) => ({
-    label: `${name} · ${boundaries[index]}–${boundaries[index + 1]}초`,
+    label: mode === "challenge" ? name : `${name} · ${boundaries[index]}–${boundaries[index + 1]}초`,
   }));
   const phaseGroups = phases.map(() => []);
   for (const wave of stage.waves ?? []) {
@@ -480,7 +480,9 @@ function handUnits() {
 }
 function currentStage() {
   if (mode === "speedrun") return SPEEDRUN_STAGES.find(stage => stage.id === stageId) ?? SPEEDRUN_STAGES[0];
-  return onboardingEncounter(account.onboarding?.phase) ?? (stageId === 2 ? earlyGuideEncounter(account.earlyGuide?.phase, mode) : null) ?? STAGES[stageId - 1] ?? STAGES[0];
+  const encounter = onboardingEncounter(account.onboarding?.phase) ?? (stageId === 2 ? earlyGuideEncounter(account.earlyGuide?.phase, mode) : null);
+  const stage = encounter ?? STAGES[stageId - 1] ?? STAGES[0];
+  return !encounter && mode === "challenge" && stage.challenge ? { ...stage, ...stage.challenge } : stage;
 }
 async function startBattle() {
   if (!isOnboarding(account) && mode === "challenge" && firstIdleMissionPending()) {
@@ -1068,7 +1070,7 @@ function finishBattle() {
   recordMissionBattle(account, { mode, stageId, won: r.won });
   if (stageId === 2 && mode === "challenge" && account.earlyGuide?.phase === "rabbit-recruit") {
     persist();
-    onboardingMessage("튼튼한 성", "시간 안에 성을 무너뜨리지 못했어요. 성을 빠르게 공격할 동료를 무료로 모집해 보세요.", "동료 모집", showEarlyDraw, "squirrel");
+    onboardingMessage("튼튼한 성", "증원이 몰려와 성을 지키지 못했어요. 성을 빠르게 공격할 동료를 무료로 모집해 보세요.", "동료 모집", showEarlyDraw, "squirrel");
     updateUi();
     return;
   }
@@ -1111,10 +1113,15 @@ async function finishHostedBattle() {
     battleId: battleSnapshot?.battleId,
     idleRecord: account.records[stageId],
   };
-  const envelope = await sendCommand("battle.finish", {
+  const completion = {
     battleId: before.battleId,
     actions: manualBattleActions.map(({ step, type, id }) => type === "summon" ? { step, type, id } : { step, type }),
-  });
+    endStep: Math.round(completedBattle.time * 30),
+  };
+  let envelope;
+  do {
+    envelope = await sendCommand("battle.finish", completion);
+  } while (envelope?.result?.pending && battle === completedBattle);
   if (!envelope || battle !== completedBattle) return;
   const outcome = envelope.result;
   const result = outcome?.battleResult;
@@ -1154,7 +1161,7 @@ async function finishHostedBattle() {
     return;
   }
   if (stageId === 2 && mode === "challenge" && account.earlyGuide?.phase === "rabbit-recruit") {
-    onboardingMessage("튼튼한 성", "시간 안에 성을 무너뜨리지 못했어요. 성을 빠르게 공격할 동료를 무료로 모집해 보세요.", "동료 모집", showEarlyDraw, "squirrel");
+    onboardingMessage("튼튼한 성", "증원이 몰려와 성을 지키지 못했어요. 성을 빠르게 공격할 동료를 무료로 모집해 보세요.", "동료 모집", showEarlyDraw, "squirrel");
     updateUi();
     return;
   }
@@ -1479,9 +1486,6 @@ function updateUi() {
   $("gold").textContent = fmt(account.gold);
   $("diamonds").textContent = fmt(account.diamonds);
   $("combat-power").textContent = fmt(combatPower(account));
-  const record = account.records[account.idleStage];
-  $("income-rate").innerHTML =
-    `${fmt((record?.gold || 0) * 3600 / (record?.productionSeconds ?? 120))}<span class="muted"> / 시간</span>`;
   $("stage-number").textContent = stageId === 0 ? "0" : stageLabel(stageId);
   $("stage-name").textContent = currentStage().regionName ?? "초원";
   $("current-mode").textContent = {
@@ -1493,8 +1497,8 @@ function updateUi() {
     { idle: "leaf", challenge: "swords", speedrun: "bolt" }[mode],
   );
   $("battle-time").textContent = battle
-    ? clock(mode === "speedrun" ? battle.time : battle.duration - battle.time)
-    : mode === "speedrun"
+    ? clock(mode === "idle" ? battle.duration - battle.time : battle.time)
+    : mode !== "idle"
       ? "00:00"
       : clock(battleDuration(stageId, mode));
   $("pause-icon").innerHTML = icon(paused ? "play" : "pause");
@@ -1551,7 +1555,7 @@ function updateUi() {
     else if (phase === "retry-battle") note = battle?.units.some((u) => u.id === "sheep" && u.team === "player" && !u.dead) ? "골드를 모아 다람쥐도 소환하세요" : "양 방패를 먼저 소환하세요";
   }
   if (!isOnboarding(account) && stageId === 2) {
-    if (mode === "challenge" && account.earlyGuide?.phase === "wall-battle") note = "시간 안에 튼튼한 적 성을 무너뜨리세요";
+    if (mode === "challenge" && account.earlyGuide?.phase === "wall-battle") note = "증원이 몰려오기 전에 튼튼한 적 성을 공략하세요";
     else if (mode === "challenge" && account.earlyGuide?.phase === "wall-retry") note = "속공 토끼로 적 성을 공략하세요";
     else if (mode === "idle" && account.earlyGuide?.phase === "remove-rabbit") note = "순서에서 속공 토끼를 빼 보세요";
   }

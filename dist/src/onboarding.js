@@ -8,22 +8,22 @@ const INTRO = {
   enemyHp: 24,
   enemyAttack: 1,
   baseReward: 0,
-  duration: 40,
+  duration: null,
   waves: [{ time: 0.6, enemies: [{ id: "beetle", count: 1 }] }],
 };
 const FIRST = {
   id: 1,
   name: "첫 숲길",
   enemyHp: 220,
-  enemyAttack: 1,
+  enemyAttack: 2,
   baseReward: 0,
-  duration: 40,
-  waves: [{ time: .6, enemies: [{ id: "beetle", count: 1 }] }],
+  duration: null,
+  waves: [{ time: .6, repeatEvery: 4, enemies: [{ id: "beetle", count: 1 }] }],
 };
 export function onboardingEncounter(phase) {
   if (phase === "intro") return INTRO;
   if (phase === "first-battle") return FIRST;
-  if (phase === "retry-battle") return { ...FIRST, duration: 40 };
+  if (phase === "retry-battle") return FIRST;
   return null;
 }
 const STAGE_TWO = STAGES.find((stage) => stage.id === 2);
@@ -34,9 +34,11 @@ const WALL_BATTLE = {
   enemyHp: 1200,
   enemyAttack: 0.7,
   baseReward: STAGE_TWO.baseReward,
-  duration: 40,
+  duration: null,
   waves: [
     { time: 0.6, enemies: [{ id: "beetle", count: 2, interval: 1.3 }] },
+    // Hidden reinforcement: the same ordinary boss arrives in both attempts.
+    { time: 42, enemies: [{ id: "grove-bear", count: 1, statMultipliers: { hp: 20, attack: 20, speed: 2 } }] },
   ],
 };
 

@@ -22,16 +22,17 @@ export const REFERENCE = {
   4: { levels: [4,4,3,4,1], tactic: 'marksman', cannon: 16 },
   5: { levels: [1,2,8,5,2], tactic: 'raiderfox', cannon: 16 },
   6: { levels: [4,8,7,2,2], tactic: 'rear', cannon: 16 },
-  7: { levels: [1,1,3,10,8], tactic: 'fire', cannon: 23 },
-  8: { levels: [2,13,2,5,1], tactic: 'marksman', cannon: 16 },
+  7: { levels: [12,4,1,1,1], tactic: 'screen', cannon: 23 },
+  8: { levels: [1,1,12,4,8], tactic: 'fire', cannon: 8 },
   9: { levels: [2,1,3,7,14], tactic: 'fire', cannon: 8 },
   10: { levels: [1,1,14,11,3], tactic: 'raiderfox', cannon: 8 },
 };
-export function simulate(options, { tactic = 'balanced', cannon = 8, interval = 1, delay = 0 } = {}) {
+export function simulate(options, { tactic = 'balanced', cannon = 8, interval = 1, delay = 0, horizon = 600 } = {}) {
   const lineup = Array.isArray(tactic) ? tactic : TACTICS[tactic];
-  const state = createBattle(options), actions = [], bosses = new Map();
+  const state = createBattle(options), actions = [], bosses = new Map(), enemySpawns = [];
   let next = delay, index = 0, nextCannon = cannon, tick = 0;
   while (!state.finished) {
+    if (tick >= horizon * 30) throw Error(`Unfinished ${state.mode} 1-${state.stageId} at safety horizon ${horizon}s (${tactic})`);
     if (state.mode === 'challenge' && state.time + 1e-8 >= next) {
       const id = lineup[index];
       if (summonUnit(state, id)) { actions.push({type:'summon',id,step:tick}); index = (index + 1) % lineup.length; }
@@ -41,9 +42,10 @@ export function simulate(options, { tactic = 'balanced', cannon = 8, interval = 
       actions.push({type:'cannon',step:tick}); nextCannon = state.time + 25;
     }
     stepBattle(state, 1 / 30); tick++;
+    for (const event of state.events) if (event.type === "spawn" && event.team === "enemy") enemySpawns.push({id:event.id,time:event.time});
     for (const unit of state.units) if (unit.team === "enemy" && unit.boss) bosses.set(unit.uid,unit);
   }
-  return {state, actions, bosses:[...bosses.values()]};
+  return {state, actions, bosses:[...bosses.values()], enemySpawns};
 }
 export function introduction() {
   const a = account.newAccount(0);
@@ -93,12 +95,18 @@ export function idleAlternatives(source, stageId, seconds=8*3600) {
   account.recordIdle(a,best.state.result,{stageId:best.stage,duration:best.state.duration,levels:best.options.levels},0);
   const earned=account.accrue(a,seconds*1000).gold;
   const wins=[];
-  for (const [units,tactic] of [[['fox','rabbit'],'raiderfox'],[['sheep','squirrel','rabbit'],'rear']]) {
+  const policies = [6,7].includes(stageId)
+    ? [[['sheep','squirrel'],'screen']]
+    : [[['fox','rabbit'],'raiderfox'],[['sheep','squirrel','rabbit'],'rear']];
+  for (const [units,tactic] of policies) {
     const alternative=structuredClone(a);
     for (const id of ROSTER) account.refundUnitLevels(alternative,id,seconds*1000);
     growEvenly(alternative,units);
     const {state}=simulate(optionsFor(alternative,stageId),{tactic});
-    if (state.result.won) wins.push({tactic,time:Number(state.time.toFixed(2)),levels:ROSTER.map(id=>alternative.levels[id])});
+    if (state.result.won) {
+      wins.push({tactic,time:Number(state.time.toFixed(2)),levels:ROSTER.map(id=>alternative.levels[id])});
+      break; // One measured growth route is enough; do not enumerate alternatives.
+    }
   }
   return {productionStage:best.stage,seconds,earned,wins};
 }
@@ -109,14 +117,19 @@ export function runCampaign({ verifyServer = false, onStage = () => {} } = {}) {
     const budget = a.gold + Object.values(a.levelSpent).reduce((n,value)=>n+value,0);
     reallocate(a,plan.levels);
     const options = optionsFor(a,stageId);
-    const {state,actions,bosses} = simulate(options,plan);
+    const {state,actions,bosses,enemySpawns} = simulate(options,plan);
     if (!state.result.won) throw Error(`Reference lost at 1-${stageId}`);
     const row = {stage:stageId,budget,spent:budget-a.gold,remaining:a.gold,levels:plan.levels,
       tactic:plan.tactic,cannon:plan.cannon,time:Number(state.time.toFixed(2))};
-    onStage(a,row,options,{state,actions,bosses});
+    onStage(a,row,options,{state,actions,bosses,enemySpawns});
     if (verifyServer) {
       const run=startBattle(a,{mode:'challenge',stageId},0);
-      const result=finishBattle(a,run,{battleId:run.battleId,actions},Math.ceil(state.time*1000));
+      let result;
+      for (let batch=0;batch<=Math.ceil(state.time/120);batch++) {
+        result=finishBattle(a,run,{battleId:run.battleId,actions,endStep:Math.round(state.time*30)},Math.ceil(state.time*1000));
+        if (!result.pending) break;
+      }
+      if (result.pending) throw Error('Server replay did not complete its bounded batches');
       if (!result.battleResult.won) throw Error('Server replay lost');
     } else account.completeChallenge(a,stageId);
     account.claimMission(a);

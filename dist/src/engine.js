@@ -60,6 +60,7 @@ function makeSpawnSchedule(stage) {
       for (let index = 0; index < count; index += 1) {
         schedule.push({
           time: waveTime + interval * index,
+          repeatEvery: Math.max(0, finiteNumber(wave.repeatEvery, 0)),
           id: enemy.id,
           overrides: Object.fromEntries(
             EFFECT_OVERRIDE_KEYS
@@ -172,11 +173,14 @@ export function createBattle(options = {}) {
     (battleMode !== "speedrun" && Number(stageId) === 2
       ? earlyGuideEncounter(earlyGuidePhase, battleMode)
       : null);
-  const stage = battleMode === "speedrun"
+  const sourceStage = battleMode === "speedrun"
     ? SPEEDRUN_BY_ID.get(Number(stageId)) ?? SPEEDRUN_STAGES[0]
     : encounter ?? STAGE_BY_ID.get(Number(stageId)) ?? STAGES[0];
+  const stage = battleMode === "challenge" && !encounter
+    ? { ...sourceStage, ...sourceStage.challenge } : sourceStage;
   const modeDuration = battleMode === "speedrun" ? SPEEDRUN_LIMIT_SECONDS : battleDuration(stage.id, battleMode);
-  const durationSeconds = clamp(
+  // A null duration is serializable and explicitly means no challenge deadline.
+  const durationSeconds = battleMode === "challenge" ? null : clamp(
     finiteNumber(encounter?.duration ?? duration ?? modeDuration, modeDuration),
     0,
     modeDuration,
@@ -313,6 +317,11 @@ function spawnDueEnemies(state) {
     const scheduled = state._spawnSchedule[state._spawnIndex];
     if (scheduled.time > state.time + 1e-9) break;
     state._spawnIndex += 1;
+    // Reschedule even when the lane is full, so congestion cannot cancel pressure.
+    if (scheduled.repeatEvery > 0) {
+      state._spawnSchedule.push({ ...scheduled, time: scheduled.time + scheduled.repeatEvery });
+      state._spawnSchedule.sort((a, b) => a.time - b.time || a.order - b.order);
+    }
     if (activeUnitCount(state) >= MAX_ACTIVE_UNITS) continue;
     const definition = getEnemy(scheduled.id);
     if (!definition) continue;
@@ -691,8 +700,12 @@ function advanceTimers(state, dt) {
 }
 
 function simulateFixedStep(state, dt) {
+  if (state._spawnIndex > 1000) {
+    state._spawnSchedule.splice(0, state._spawnIndex);
+    state._spawnIndex = 0;
+  }
   const nextTime = state.time + dt;
-  state.time = nextTime >= state.duration - 1e-9 ? state.duration : nextTime;
+  state.time = state.duration !== null && nextTime >= state.duration - 1e-9 ? state.duration : nextTime;
   advanceTimers(state, dt);
   state.gold = Math.min(state.maxGold, state.gold + GOLD_PER_SECOND * state._modifiers.goldIncome * dt);
   spawnDueEnemies(state);
@@ -705,7 +718,7 @@ function simulateFixedStep(state, dt) {
     setFinished(state, false);
   } else if (state.mode !== "idle" && state.enemyHp <= 0) {
     setFinished(state, true);
-  } else if (state.time >= state.duration - 1e-9) {
+  } else if (state.duration !== null && state.time >= state.duration - 1e-9) {
     setFinished(state, state.mode === "idle");
   }
 }
@@ -714,13 +727,13 @@ export function stepBattle(state, dt) {
   if (!state || state.finished) return state;
   const requestedDt = finiteNumber(dt, 0);
   if (requestedDt <= 0) return state;
-  if (state.time >= state.duration) {
+  if (state.duration !== null && state.time >= state.duration) {
     setFinished(state, state.mode === "idle" && state.playerHp > 0);
     return state;
   }
 
   state.events = [];
-  let remaining = Math.min(requestedDt, state.duration - state.time);
+  let remaining = state.duration === null ? requestedDt : Math.min(requestedDt, state.duration - state.time);
   while (remaining > 1e-9 && !state.finished) {
     // Preserve full ticks when subtraction leaves only floating-point residue.
     const slice = remaining >= FIXED_STEP - 1e-9 ? FIXED_STEP : remaining;

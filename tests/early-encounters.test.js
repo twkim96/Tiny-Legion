@@ -23,7 +23,7 @@ function playIdle(sequence, phase) {
   return state;
 }
 
-function playChallenge(sequence, phase, cannonCooldown = 25) {
+function playChallenge(sequence, phase, cannonCooldown = 25, delay = 0) {
   const state = createBattle({
     mode: "challenge",
     stageId: 2,
@@ -31,12 +31,14 @@ function playChallenge(sequence, phase, cannonCooldown = 25) {
     ownedUnits: sequence,
     sequence: [],
   });
-  let nextSummon = 0;
+  let nextSummon = delay;
   let sequenceIndex = 0;
   let nextCannon = 8;
   const cannonTimes = [];
+  const bears = new Map();
 
   while (!state.finished) {
+    assert.ok(state.time < 600, "encounter must resolve before test safety horizon");
     if (state.time + 1e-8 >= nextSummon) {
       const unitId = sequence[sequenceIndex];
       if (summonUnit(state, unitId)) {
@@ -54,9 +56,10 @@ function playChallenge(sequence, phase, cannonCooldown = 25) {
       nextCannon = state.time + cannonCooldown;
     }
     stepBattle(state, FIXED_STEP);
+    for (const unit of state.units) if (unit.id === "grove-bear") bears.set(unit.uid, unit);
   }
 
-  return { state, cannonTimes };
+  return { state, cannonTimes, bears: [...bears.values()] };
 }
 
 test("1-2 idle guide phases reuse stage 2 and distinguish rabbit defense pressure", () => {
@@ -100,9 +103,12 @@ test("wall tutorial loses without rabbit and wins naturally at the real cannon c
   const noCannonFirst = playChallenge(["sheep", "squirrel"], "wall-battle", null);
   const noCannonRetry = playChallenge(["sheep", "squirrel", "rabbit"], "wall-retry", null);
 
-  assert.equal(first.state.duration, 40);
+  assert.equal(first.state.duration, null);
   assert.equal(first.state.result.won, false);
-  assert.equal(first.state.time, 40);
+  assert.ok(first.state.time > 42);
+  assert.equal(first.state.playerHp, 0);
+  assert.equal(first.bears.length, 1);
+  assert.ok(first.state.events.some(event => event.type === "castle-hit" && event.team === "player" && event.amount === first.bears[0].attack));
   assert.ok(first.state.enemyHp > 0);
   assert.ok(
     first.cannonTimes.every(
@@ -120,7 +126,8 @@ test("wall tutorial loses without rabbit and wins naturally at the real cannon c
   );
 
   assert.equal(noCannonFirst.state.result.won, false);
-  assert.equal(noCannonFirst.state.time, 40);
+  assert.ok(noCannonFirst.state.time > 42);
+  assert.equal(noCannonFirst.state.playerHp, 0);
   assert.ok(noCannonFirst.state.enemyHp > 0);
   assert.deepEqual(noCannonFirst.cannonTimes, []);
   assert.equal(noCannonRetry.state.result.won, true);
@@ -145,16 +152,35 @@ test("wall tutorial loses without rabbit and wins naturally at the real cannon c
     stageId: 2,
     earlyGuidePhase: "growth",
   });
-  assert.equal(normal.enemyMaxHp, STAGES.find((stage) => stage.id === 2).enemyHp);
+  assert.equal(normal.enemyMaxHp, STAGES.find((stage) => stage.id === 2).challenge.enemyHp);
   assert.deepEqual(progressed._spawnSchedule, normal._spawnSchedule);
   assert.equal(progressed.enemyMaxHp, normal.enemyMaxHp);
-  assert.equal(normal.duration, 40);
+  assert.equal(normal.duration, null);
+});
+
+test("the same hidden bear punishes a delayed rabbit push through ordinary combat", () => {
+  const encounter = earlyGuideEncounter("wall-battle", "challenge");
+  assert.strictEqual(encounter, earlyGuideEncounter("wall-retry", "challenge"));
+  const reinforcement = encounter.waves.find(wave => wave.enemies.some(group => group.id === 'grove-bear'));
+  assert.ok(reinforcement.time > 40);
+  assert.equal(reinforcement.repeatEvery, undefined);
+  const delayed = playChallenge(["sheep", "squirrel", "rabbit"], "wall-retry", 25, 35);
+  assert.equal(delayed.state.result.won, false);
+  assert.equal(delayed.state.playerHp, 0);
+  assert.equal(delayed.bears.length, 1);
+  assert.ok(delayed.bears[0].attack > ENEMIES.find(enemy => enemy.id === 'grove-bear').attack);
+  assert.ok(delayed.state.events.some(event => event.type === 'castle-hit' && event.team === 'player' && event.amount === delayed.bears[0].attack));
+  for (const stage of STAGES) {
+    for (const wave of stage.challenge?.waves ?? []) {
+      if (wave.repeatEvery) assert.ok(wave.enemies.every(group => !ENEMIES.find(enemy => enemy.id === group.id)?.boss));
+    }
+  }
 });
 
 test("castle specialist bonus applies only to player unit hits on the enemy castle", () => {
   assert.equal(UNITS.find((unit) => unit.id === "rabbit").name, "속공 토끼");
   assert.equal(UNITS.find((unit) => unit.id === "rabbit").effects.castleDamage.bonus, 2);
-  assert.equal(BALANCE_VERSION, "gem-upgrade-24");
+  assert.equal(BALANCE_VERSION, "sustained-challenge-encounters-25");
 
   const state = createBattle({ mode: "challenge", stageId: 1, sequence: [] });
   state._spawnSchedule = [];

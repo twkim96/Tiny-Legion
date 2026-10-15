@@ -40,18 +40,37 @@ export function startBattle(a, { mode, stageId }, now) {
   return { battleId: crypto.randomUUID(), options, snapshot, startedAt: now };
 }
 
-export function finishBattle(a, run, { battleId, actions }, now) {
+// Long challenge replays are checkpointed in the existing active-battle row.
+// Each command has bounded work; no total combat deadline is imposed.
+const REPLAY_BATCH_STEPS = 3600;
+export function finishBattle(a, run, { battleId, actions, endStep }, now) {
   if (!run || battleId !== run.battleId) throw new GameError('battle_not_found', 409);
   if (run.snapshot?.balanceVersion !== BALANCE_VERSION) throw new GameError('battle_version_mismatch', 409);
   if (!Array.isArray(actions) || actions.length > 10000) throw new GameError('invalid_actions');
-  const state = createBattle(run.options);
-  let cursor = 0, cannonStep = -750, last = -1;
+  const fresh = createBattle(run.options);
+  const timed = fresh.duration !== null;
+  const terminal = endStep ?? (timed ? Math.ceil(fresh.duration * 30) : null);
+  if (!Number.isSafeInteger(terminal) || terminal < 0 ||
+      (timed && terminal > Math.ceil(fresh.duration * 30))) throw new GameError('invalid_actions');
+  if (endStep !== undefined && terminal / 30 > ((now - run.startedAt) / 1000 + 2) * (fresh.mode === 'idle' ? 1 : 2)) {
+    throw new GameError('battle_too_early', 409);
+  }
+  let last = -1;
   for (const action of actions) {
-    if (!action || !Number.isInteger(action.step) || action.step < last || action.step > Math.ceil(state.duration * 30) ||
-        !['summon', 'cannon'].includes(action.type) || state.mode === 'idle') throw new GameError('invalid_actions');
+    if (!action || !Number.isSafeInteger(action.step) || action.step < last || action.step > terminal ||
+        !['summon', 'cannon'].includes(action.type) || fresh.mode === 'idle') throw new GameError('invalid_actions');
     last = action.step;
   }
-  for (let step = 0; step <= Math.ceil(state.duration * 30); step++) {
+  const inputKey = JSON.stringify({ actions, terminal });
+  const checkpoint = run.replay;
+  if (checkpoint && checkpoint.inputKey !== inputKey) throw new GameError('replay_input_mismatch', 409);
+  const state = checkpoint?.state ?? fresh;
+  // The active battle is JSON stored; rebuild the sole Set before simulation.
+  state._ownedUnits = fresh._ownedUnits;
+  let cursor = checkpoint?.cursor ?? 0, cannonStep = checkpoint?.cannonStep ?? -750;
+  let step = checkpoint?.step ?? 0;
+  const batchEnd = Math.min(terminal, step + REPLAY_BATCH_STEPS - 1);
+  for (; step <= batchEnd; step++) {
     while (cursor < actions.length && actions[cursor].step === step) {
       const action = actions[cursor++];
       if (state.finished) throw new GameError('action_after_finish');
@@ -63,11 +82,14 @@ export function finishBattle(a, run, { battleId, actions }, now) {
       }
     }
     if (state.finished) break;
-    stepBattle(state, 1 / 30);
+    if (step < terminal) stepBattle(state, 1 / 30);
+  }
+  if (!state.finished && step <= terminal) {
+    run.replay = { inputKey, state: { ...state, _ownedUnits: null }, cursor, cannonStep, step };
+    return { pending: true };
   }
   if (!state.finished || cursor !== actions.length) throw new GameError('invalid_actions');
   const elapsed = (now - run.startedAt) / 1000;
-  // Idle is always 1x; manual modes may use the existing 2x control.
   if (elapsed + 2 < state.time / (state.mode === 'idle' ? 1 : 2)) throw new GameError('battle_too_early', 409);
   if (run.options.onboardingPhase && a.onboarding.phase !== run.options.onboardingPhase) throw new GameError('battle_obsolete', 409);
   const battleResult = state.result;
