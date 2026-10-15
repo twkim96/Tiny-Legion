@@ -1,4 +1,5 @@
 import { mailboxPanel } from "./mailbox-ui.js";
+import { OFFLINE_LIMIT_SECONDS } from "./economy.js";
 import { bindGameVisibility } from "./app-visibility.js";
 import { familyName, attributeLabel } from './character-tags.js';
 import { CloudSessionUI } from "./cloud-session-ui.js";
@@ -952,7 +953,7 @@ function showReturnIncome() {
   const duration=hours ? `${hours}시간 ${minutes%60}분` : `${minutes}분`;
   const timestamp=new Intl.DateTimeFormat("ko-KR",{timeZone:"Asia/Seoul",month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"}).format(new Date(summary.from));
   openModal("자리 비운 동안", "return-income",()=>{
-    $("modal-content").innerHTML=`<div class="return-income-summary"><p>마지막 접속 ${timestamp}</p><strong>${duration}</strong><div class="result-rewards"><span>${icon("acorn")}+${fmt(summary.gold)}</span><span>${icon("gem")}+${summary.diamonds.toFixed(2)}</span></div><p class="settings-note">재화는 이미 반영되었습니다.${summary.capped ? "<br>최대 8시간의 생산을 반영했어요." : ""}</p><button class="primary-button" id="return-income-confirm">확인</button></div>`;
+    $("modal-content").innerHTML=`<div class="return-income-summary"><p>마지막 접속 ${timestamp}</p><strong>${duration}</strong><div class="result-rewards"><span>${icon("acorn")}+${fmt(summary.gold)}</span><span>${icon("gem")}+${summary.diamonds.toFixed(2)}</span></div><p class="settings-note">재화는 이미 반영되었습니다.${summary.capped ? `<br>최대 ${OFFLINE_LIMIT_SECONDS / 3600}시간의 생산을 반영했어요.` : ""}</p><button class="primary-button" id="return-income-confirm">확인</button></div>`;
     $("return-income-confirm").onclick=()=>closeModal();
   });
 }
@@ -2028,7 +2029,7 @@ function renderIncome() {
             )
             .join("")}</div>`
         : '<p class="empty-note">방치 전투가 끝나면 기록에 따라 재화가 쌓입니다.</p>'
-    }<p class="settings-note">다른 전투를 하거나 게임을 닫아도 기록에 따라 쌓입니다.<br>게임을 닫은 동안에는 최대 8시간까지 쌓입니다.</p>`;
+    }<p class="settings-note">다른 전투를 하거나 게임을 닫아도 기록에 따라 쌓입니다.<br>게임을 닫은 동안에는 최대 ${OFFLINE_LIMIT_SECONDS / 3600}시간까지 쌓입니다.</p>`;
   $("modal-content")
     .querySelectorAll("[data-idle-stage]")
     .forEach(

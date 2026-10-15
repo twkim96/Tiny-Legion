@@ -10,12 +10,15 @@ const now=Date.UTC(2026,9,11,6);
 const lineup=id=>[id,...Array(9).fill(null)];
 function account(){const a=newAccount(now);a.onboarding.phase='complete';a.earlyGuide.phase='complete';a.highestCleared=11;a.owned.rabbit=true;a.owned.squirrel=true;return a;}
 test('return summary caps earnings once and reload does not pay them again',()=>{
- const a=account();a.lastSettled=now-10*3600000;a.records[1]={gold:80,diamonds:.1};
+ const a=account();a.lastSettled=now-14*3600000;a.records[1]={gold:80,diamonds:.1};
  const gold=a.gold,diamonds=a.diamonds;
  const result=collectReturnIncome(a,now);
- assert.equal(result.awaySeconds,36000);assert.equal(result.seconds,28800);assert.equal(result.capped,true);
- assert.equal(result.gold,19200);assert.equal(result.diamonds,24);
- assert.equal(a.gold,gold+19200);assert.equal(a.diamonds,diamonds+24);
+ assert.equal(result.awaySeconds,50400);assert.equal(result.seconds,43200);assert.equal(result.capped,true);
+ assert.equal(result.gold,28800);assert.equal(result.diamonds,36);
+ assert.equal(a.gold,gold+28800);assert.equal(a.diamonds,diamonds+36);
+ const tenHours=account();tenHours.lastSettled=now-10*3600000;tenHours.records[1]={gold:80,diamonds:.1};
+ const uncapped=collectReturnIncome(tenHours,now);
+ assert.equal(uncapped.seconds,36000);assert.equal(uncapped.capped,false);
  let saved;const storage={setItem(_,v){saved=v;},getItem(){return saved;}};
  assert.equal(saveAccount(a,storage),true);
  assert.equal(collectReturnIncome(loadAccount(storage,now).account,now),null);

@@ -1,10 +1,12 @@
 const finite = (value, fallback) => Number.isFinite(Number(value)) ? Number(value) : fallback;
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
+// Record pricing version; changing growth prices or the offline limit does not reprice records.
 export const ECONOMY_VERSION = "long-economy-22";
 const IDLE_ACORNS = 12;
 const IDLE_DIAMONDS = 0.025;
 export const IDLE_REWARD_SECONDS = 90;
+export const OFFLINE_LIMIT_SECONDS = 12 * 3600;
 const healthFactor = hpRatio => 0.1 + 0.9 * clamp(finite(hpRatio, 0), 0, 1) ** 2;
 export const STAGE_GROWTH = 1.1;
 const stageFactor = stageId => STAGE_GROWTH ** (Math.max(1, finite(stageId, 1)) - 1);
@@ -29,7 +31,7 @@ export function idleDiamondReward(stageId, survival, duration, hpRatio) {
 export function levelUpgradeCost(level) {
   const current = clamp(Math.floor(finite(level, 1)), 1, 100);
   const n = current - 1;
-  return Math.ceil((100 + 32 * n + 5 * n ** 2) * 1.179 ** Math.max(0, current - 15));
+  return Math.ceil((100 + 32 * n + 5 * n ** 2) * 1.1955 ** Math.max(0, current - 15));
 }
 
 export function idleAcornReward(stageId, survival, duration, hpRatio) {
@@ -42,7 +44,9 @@ export function hasStageMission(stageId) {
 }
 export function missionRewardRounds(stageId) {
   const stage = Math.max(1, Math.floor(finite(stageId, 1)));
-  return Math.max(1, Math.min(9 * stage - 8, 1.5 * stage + 67));
+  // Keep the authored first two regions' mission budgets unchanged.
+  if (stage <= 20) return Math.max(1, Math.min(9 * stage - 8, 1.5 * stage + 67));
+  return 97 + 4 * (stage - 20);
 }
 export function stageMissionReward(stageId) {
   return { gold: Math.ceil(idleFullReward(stageId) * missionRewardRounds(stageId)), diamonds: 30 };

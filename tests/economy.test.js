@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { idleFullReward, idleAcornReward, idleDiamondReward, idleRewardFactor, levelUpgradeCost, hasStageMission, stageMissionReward, missionRewardRounds, contentUnlockReward } from '../dist/src/economy.js';
 import { levelCost } from '../dist/src/account.js';
+import { STAGES } from '../dist/src/data.js';
 import { overnight, projectProgression, cumulativeLevelCost } from '../scripts/balance-economy.mjs';
 
 test('stage income grows by exactly ten percent, with fractional acorns retained across short cycles',()=>{
@@ -31,10 +32,12 @@ test('a fresh zero-idle first region and 2-1 defense yield average level 12 to 1
   assert.equal(result.record.hpRatio,1);
   assert.equal(result.income.seconds,8*3600);
   assert.ok(result.income.gold>0&&result.income.gold<15000);
-  assert.equal(overnight(10).income.gold,result.income.gold);
+  assert.ok(overnight(10).income.gold>result.income.gold);
+  assert.equal(overnight(14).income.gold,overnight(12).income.gold);
 });
-test('90 daily eight-hour payouts progressing to region20 nearly fund five max levels; 60-day fast clears plus missions can finish',()=>{
+test('90 full production days nearly fund five max levels; 60-day fast clears plus missions can finish',()=>{
   const slow=projectProgression();
+  assert.ok(Math.abs(slow.idleTotal/projectProgression({dailyHours:8}).idleTotal-3)<1e-12);
   assert.ok(slow.mean>=99&&slow.mean<100);
   assert.equal(slow.maxDay,null);
   const fast=projectProgression({days:60,missions:true});
@@ -50,8 +53,14 @@ test('missions follow early stage and later boss cadence, with a linear stage mu
   assert.equal(hasStageMission(25),true);assert.equal(hasStageMission(30),true);
   assert.equal(hasStageMission(31),false);assert.equal(hasStageMission(195),true);assert.equal(hasStageMission(200),true);
   assert.equal(hasStageMission(0),false);assert.equal(hasStageMission(1.5),false);
-  for(let s=11;s<199;s++) assert.equal(missionRewardRounds(s+1)-missionRewardRounds(s),1.5);
+  for(let s=11;s<20;s++) assert.equal(missionRewardRounds(s+1)-missionRewardRounds(s),1.5);
+  for(let s=20;s<199;s++) assert.equal(missionRewardRounds(s+1)-missionRewardRounds(s),4);
   assert.ok(stageMissionReward(30).gold>stageMissionReward(25).gold);
   assert.ok(stageMissionReward(20).gold>idleFullReward(20));
   assert.equal(contentUnlockReward(11).gold,Math.ceil(idleFullReward(11)*30));
+});
+test('later mission scaling preserves the existing authored regions and their tactical economy',()=>{
+  const gold=[132,276,448,651,890,1170,1497,1878,2321,2599,2911,3258,3646,4079,4562,5101,5702,6372,7119];
+  assert.deepEqual(STAGES.slice(1).map(stage=>stage.missionReward),gold.map(gold=>({gold,diamonds:30})));
+  assert.equal(contentUnlockReward(11).gold,934);
 });

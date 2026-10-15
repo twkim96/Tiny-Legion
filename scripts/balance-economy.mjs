@@ -3,7 +3,7 @@ import { runCampaign, simulate, ROSTER, optionsFor } from './balance-region-one.
 import * as account from '../dist/src/account.js';
 import { idleFullReward, levelUpgradeCost, hasStageMission, stageMissionReward } from '../dist/src/economy.js';
 
-export const LONG_TERM = { days:90, dailyHours:8, startStage:11, endStage:191, targetLevel:100, companions:5 };
+export const LONG_TERM = { days:90, dailyHours:24, startStage:11, endStage:191, targetLevel:100, companions:5 };
 export function lowestFirst(a) {
   let upgrades=0;
   for (;;) {
@@ -38,7 +38,8 @@ export function projectProgression({days=LONG_TERM.days,missions=false,dailyHour
   let gold=0,idleTotal=0,missionTotal=0,lastStage=10;
   for(let day=1;day<=days;day++) {
     const stageId=LONG_TERM.startStage+Math.floor((LONG_TERM.endStage-LONG_TERM.startStage)*(day-1)/(days-1));
-    const idle=idleFullReward(stageId)*Math.min(8,dailyHours)*3600/90;
+    // Daily production includes multiple settlements within the 12-hour limit.
+    const idle=idleFullReward(stageId)*Math.max(0,Math.min(24,dailyHours))*3600/90;
     let reward=0;
     if(missions) for(let stage=lastStage+1;stage<=stageId;stage++) if(hasStageMission(stage)) reward+=stageMissionReward(stage).gold;
     lastStage=stageId;

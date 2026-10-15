@@ -109,14 +109,22 @@ test("production uses elapsed time once and does not double pay on repeated call
   accrue(a, now + 120000);
   assert.equal(a.gold, 700);
 });
-test("offline accrual is capped at eight hours and backward time yields no income", () => {
+test("offline accrual caps each absence at twelve hours; two timely settlements earn a full day", () => {
   const a = newAccount(now);
   a.records[1] = { gold: 100, diamonds: 0.125 };
-  accrue(a, now + 24 * 3600000);
-  assert.equal(a.gold, 24600);
+  assert.equal(accrue(a, now + 24 * 3600000).seconds, 43200);
+  assert.equal(a.gold, 36600);
   const gold = a.gold;
   accrue(a, now);
   assert.equal(a.gold, gold);
+  assert.equal(accrue(a, now + 24 * 3600000).gold, 0);
+
+  const timely = newAccount(now);
+  timely.records[1] = { gold: 100, diamonds: 0.125 };
+  for (const hours of [12, 24]) {
+    assert.equal(accrue(timely, now + hours * 3600000).gold, 36000);
+  }
+  assert.equal(timely.gold - 600, (gold - 600) * 2);
 });
 test("a new record settles the old rate and freezes its verified gold bonus", () => {
   const a = newAccount(now);

@@ -253,6 +253,18 @@ test('stored server accounts reprice old idle records before settlement and retr
   assert.equal((await h.command(b,'settle')).result.gold,0);
 });
 
+test('server settlement enforces a twelve-hour absence limit without duplicate payouts', async () => {
+  const h=harness(), b=h.browser(); await h.call(b,'session/start');
+  h.seed({onboarding:{phase:'complete'},highestCleared:11,idleStage:11,
+    records:{11:{gold:idleFullReward(11),diamonds:.065,productionSeconds:90,economyVersion:ECONOMY_VERSION}}});
+  h.advance(24*3600000);
+  const first=await h.command(b,'settle',{},'twelve-hour-cap');
+  assert.equal(first.result.seconds,43200);
+  assert.ok(Math.abs(first.result.gold-idleFullReward(11)*480)<1e-6);
+  assert.deepEqual((await h.command(b,'settle',{},'twelve-hour-cap')).result,first.result);
+  assert.equal((await h.command(b,'settle')).result.gold,0);
+});
+
 test('cross-origin writes and missing sessions are rejected', async () => {
   const h = harness(), b = h.browser();
   assert.equal((await h.call(b, 'session/start', {}, 'https://evil.test')).status, 403);

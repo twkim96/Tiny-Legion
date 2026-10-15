@@ -1,5 +1,5 @@
 import { normalizeAudioSettings } from "./audio-settings.js";
-import { ECONOMY_VERSION, contentUnlockReward, hasStageMission, idleFullReward, idleDiamondReward, levelUpgradeCost } from "./economy.js";
+import { ECONOMY_VERSION, OFFLINE_LIMIT_SECONDS, contentUnlockReward, hasStageMission, idleFullReward, idleDiamondReward, levelUpgradeCost } from "./economy.js";
 import { UNITS, getUnit } from "./characters.js";
 import { unitCombatStats } from "./character-stats.js";
 import { STAGES, battleDuration, RARITIES, bannerById, bannerPool, bannerRarities, stageLabel } from "./data.js";
@@ -333,7 +333,7 @@ export function accrue(a, now = Date.now()) {
     a.records = repriceLegacyIdleRecords(a.records) ?? {};
     a.economyVersion = ECONOMY_VERSION;
   }
-  const seconds = cap((now - a.lastSettled) / 1000, 0, 8 * 3600),
+  const seconds = cap((now - a.lastSettled) / 1000, 0, OFFLINE_LIMIT_SECONDS),
     r = a.records[a.idleStage];
   let gold = 0,
     diamonds = 0;
@@ -775,7 +775,7 @@ export function collectReturnIncome(a, now = Date.now()) {
   const income = accrue(a,now);
   const awaySeconds = Math.max(0,(now-from)/1000);
   return awaySeconds >= 60 && (income.gold > 0 || income.diamonds > 0)
-    ? {...income,from,to:now,awaySeconds,capped:awaySeconds > 8*3600}
+    ? {...income,from,to:now,awaySeconds,capped:awaySeconds > OFFLINE_LIMIT_SECONDS}
     : null;
 }
 

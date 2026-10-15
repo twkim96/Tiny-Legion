@@ -27,6 +27,8 @@ test('first-region mission and mail rewards fund a server-replayed campaign with
   }});
   assert.equal(a.highestCleared,10);
   assert.equal(report.length,8);
+  // A long-term economy retune must leave each existing no-idle fight's budget intact.
+  assert.deepEqual(report.map(row=>row.budget),[1552,2118,2906,3957,5317,7037,9174,11792]);
   assert.equal(a.owned.fox,true);assert.equal(a.owned.chick,true);
   assert.ok(account.mailboxEntries(a).every(entry=>entry.claimed));
   const gold=a.gold,diamonds=a.diamonds;
