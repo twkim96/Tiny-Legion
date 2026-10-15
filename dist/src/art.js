@@ -9,8 +9,8 @@ const iconPaths = {
   menu: '<path d="M4 6h16M4 12h16M4 18h16" stroke-width="2.2"/>',
   auto: '<path d="M20 9a8 8 0 0 0-14-3L3 9m0-5v5h5M4 15a8 8 0 0 0 14 3l3-3m0 5v-5h-5"/>',
   acorn: '<g stroke="#705039"><path d="M6 11h12c0 6-3 9-6 10-3-1-6-4-6-10Z" fill="#efb77c"/><path d="M4 11c0-4 3-6 8-6s8 2 8 6H4Z" fill="#a7734c"/><path d="M12 5V2m0 2c1-3 4-3 6-2-1 3-3 4-6 2Z" fill="#a4bd79"/><path d="m7 7 2 4m3-5 2 5m2-4 2 4" opacity=".5"/><path d="M9 14c0 2 1 3 2 4" stroke="#fff2d2"/></g>',
-  coin: '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="5.5"/><path d="M12 8v8m-2-6h3a1.5 1.5 0 0 1 0 3h-2a1.5 1.5 0 0 0 0 3h3"/>',
-  gem: '<path d="m3 9 4-5h10l4 5-9 12L3 9Zm0 0h18M7 4l5 17 5-17M7 9l5-5 5 5"/>',
+  coin: '<circle cx="12" cy="12" r="9" fill="#f5a921" stroke="#8f5418"/><circle cx="12" cy="11" r="7" fill="#ffe266" stroke="#fff2a4"/><path d="M12 6v11m-2-9h3a2 2 0 0 1 0 4h-2a2 2 0 0 0 0 4h3" stroke="#a56615" stroke-width="2"/>',
+  gem: '<path d="m2 9 5-6h10l5 6-10 13L2 9Z" fill="currentColor" stroke="#215579"/><path d="m2 9 5-6 5 6H2Z" fill="#fff" opacity=".7" stroke="none"/><path d="m12 9 5-6 5 6H12Z" fill="#fff" opacity=".3" stroke="none"/><path d="M2 9h20M7 3l5 19 5-19" stroke="#215579" opacity=".7"/><path d="m7 3 5 6 5-6M12 9v13" stroke="#fff" opacity=".8" stroke-width="1.2"/>',
   settings:
     '<path d="m10 3-1 3-3 1-2-1-2 4 2 2v3l-1 2 3 3 3-1 3 1 1 2h4l1-3 3-1 1-4-2-2v-3l-2-2-3 1-1-3Z" transform="translate(1 -1) scale(.9)"/><circle cx="12" cy="12" r="3"/>',
   map: '<path d="m3 5 6-2 6 3 6-2v16l-6 2-6-3-6 2V5ZM9 3v16m6-13v16"/>',

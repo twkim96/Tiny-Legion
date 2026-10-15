@@ -3,8 +3,9 @@ import { icon } from "./art.js";
 
 const fmt = value => Math.floor(value).toLocaleString("ko-KR");
 const upgradeChance = cost => cost.successChance === 1 ? "확정" : `${Math.round(cost.successChance * 100)}%`;
+const gemArtColors = { income: "#ffc22f", capacity: "#36c8f3", harvest: "#48be63", bounty: "#aa70e4", attack: "#ef7852", hp: "#f488b0", gold: "#edbd39" };
 export function gemArt(type) {
-  return `<span class="gem-art" style="color:${gemDefinition(type)?.color ?? "#b7a25d"}">${icon("gem")}</span>`;
+  return `<span class="gem-art" style="color:${gemArtColors[type] ?? "#36c8f3"}">${icon("gem")}</span>`;
 }
 export function gemCard(item, attribute = "gem-uid", account = null) {
   const equipped = account && isGemEquipped(account, item.uid);

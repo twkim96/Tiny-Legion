@@ -4,6 +4,63 @@ import { sampleUnitPose, battlefieldLayout } from "./combat-visuals.js";
 import { statusMarks } from "./combat-effects.js";
 import { SPEEDRUN_SCENES } from "./speedrun.js";
 const INK = "#4b5140";
+const DEFAULT_BATTLEFIELD_PALETTE = {
+  sky: "#55c8f0",
+  horizon: "#b9edda",
+  far: "#a8dc6e",
+  near: "#62c855",
+  field: "#38ad4f",
+  road: "#e8c17b",
+  farRidge: "#8cc654",
+  nearRidge: "#4cab4b",
+  roadEdge: "#78bf4e",
+  roadMark: "#d4a258",
+  grass: "#278f42",
+  flower: "#fff0a8",
+  flowerAlt: "#ff8a64",
+  flowerCenter: "#f4b837",
+  foreground: "#279448",
+  bush: "#55b84e",
+};
+const SPEEDRUN_RENDER_PALETTES = {
+  creek: {
+    ...DEFAULT_BATTLEFIELD_PALETTE,
+    sky: "#53c5ed",
+    horizon: "#b3efdf",
+    far: "#93d875",
+    near: "#50c65d",
+    field: "#39ad56",
+    road: "#ebc27b",
+    water: "#47d4df",
+  },
+  quarry: {
+    ...DEFAULT_BATTLEFIELD_PALETTE,
+    sky: "#65c5eb",
+    horizon: "#c5e9d9",
+    far: "#b4d77f",
+    near: "#78b85b",
+    field: "#539e4d",
+    road: "#dfbf91",
+  },
+  moon: {
+    ...DEFAULT_BATTLEFIELD_PALETTE,
+    sky: "#465894",
+    horizon: "#b1c8e8",
+    far: "#a9c979",
+    near: "#5ca566",
+    field: "#408f55",
+    road: "#d8bf8b",
+  },
+  sunset: {
+    ...DEFAULT_BATTLEFIELD_PALETTE,
+    sky: "#ee927d",
+    horizon: "#f8c37c",
+    far: "#d6c56f",
+    near: "#86bf55",
+    field: "#4aaa50",
+    road: "#edbf77",
+  },
+};
 const MAX_FX = 96;
 const FX_LIFETIME = {
   attack: 0.2,
@@ -127,7 +184,7 @@ function bush(c, x, y, s, color) {
       ["closePath"],
     ],
     color,
-    "#adb993",
+    "#417b43",
     1.2,
   );
   c.restore();
@@ -136,9 +193,9 @@ function castle(c, x, ground, size, enemy, time) {
   c.save();
   c.translate(x, ground);
   c.scale(size / 128, size / 128);
-  const wall = enemy ? "#e6d7b8" : "#eee7cd",
-    roof = enemy ? "#a58b6e" : "#8c9b72";
-  const outline = "#62634e";
+  const wall = enemy ? "#f1d5b4" : "#fff0c9",
+    roof = enemy ? "#e4514d" : "#438fe0";
+  const outline = "#35434b";
   oval(c, 0, 5, 72, 10, "#546d3720");
   if (enemy) {
     round(c, -44, -91, 89, 93, 8, wall, outline, 2.7);
@@ -220,7 +277,7 @@ function castle(c, x, ground, size, enemy, time) {
       ["quadraticCurveTo", 15, fy - 1 + flutter, 2, fy + 2],
       ["closePath"],
     ],
-    enemy ? "#c39878" : "#9dae82",
+    enemy ? "#e4514d" : "#438fe0",
     outline,
     1.5,
   );
@@ -284,13 +341,16 @@ export class Renderer {
     const c = this.bg.getContext("2d"),
       w = this.width,
       h = this.height;
-    const palette = SPEEDRUN_SCENES[this.scene];
+    const suppliedPalette = SPEEDRUN_SCENES[this.scene];
+    const palette = suppliedPalette
+      ? { ...suppliedPalette, ...(SPEEDRUN_RENDER_PALETTES[this.scene] ?? {}) }
+      : DEFAULT_BATTLEFIELD_PALETTE;
     c.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
-    c.fillStyle = palette?.horizon ?? "#b6c7b0";
+    c.fillStyle = palette.horizon;
     c.fillRect(0, 0, w, h);
     const gradient = c.createLinearGradient(0, 0, 0, h);
-    gradient.addColorStop(0, palette?.sky ?? "#728f8c");
-    gradient.addColorStop(1, palette?.horizon ?? "#b6c7b0");
+    gradient.addColorStop(0, palette.sky);
+    gradient.addColorStop(1, palette.horizon);
     c.fillStyle = gradient;
     c.fillRect(0, 0, w, h);
     oval(
@@ -299,7 +359,7 @@ export class Renderer {
       h * 0.2,
       Math.min(h * 0.083, 30),
       Math.min(h * 0.083, 30),
-      "#e6e5b8",
+      "#ffd76a",
     );
     oval(
       c,
@@ -307,7 +367,7 @@ export class Renderer {
       h * 0.2,
       Math.min(h * 0.105, 38),
       Math.min(h * 0.105, 38),
-      "#e6e5b821",
+      "#ffe18f30",
     );
     path(
       c,
@@ -336,7 +396,7 @@ export class Renderer {
         ["lineTo", 0, h],
         ["closePath"],
       ],
-      palette?.far ?? "#dae3c5",
+      palette.far,
     );
     path(
       c,
@@ -365,7 +425,7 @@ export class Renderer {
         ["lineTo", 0, h],
         ["closePath"],
       ],
-      palette?.near ?? "#c9d6b0",
+      palette.near,
     );
     path(
       c,
@@ -382,7 +442,7 @@ export class Renderer {
         ],
       ],
       null,
-      "#bbcaa7",
+      palette.farRidge,
       1.4,
     );
     path(
@@ -400,14 +460,14 @@ export class Renderer {
         ],
       ],
       null,
-      "#b8c8a1",
+      palette.nearRidge,
       1.4,
     );
     const cs = Math.min(w / 1200, h / 360);
     cloud(c, w * 0.19, h * 0.2, cs * 0.83);
     cloud(c, w * 0.47, h * 0.13, cs * 0.6);
     cloud(c, w * 0.85, h * 0.29, cs * 0.75);
-    if (!palette) {
+    if (!suppliedPalette) {
       windmill(c, w * 0.33, h * 0.43, cs * 0.57, 0);
       windmill(c, w * 0.69, h * 0.45, cs * 0.38, 1);
     } else if (palette.water) {
@@ -444,7 +504,7 @@ export class Renderer {
         ["lineTo", 0, h],
         ["closePath"],
       ],
-      palette?.field ?? "#baca9c",
+      palette.field,
     );
     for (let i = 0; i < 9; i++) {
       bush(
@@ -452,7 +512,7 @@ export class Renderer {
         w * (0.025 + i * 0.117),
         h * (0.675 + Math.sin(i * 5) * 0.012),
         cs * (0.3 + (i % 3) * 0.06),
-        i % 2 ? "#afc18d" : "#c6d2a5",
+        i % 2 ? palette.bush : palette.near,
       );
     }
     path(
@@ -464,7 +524,7 @@ export class Renderer {
         ["bezierCurveTo", w * 0.6, h * 0.82, w * 0.35, h * 0.87, 0, h * 0.86],
         ["closePath"],
       ],
-      palette?.road ?? "#ddd9b8",
+      palette.road,
     );
     path(
       c,
@@ -473,28 +533,35 @@ export class Renderer {
         ["bezierCurveTo", w * 0.3, h * 0.72, w * 0.57, h * 0.75, w, h * 0.72],
       ],
       null,
-      "#a4b783",
+      palette.roadEdge,
       1.4,
     );
     for (let i = 0; i < 46; i++) {
       const x = w * ((i * 0.1973) % 1),
         y = h * (0.8 + Math.sin(i * 2.17) * 0.028);
-      line(c, x, y, x + 3 + (i % 4), y - 0.3, "#c6c29b", 1.2);
+      line(c, x, y, x + 3 + (i % 4), y - 0.3, palette.roadMark, 1.2);
     }
     for (let i = 0; i < 42; i++) {
       const x = w * ((i * 0.197) % 1),
         y = h * (0.64 + (i % 4) * 0.02),
         s = cs * 3;
-      line(c, x, y, x - s, y - s * 1.3, "#93aa73", 1);
-      line(c, x, y, x + s * 0.3, y - s * 1.8, "#93aa73", 1);
-      line(c, x, y, x + s, y - s, "#93aa73", 1);
+      line(c, x, y, x - s, y - s * 1.3, palette.grass, 1);
+      line(c, x, y, x + s * 0.3, y - s * 1.8, palette.grass, 1);
+      line(c, x, y, x + s, y - s, palette.grass, 1);
     }
     for (let i = 0; i < 15; i++) {
       const x = w * ((i * 0.187 + 0.04) % 1),
         y = h * (0.65 + (i % 3) * 0.025);
-      line(c, x, y, x, y - 5 * cs, "#8fa476", 1);
-      oval(c, x, y - 6 * cs, 2.7 * cs, 2.7 * cs, i % 2 ? "#f5eed1" : "#d9d6aa");
-      oval(c, x, y - 6 * cs, 1 * cs, 1 * cs, "#c2ad6c");
+      line(c, x, y, x, y - 5 * cs, palette.grass, 1);
+      oval(
+        c,
+        x,
+        y - 6 * cs,
+        2.7 * cs,
+        2.7 * cs,
+        i % 2 ? palette.flower : palette.flowerAlt,
+      );
+      oval(c, x, y - 6 * cs, 1 * cs, 1 * cs, palette.flowerCenter);
     }
     path(
       c,
@@ -514,10 +581,10 @@ export class Renderer {
         ["lineTo", 0, h],
         ["closePath"],
       ],
-      "#b1c48f",
+      palette.foreground,
     );
     for (let i = 0; i < 12; i++)
-      bush(c, w * (i * 0.095), h * 1.01, cs * 0.3, "#a6bb82");
+      bush(c, w * (i * 0.095), h * 1.01, cs * 0.3, palette.bush);
   }
   resetForBattle(battle) {
     const identity = battle ?? null;

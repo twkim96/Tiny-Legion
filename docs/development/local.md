@@ -18,7 +18,8 @@ npm run dev
 
 | 위치 | 역할 |
 |---|---|
-| `dist/index.html`, `dist/style.css` | 화면과 반응형 스타일 |
+| `dist/index.html`, `dist/style.css` | 화면 구조·반응형 배치 |
+| `dist/mobile-theme.css` | 공통 모바일 게임 그래픽 테마·버튼·패널·카드 색상 |
 | `dist/src/characters.js` | 아군·적 원본 정의·속성·고유 효과·강화 배정 |
 | `dist/src/character-tags.js`, `dist/src/effect-targets.js` | 종족·속성 공통 정의와 효과 대상 조건/판정 |
 | `dist/src/attack-types.js` | 근거리·원거리 ID와 표시명 |
