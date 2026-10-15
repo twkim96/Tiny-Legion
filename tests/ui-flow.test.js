@@ -99,7 +99,7 @@ function harness(names) {
     modalKind: { get: () => context.modals.kind },
   });
   vm.createContext(context);
-  vm.runInContext([...new Set(['screenRenderer', 'openScreen', 'activateScreen', 'notifyMissionReward', 'firstIdleMissionPending', 'levelBasisMarkup', 'canOpenModal', 'backModal', 'returnModal', 'selectIdleStage', 'finishOnboardingRecruit', 'revealEarlyRabbit', ...names])].map(functionSource).join('\n'), context);
+  vm.runInContext([...new Set(['showGrowthGuide', 'showWallGuide', 'screenRenderer', 'openScreen', 'activateScreen', 'notifyMissionReward', 'firstIdleMissionPending', 'levelBasisMarkup', 'canOpenModal', 'backModal', 'returnModal', 'selectIdleStage', 'finishOnboardingRecruit', 'revealEarlyRabbit', ...names])].map(functionSource).join('\n'), context);
   return context;
 }
 test('idle result dialog leaves simulation and automatic restart running', () => {

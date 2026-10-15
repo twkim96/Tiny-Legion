@@ -92,7 +92,7 @@
 | 상단·서랍 메뉴 이름·아이콘·잠금·모드별 표시 | `navigation-ui.js`의 `NAVIGATION`, `MODES`, `gameUiState`, `screenAccess`. 상단은 `toolbarMarkup`, 서랍은 `contentMenuMarkup`을 호출합니다. CSS로 프로필이나 콘텐츠 메뉴를 별도 숨기지 않습니다. |
 | 같은 화면의 진입·복귀 | `main.js`의 `activateScreen`, `openScreen`, `screenRenderer`. 프로필·상단·서랍 진입을 연결하고, 각 화면의 기존 렌더 함수 하나를 호출합니다. 순서 편집 초안·보석 안내처럼 초기화가 필요한 흐름은 전용 진입 함수를 거칩니다. |
 | 재화·보상·능력치 행·등급·속성·동료명 | `ui-components.js`의 `resourceChip`, `statRow`, `rarityBadge`, `attributeMarkup`, `specialtyText`, `characterName`. 화면별 숫자 정밀도·보상 접두어·보유/실지급 의미는 호출부가 지정합니다. |
-| 공통 모달·뒤로가기·스크롤·포커스·닫기 | `modal-ui.js`의 크기 규격·`messagePanel`, `modal-controller.js`의 `ModalController`. 일반 화면과 신규 안내·확인·선택 흐름이 같은 호스트를 공유합니다. |
+| 공통 모달·뒤로가기·스크롤·포커스·닫기 | `modal-ui.js`의 크기 규격·`messagePanel`, `modal-controller.js`의 `ModalController`. 일반 화면과 신규 안내·확인·선택 흐름이 같은 호스트를 공유합니다. 로컬/Android와 Sites의 성장 해금·성벽 공략 안내도 `showGrowthGuide`, `showWallGuide` 하나씩을 호출합니다. |
 | 동료 성장·상세·도감·편성 | `main.js`의 목록/도감/편성 렌더와 이벤트, `companion-ui.js`의 상세, `sequence-ui.js`의 끌기 입력. 공통 배지·능력치·속성 표현을 호출하며, 성장 카드·도감 카드·편성 슬롯의 역할 차이는 유지합니다. |
 | 동료 모집·확률·공개 결과 | `recruitment-ui.js`의 `recruitPanel`, `probabilityPanel`, `revealRecruit`. 일반 모집과 확정 안내가 같은 배너·공개 연출을 사용합니다. |
 | 보석 목록·추가옵션 선택·상세·강화·재설정 | `gem-ui.js`의 목록/상세/선택 렌더와 `main.js`의 명령 연결. 공통 재화·모달을 사용하며 기본 효과·추가옵션·소모 재료의 서로 다른 의미는 유지합니다. |

@@ -1013,6 +1013,22 @@ function renderMenu() {
     button.onclick = () => activateScreen(button.dataset.contentMenu);
   });
 }
+function showGrowthGuide() {
+  openModal("레벨업", "growth-guide", () => {
+    $("modal-content").innerHTML = messagePanel({
+      text: "성을 지켜냈어요! 이제 도토리로 동료의 레벨을 올릴 수 있습니다.<br>방치 미션 보상을 받고 동료를 성장시켜 보세요.",
+      actions: '<button class="primary-button" id="growth-guide-done">확인</button>',
+    });
+    $("growth-guide-done").onclick = () => {
+      if (currentMission(account)?.completed) actOnMission();
+      closeIdleResult();
+      openScreen("growth");
+    };
+  });
+}
+function showWallGuide() {
+  onboardingMessage("튼튼한 성", "증원이 몰려와 성을 지키지 못했어요. 성을 빠르게 공격할 동료를 무료로 모집해 보세요.", "동료 모집", showEarlyDraw, "squirrel");
+}
 function finishBattle() {
   if (resultHandled || !battle?.result) return;
   if (hostedMode) {
@@ -1038,24 +1054,14 @@ function finishBattle() {
     updateUi();
     if (earlyPhase === "idle-defense" && account.earlyGuide?.phase === "remove-rabbit") showDefenseGuide();
     if (earlyPhase === "idle-retry" && account.earlyGuide?.phase === "growth") {
-      openModal("레벨업", "growth-guide", () => {
-        $("modal-content").innerHTML = messagePanel({
-          text: "성을 지켜냈어요! 이제 도토리로 동료의 레벨을 올릴 수 있습니다.<br>방치 미션 보상을 받고 동료를 성장시켜 보세요.",
-          actions: '<button class="primary-button" id="growth-guide-done">확인</button>',
-        });
-        $("growth-guide-done").onclick = () => {
-          if (currentMission(account)?.completed) actOnMission();
-          closeIdleResult();
-          openScreen("growth");
-        };
-      });
+      showGrowthGuide();
     }
     return;
   }
   recordMissionBattle(account, { mode, stageId, won: r.won });
   if (stageId === 2 && mode === "challenge" && account.earlyGuide?.phase === "rabbit-recruit") {
     persist();
-    onboardingMessage("튼튼한 성", "증원이 몰려와 성을 지키지 못했어요. 성을 빠르게 공격할 동료를 무료로 모집해 보세요.", "동료 모집", showEarlyDraw, "squirrel");
+    showWallGuide();
     updateUi();
     return;
   }
@@ -1131,22 +1137,12 @@ async function finishHostedBattle() {
     updateUi();
     if (before.earlyPhase === "idle-defense" && account.earlyGuide?.phase === "remove-rabbit") showDefenseGuide();
     if (before.earlyPhase === "idle-retry" && account.earlyGuide?.phase === "growth") {
-      openModal("레벨업", "growth-guide", () => {
-        $("modal-content").innerHTML = messagePanel({
-          text: "성을 지켜냈어요! 이제 도토리로 동료의 레벨을 올릴 수 있습니다.<br>방치 미션 보상을 받고 동료를 성장시켜 보세요.",
-          actions: '<button class="primary-button" id="growth-guide-done">확인</button>',
-        });
-        $("growth-guide-done").onclick = () => {
-          if (currentMission(account)?.completed) actOnMission();
-          closeIdleResult();
-          openScreen("growth");
-        };
-      });
+      showGrowthGuide();
     }
     return;
   }
   if (stageId === 2 && mode === "challenge" && account.earlyGuide?.phase === "rabbit-recruit") {
-    onboardingMessage("튼튼한 성", "증원이 몰려와 성을 지키지 못했어요. 성을 빠르게 공격할 동료를 무료로 모집해 보세요.", "동료 모집", showEarlyDraw, "squirrel");
+    showWallGuide();
     updateUi();
     return;
   }
