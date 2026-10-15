@@ -1644,7 +1644,7 @@ a.secondary-button {
 .collection-card .portrait {
   height: 120px;
 }
-.collection-card strong {
+.collection-card > strong {
   font-size: 12px;
   display: block;
   margin: 6px 0;
@@ -1989,7 +1989,7 @@ html:fullscreen .game {
   .collection-card .portrait {
     height: 68px;
   }
-  .collection-card strong {
+  .collection-card > strong {
     font-size: 10px;
   }
   .collection-card span {
@@ -3017,7 +3017,7 @@ html:fullscreen .game {
   height: 82px;
   width: 100%;
 }
-.card-revealed strong {
+.card-revealed > strong {
   font-size: 10px;
 }
 .card-revealed > small {
@@ -3056,7 +3056,7 @@ html:fullscreen .game {
 .single-draw .portrait {
   height: 155px;
 }
-.single-draw .card-revealed strong {
+.single-draw .card-revealed > strong {
   font-size: 14px;
 }
 .draw-actions {
@@ -3170,7 +3170,7 @@ html:fullscreen .game {
   .card-revealed .portrait {
     height: 60px;
   }
-  .card-revealed strong {
+  .card-revealed > strong {
     font-size: 8px;
   }
   .card-revealed > small,

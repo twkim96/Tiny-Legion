@@ -323,12 +323,17 @@ input, select { accent-color: #219d49; }
 .ui-tag, .ui-tag.rarity-badge, .ui-tag.attribute-label, .ui-tag.role-label {
   display: inline-flex; align-items: center; justify-content: center;
   vertical-align: middle; gap: 0; width: auto; margin: 0;
-  padding: 4px 7px; border: 0; border-radius: 5px; box-shadow: none;
+  padding: 3px 6px; border: 0; border-radius: 4px; box-shadow: none;
   background: var(--tag-bg, #4e6055); color: var(--tag-ink, #e8f2e7);
-  font-size: 10px; font-weight: 700; line-height: 1.2; letter-spacing: 0;
+  font-family: "Noto Sans KR", sans-serif;
+  font-size: 9px; font-weight: 700; line-height: 1; letter-spacing: 0; text-align: center;
   white-space: nowrap; text-shadow: none; -webkit-text-stroke: 0;
 }
-.ui-tag > strong { color: inherit; font: inherit; }
+/* Keep card-name margins and single-recruit font sizes outside the label. */
+.ui-tag > strong {
+  display: block; flex: none; margin: 0; padding: 0; border: 0;
+  color: inherit; font: inherit; letter-spacing: inherit; text-align: center;
+}
 .ui-tag[data-tone="rare"], .ui-tag[data-tone="spirit"] { --tag-bg: #285c73; --tag-ink: #d5f2ff; }
 .ui-tag[data-tone="epic"], .ui-tag[data-tone="shadow"] { --tag-bg: #4a366b; --tag-ink: #e5d6ff; }
 .ui-tag[data-tone="legendary"], .ui-tag[data-tone="machine"] { --tag-bg: #79551f; --tag-ink: #fff0bd; }
@@ -337,5 +342,5 @@ input, select { accent-color: #219d49; }
 .effect-summary { line-height: 2.2; }
 .effect-keywords dt .ui-tag { margin-bottom: 2px; }
 @media (max-height: 560px) and (orientation: landscape) {
-  .ui-tag, .ui-tag.rarity-badge, .ui-tag.attribute-label, .ui-tag.role-label { padding: 3px 6px; font-size: 9px; }
+  .ui-tag, .ui-tag.rarity-badge, .ui-tag.attribute-label, .ui-tag.role-label { padding: 2px 5px; font-size: 8px; }
 }
