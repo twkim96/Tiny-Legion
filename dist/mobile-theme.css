@@ -213,10 +213,7 @@ button:focus-visible, a:focus-visible { outline-color: #ffb91e; }
 .gem-type-card.is-equipped { border-color: #db9a20; background: linear-gradient(155deg, #fffce1, #ffe89c); box-shadow: inset 0 0 0 1px #fff7d4, 0 3px 0 #b9842a; }
 .gem-equipped-state { color: #267437 !important; }
 .gem-art { background: radial-gradient(ellipse, #fff, #c8e8ff); border-radius: 14px; }
-.gem-option-tier-info, .gem-banner, .level-basis { padding: 12px; background: #d3e9f6; border: 1px solid #89b8d3; border-radius: 10px; }
-.level-basis-roster button, .level-basis-empty { background: linear-gradient(#fff, #bde4fa); border: 1px solid #80b4d3; border-radius: 8px; }
-.level-basis-heading span { color: #1c7a9f; }
-.level-basis-roster span { color: #286893; }
+.gem-option-tier-info, .gem-banner { padding: 12px; background: #d3e9f6; border: 1px solid #89b8d3; border-radius: 10px; }
 .companion-heading { padding: 10px; border: 2px solid #8cb7d3; border-radius: 10px; background: radial-gradient(ellipse at 15% 50%, #a6dcff, #e5f5ff 70%); }
 .companion-upgrade-header { padding: 8px; background: #174a76; border-radius: 8px; color: #fff; }
 .companion-upgrade-header h4, .companion-upgrade-header span { color: #fff; }
@@ -267,7 +264,6 @@ input, select { accent-color: #219d49; }
   .modal-footer { padding-top: 8px; }
   .companion-heading { padding: 6px; }
   .companion-upgrade-header { padding: 6px; }
-  .level-basis { padding: 8px; }
   .stat-item { padding: 5px; }
   .gem-option-tier-info { padding: 7px; }
   .summon-bar .skill-button { border-width: 2px; }
@@ -278,7 +274,7 @@ input, select { accent-color: #219d49; }
   background: linear-gradient(180deg, var(--menu-light), var(--menu-dark));
 }
 .menu-recruit .menu-medallion, .menu-speed[aria-pressed="true"] .menu-medallion { color: #673800; }
-.growth-card .companion-open > .portrait { padding: 4px; border-radius: 8px; background: radial-gradient(ellipse, #fff, #c2e6ff); }
+.growth-card .companion-open > .portrait { width: 76px; height: 76px; padding: 4px; border-radius: 8px; background: radial-gradient(ellipse, #fff, #c2e6ff); }
 .growth-card .level-label { color: #285e8b; font-weight: 800; }
 .growth-card .stats .icon { color: #3485b3; }
 .growth-card .stats [data-icon="heart"] { color: #ec6357; }
@@ -294,17 +290,8 @@ input, select { accent-color: #219d49; }
   .modal-header .icon-button { width: 29px; height: 29px; }
   .modal-header h2 { font-size: 16px; }
   .modal-backdrop .modal-content { padding: 10px 12px; }
-  .level-basis-heading { margin-bottom: 6px; align-items: center; font-size: 11px; line-height: 1.2; }
-  .level-basis-roster button, .level-basis-empty {
-    display: grid; grid-template-columns: 30px minmax(0,1fr); grid-template-rows: 16px 16px;
-    text-align: left; column-gap: 4px; row-gap: 0; padding: 5px; border-radius: 6px;
-  }
-  .level-basis-roster svg { grid-row: 1 / 3; width: 30px; height: 30px; }
-  .level-basis-roster strong { font-size: 9px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-  .level-basis-roster span { font-size: 10px; }
-  .level-basis .settings-note { margin: 5px 0 0; font-size: 9px; line-height: 1.3; }
-  .growth-card { padding: 7px 5px; }
-  .growth-card .companion-open > .portrait { height: 62px; width: 100%; }
+  .growth-card { flex-basis: 104px; padding: 6px 5px; }
+  .growth-card .companion-open > .portrait { height: 58px; width: 58px; }
   .growth-card h3 { font-size: 11px; margin: 3px 0; }
   .growth-card .stats { margin: 5px 0 7px; }
   .growth-card .primary-button { padding: 6px 4px; min-height: 30px; }

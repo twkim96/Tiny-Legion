@@ -99,7 +99,7 @@ function harness(names) {
     modalKind: { get: () => context.modals.kind },
   });
   vm.createContext(context);
-  vm.runInContext([...new Set(['showGrowthGuide', 'showWallGuide', 'screenRenderer', 'openScreen', 'activateScreen', 'notifyMissionReward', 'firstIdleMissionPending', 'levelBasisMarkup', 'canOpenModal', 'backModal', 'returnModal', 'selectIdleStage', 'finishOnboardingRecruit', 'revealEarlyRabbit', ...names])].map(functionSource).join('\n'), context);
+  vm.runInContext([...new Set(['showGrowthGuide', 'showWallGuide', 'screenRenderer', 'openScreen', 'activateScreen', 'notifyMissionReward', 'firstIdleMissionPending', 'canOpenModal', 'backModal', 'returnModal', 'selectIdleStage', 'finishOnboardingRecruit', 'revealEarlyRabbit', ...names])].map(functionSource).join('\n'), context);
   return context;
 }
 test('idle result dialog leaves simulation and automatic restart running', () => {
@@ -960,7 +960,7 @@ test('editing sequence during manual combat preserves the current snapshot until
   assert.equal(c.battle,battle); assert.ok(!c.calls.includes('start'));
   assert.equal(c.handUnits()[1],'squirrel');
 });
-test('growth list shows the five purchased-level leaders and shared level above all companions', () => {
+test('growth list keeps owned cards and shared growth without the leader panel', () => {
   const c = harness(['renderGrowth']);
   c.account.earlyGuide.phase='complete';
   const ids=UNITS.slice(0,6).map(u=>u.id);
@@ -968,11 +968,12 @@ test('growth list shows the five purchased-level leaders and shared level above 
   for(const [i,id] of ids.entries())c.account.levels[id]=i<5?6+i:1;
   c.renderGrowth();
   const html=c.$('modal-content').innerHTML;
-  assert.ok(html.indexOf('level-basis')<html.indexOf('unit-grid'));
-  assert.match(html,/공유 Lv\. 6/);
-  const basis=html.slice(0,html.indexOf('unit-grid'));
-  assert.equal([...basis.matchAll(/data-companion=/g)].length,5);
-  assert.ok(!basis.includes(`data-companion="${ids[5]}"`));
+  assert.doesNotMatch(html,/level-basis|레벨 기준|직접 올린/);
+  assert.equal([...html.matchAll(/data-companion=/g)].length,ids.length);
+  assert.equal([...html.matchAll(/data-grow=/g)].length,ids.length);
+  const summary=html.slice(html.indexOf('growth-summary'));
+  assert.match(summary,/resource-inline/);
+  assert.match(summary,/공유 Lv\. 6/);
   assert.equal(effectiveUnitLevel(c.account,ids[5]),6);
 });
 

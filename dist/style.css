@@ -1179,20 +1179,24 @@ a.secondary-button {
   overscroll-behavior: contain;
 }
 .unit-grid {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
 }
 .growth-card {
+  flex: 0 0 120px;
+  max-width: 100%;
+  min-width: 0;
   border: 1px solid #d8d8c4;
   background: #fcfaee;
   border-radius: 14px;
-  padding: 14px 10px;
+  padding: 8px 6px;
   text-align: center;
 }
 .growth-card .portrait {
-  width: 106px;
-  height: 106px;
+  width: 76px;
+  height: 76px;
   margin: 0 auto;
 }
 .growth-card h3 {
@@ -1207,8 +1211,8 @@ a.secondary-button {
   display: flex;
   gap: 10px;
   justify-content: center;
-  margin: 13px 0;
-  font-size: 11px;
+  margin: 8px 0;
+  font-size: 10px;
 }
 .stats > span {
   display: flex;
@@ -3663,22 +3667,6 @@ html:fullscreen .game {
 .gem-banner .gem-draw-actions { flex-wrap: wrap; gap: 8px; }
 .gem-detail-heading .gem-art { box-sizing: border-box; padding: 12px; }
 
-.level-basis { margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid #d8dccb; }
-.level-basis-heading { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
-.level-basis-heading span { color: #668052; font-weight: 700; }
-.level-basis-roster { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: 8px; }
-.level-basis-roster button, .level-basis-empty { min-width: 0; padding: 8px 4px; background: #f2f3e8; border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; }
-.level-basis-roster svg { width: 48px; height: 48px; }
-.level-basis-roster strong { font-size: 11px; }
-.level-basis-roster span { font-size: 12px; color: #6f7e60; }
-.level-basis .settings-note { margin: 9px 0 0; }
-@media (max-height:560px) and (orientation:landscape) {
-  .level-basis-roster svg { width: 36px; height: 36px; }
-  .level-basis-roster { gap: 5px; }
-  .level-basis-roster strong { font-size: 10px; }
-  .level-basis { margin-bottom: 12px; padding-bottom: 10px; }
-}
-
 /* Navigation and independently scrolling companion columns share one frame. */
 .modal-header { gap: 12px; }
 .modal-header h2 { flex: 1; }
@@ -3874,3 +3862,7 @@ html:fullscreen .game {
 .modal-backdrop[data-kind="return-income"] .return-income-summary > strong { display: block; font-size: 18px; line-height: 1.3; }
 .modal-backdrop[data-kind="return-income"] .result-rewards { margin: 10px 0; font-size: 17px; }
 .modal-backdrop[data-kind="return-income"] .return-income-summary > button { margin: 4px auto 0; min-width: 100px; min-height: 32px; padding: 6px 16px; }
+
+/* Companion list summary shares one divider below the centered cards. */
+.growth-summary { border-top: 1px solid #b9d4e3; padding-top: 10px; margin-top: 12px; }
+.shared-level { color: #1c7a9f; font-weight: 700; white-space: nowrap; }

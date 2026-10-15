@@ -53,7 +53,6 @@ import {
   accrue,
   levelCost,
   effectiveUnitLevel,
-  baseLevelRoster,
   sharedLevel,
   growUnit,
   upgradeUnitAbility,
@@ -1522,22 +1521,15 @@ function renderStages() {
         }),
     );
 }
-function levelBasisMarkup() {
-  const roster = baseLevelRoster(account);
-  return `<section class="level-basis"><div class="level-basis-heading"><strong>레벨 기준</strong><span>공유 Lv. ${sharedLevel(account)}</span></div><div class="level-basis-roster">${Array.from({length:5}, (_, index) => {
-    const id = roster[index];
-    return id ? `<button data-companion="${id}" aria-label="${names[id]} 레벨 기준">${portrait(id)}<strong>${names[id]}</strong><span>Lv. ${account.levels[id]}</span></button>` : '<div class="level-basis-empty">—</div>';
-  }).join("")}</div><p class="settings-note">직접 올린 레벨이 높은 5명의 최저 레벨을 다른 동료도 따라갑니다.${roster.length < 5 ? " 동료 5명을 모으면 시작됩니다." : ""}</p></section>`;
-}
 function renderGrowth() {
   if (!growthUnlocked(account)) {
     $("modal-content").innerHTML = '<p class="settings-note">1-2 방치 미션을 완료하면 레벨업이 열립니다.</p>';
     return;
   }
-  $("modal-content").innerHTML = levelBasisMarkup() + `<div class="unit-grid">${UNITS.filter((u) => ownsUnit(account, u.id)).map((u) => {
+  $("modal-content").innerHTML = `<div class="unit-grid">${UNITS.filter((u) => ownsUnit(account, u.id)).map((u) => {
     const level = effectiveUnitLevel(account, u.id), stats = companionStats(account, u.id, mode);
     return `<article class="growth-card"><button class="companion-open" data-companion="${u.id}" aria-label="${u.name} 상세와 강화">${rarityBadge(u)}${portrait(u.id)}<span class="level-label">Lv. ${level}</span><h3>${u.name}</h3><div class="stats"><span>${icon("heart")}${stats.hp}</span><span>${icon("swords")}${stats.attack}</span></div></button><button class="primary-button" data-grow="${u.id}" ${account.gold < levelCost(level) || level >= 100 ? "disabled" : ""}>${icon(level >= 100 ? "check" : "acorn")}${level >= 100 ? "완료" : fmt(levelCost(level)) + " ↑"}</button></article>`;
-  }).join("")}</div><div class="modal-footer">${resourceChip({ value: fmt(account.gold), className: "resource-inline", icon })}</div>`;
+  }).join("")}</div><div class="modal-footer growth-summary">${resourceChip({ value: fmt(account.gold), className: "resource-inline", icon })}<span class="shared-level">공유 Lv. ${sharedLevel(account)}</span></div>`;
   $("modal-content").querySelectorAll("[data-grow]").forEach((button) => {
     button.onclick = () => {
       if (hostedMode) {
