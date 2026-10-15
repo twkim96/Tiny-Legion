@@ -323,9 +323,9 @@ input, select { accent-color: #219d49; }
 .ui-tag, .ui-tag.rarity-badge, .ui-tag.attribute-label, .ui-tag.role-label {
   display: inline-flex; align-items: center; justify-content: center;
   vertical-align: middle; gap: 0; width: auto; margin: 0;
-  padding: 5px 9px; border: 0; border-radius: 6px; box-shadow: none;
+  padding: 4px 7px; border: 0; border-radius: 5px; box-shadow: none;
   background: var(--tag-bg, #4e6055); color: var(--tag-ink, #e8f2e7);
-  font-size: 11px; font-weight: 700; line-height: 1.2; letter-spacing: 0;
+  font-size: 10px; font-weight: 700; line-height: 1.2; letter-spacing: 0;
   white-space: nowrap; text-shadow: none; -webkit-text-stroke: 0;
 }
 .ui-tag > strong { color: inherit; font: inherit; }
@@ -334,8 +334,8 @@ input, select { accent-color: #219d49; }
 .ui-tag[data-tone="legendary"], .ui-tag[data-tone="machine"] { --tag-bg: #79551f; --tag-ink: #fff0bd; }
 .ui-tag[data-tone="wild"] { --tag-bg: #375f35; --tag-ink: #e0f4cf; }
 .ui-tag[data-tone="effect"], .ui-tag[data-tone="role"] { --tag-bg: #35536d; --tag-ink: #deefff; }
-.effect-summary { line-height: 2.4; }
+.effect-summary { line-height: 2.2; }
 .effect-keywords dt .ui-tag { margin-bottom: 2px; }
 @media (max-height: 560px) and (orientation: landscape) {
-  .ui-tag, .ui-tag.rarity-badge, .ui-tag.attribute-label, .ui-tag.role-label { padding: 4px 7px; font-size: 10px; }
+  .ui-tag, .ui-tag.rarity-badge, .ui-tag.attribute-label, .ui-tag.role-label { padding: 3px 6px; font-size: 9px; }
 }
