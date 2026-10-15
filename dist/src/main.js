@@ -1,4 +1,4 @@
-import { resourceChip, statRow, characterName, rarityBadge, rarityOf, attributeMarkup, specialtyText } from "./ui-components.js";
+import { uiTag, resourceChip, statRow, characterName, rarityBadge, rarityOf, attributeMarkup, specialtyText } from "./ui-components.js";
 import { updateHud, summonHandMarkup } from "./hud-ui.js";
 import { gameUiState, contentMenuMarkup, toolbarMarkup, screenAccess, screenTitle, MODES } from "./navigation-ui.js";
 import { mailboxPanel } from "./mailbox-ui.js";
@@ -1773,7 +1773,7 @@ function renderCodexDetail(id, enemy) {
         ].filter(Boolean)
       : [unitSpecialtyText(u, true)];
   $("modal-content").innerHTML =
-    `<div class="codex-layout"><div class="codex-art ${!enemy && !ownsUnit(account, id) ? "unowned" : ""}">${portrait(id)}</div><div class="codex-info">${enemy ? "" : rarityBadge(u)}<h3>${u.name}</h3>${!enemy ? `<span class="collection-state">${ownsUnit(account, id) ? `보유 · Lv. ${effectiveUnitLevel(account, id)}` : "미보유 · 모집에서 획득"} · ${u.theme || "숲"}</span>` : ""}<span class="role-label">${roles[u.role]}</span><p>${u.description || "전투 특성을 살펴보세요."}</p>${detailLines.length ? `<p class="settings-note"><strong>${enemy ? "속성과 특성" : "속성 특성"}</strong><br>${detailLines.join("<br>")}</p>` : ""}${effectMarkup(u)}<div class="stat-list">${[
+    `<div class="codex-layout"><div class="codex-art ${!enemy && !ownsUnit(account, id) ? "unowned" : ""}">${portrait(id)}</div><div class="codex-info">${enemy ? "" : rarityBadge(u)}<h3>${u.name}</h3>${!enemy ? `<span class="collection-state">${ownsUnit(account, id) ? `보유 · Lv. ${effectiveUnitLevel(account, id)}` : "미보유 · 모집에서 획득"} · ${u.theme || "숲"}</span>` : ""}${uiTag(roles[u.role], { tone: "role", className: "role-label" })}<p>${u.description || "전투 특성을 살펴보세요."}</p>${detailLines.length ? `<p class="settings-note"><strong>${enemy ? "속성과 특성" : "속성 특성"}</strong><br>${detailLines.join("<br>")}</p>` : ""}${effectMarkup(u, { detail: "full" })}<div class="stat-list">${[
       ["종족", familyName(u.family)],
       ...(!enemy ? [["속성", attributeLabel(u.attribute)]] : []),
       ["공격 유형", attackTypeName(u.attackType)],
@@ -2219,12 +2219,18 @@ function showTooltip(el, x, y, longpress = false) {
   $("tooltip").replaceChildren(...pieces.map((piece) => {
     const attribute = labels.get(piece);
     if (!attribute) return document.createTextNode(piece);
-    const label = document.createElement("strong");
-    label.className = "attribute-label";
-    label.style.color = attribute.ink;
-    label.textContent = piece;
+    const label = document.createElement("span");
+    label.innerHTML = attributeMarkup(attribute.id, "특화");
     return label;
   }));
+  if (fixedDescription) {
+    const markup = effectMarkup(unitById[el.dataset.unit], { detail: "summary" });
+    if (markup) {
+      const effects = document.createElement("span");
+      effects.innerHTML = markup;
+      tooltip.append(document.createTextNode(" · "), effects);
+    }
+  }
   $("tooltip").hidden = false;
   $("tooltip").dataset.longpress = String(longpress);
   if (fixedDescription) return;

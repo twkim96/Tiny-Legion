@@ -10,6 +10,12 @@ const escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, (character
   "'": "&#39;",
 }[character]));
 
+// Shared, non-interactive label for rarity, attributes and effect keywords.
+export function uiTag(label, { tone = "neutral", className = "", keyword } = {}) {
+  const classes = `ui-tag${className ? ` ${className}` : ""}`;
+  return `<span class="${escapeHtml(classes)}" data-tone="${escapeHtml(tone)}"${keyword ? ` data-effect-keyword="${escapeHtml(keyword)}"` : ""}><strong>${escapeHtml(label)}</strong></span>`;
+}
+
 export function resourceChip({ glyph = "acorn", value, label = "", className = "", prefix = "", strong = false, icon = defaultIcon }) {
   const classes = className ? ` class="${escapeHtml(className)}"` : "";
   const amount = `${escapeHtml(prefix)}${escapeHtml(value)}`;
@@ -38,7 +44,7 @@ const attributesById = new Map(ATTRIBUTES.map((attribute) => [attribute.id, attr
 
 export function attributeMarkup(id, suffix = "") {
   const attribute = attributesById.get(id) ?? NEUTRAL_ATTRIBUTE;
-  return `<strong class="attribute-label" style="color:${escapeHtml(attribute.ink ?? "#757b6a")}">${escapeHtml(attribute.name)}${escapeHtml(suffix)}</strong>`;
+  return uiTag(`${attribute.name}${suffix}`, { tone: attribute.id, className: "attribute-label" });
 }
 
 export function specialtyText(unit, rich = false) {
@@ -57,5 +63,5 @@ export const rarityOf = (unit) =>
 
 export const rarityBadge = (unit) => {
   const rarity = rarityOf(unit);
-  return `<span class="rarity-badge" style="--rarity:${rarity.color}">${escapeHtml(rarity.name)}</span>`;
+  return uiTag(rarity.name, { tone: rarity.id, className: "rarity-badge" });
 };

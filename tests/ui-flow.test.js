@@ -1301,13 +1301,13 @@ test('fullscreen exit during a pending orientation lock cannot leave the screen 
 
 test('shared keyword presentation separates mechanic names and tuning details in character panels', () => {
   const markup = effectMarkup(getEnemy('grove-bear'));
-  assert.match(markup, /<dt>공격 무효\(원거리\)<\/dt>/);
-  assert.match(markup, /data-effect-keyword="knockback"><dt>밀쳐내기<\/dt><dd>2.8초마다 · 대상 근거리 · 범위 165 · 거리 120<\/dd>/);
+  assert.match(markup, /<dt><span class="ui-tag"[^>]*><strong>공격 무효\(원거리\)<\/strong><\/span><\/dt>/);
+  assert.match(markup, /data-effect-keyword="knockback"><dt>.*밀쳐내기.*<\/dt><dd>2.8초마다 · 대상 근거리 · 범위 165 · 거리 120<\/dd>/);
   const account = newAccount(); account.owned.cloud = true;
   const panel = companionPanel(account, 'cloud');
-  assert.match(panel, /<dt>둔화<\/dt>/);
-  assert.match(panel, /<dt>회복 억제<\/dt>/);
-  assert.match(panel, /이동속도 25% 감소 · 2초/);
+  assert.match(panel, /data-effect-keyword="slow"><strong>둔화<\/strong>/);
+  assert.match(panel, /data-effect-keyword="healingSuppression"><strong>회복 억제<\/strong>/);
+  assert.doesNotMatch(panel, /이동속도 25% 감소 · 2초/);
 });
 
 test('native background prevents frame-driven battle advancement and repeated production settlement',()=>{
@@ -1393,4 +1393,19 @@ test('hosted mail claim uses the account command and leaves a failed claim retry
   assert.equal(c.account.owned.fox,false);
   assert.equal(mailboxEntries(c.account)[0].claimed,false);
   assert.match(c.$('modal-content').innerHTML,/data-mail-claim/);
+});
+
+test('effect summaries keep bold keywords while codex retains mechanics without repeated specialties', () => {
+  const cloud = UNITS.find(unit => unit.id === 'cloud');
+  const summary = effectMarkup(cloud, { detail: 'summary' });
+  assert.match(summary, /data-effect-keyword="strong"><strong>강함<\/strong>/);
+  assert.match(summary, /회복 억제/);
+  assert.doesNotMatch(summary, /<dd>|유효 체력|추가 피해|감소|%|속성 정령/);
+  const full = effectMarkup(cloud, { detail: 'full' });
+  assert.match(full, /유효 체력 \+30% · 추가 피해 20%/);
+  assert.match(full, /이동속도 25% 감소 · 2초/);
+  assert.doesNotMatch(full, /속성 정령/);
+  const differentTarget = { ...cloud, specialties: ['wild'] };
+  assert.match(effectMarkup(differentTarget), /속성 정령/);
+  assert.match(effectMarkup({ ...cloud, specialties: [] }), /속성 정령/);
 });

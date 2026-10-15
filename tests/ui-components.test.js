@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { resourceChip, statRow, rarityOf, rarityBadge, characterName, attributeMarkup, specialtyText } from "../dist/src/ui-components.js";
+import { uiTag, resourceChip, statRow, rarityOf, rarityBadge, characterName, attributeMarkup, specialtyText } from "../dist/src/ui-components.js";
 import { rarityBadge as recruitmentRarityBadge, rarityOf as recruitmentRarityOf } from "../dist/src/recruitment-ui.js";
 
 test("resourceChip keeps trusted icon markup and escapes all text and class attributes", () => {
@@ -42,8 +42,8 @@ test("rarity helpers preserve recruitment exports and unknown-rarity fallback", 
   const knownUnit = { rarity: "epic" };
   assert.equal(rarityOf(knownUnit), recruitmentRarityOf(knownUnit));
   assert.equal(rarityBadge(knownUnit), recruitmentRarityBadge(knownUnit));
-  assert.match(rarityBadge(knownUnit), /영웅<\/span>$/);
-  assert.match(rarityBadge({ rarity: "unknown" }), /일반<\/span>$/);
+  assert.match(rarityBadge(knownUnit), /영웅<\/strong><\/span>$/);
+  assert.match(rarityBadge({ rarity: "unknown" }), /일반<\/strong><\/span>$/);
 });
 
 test("characterName uses canonical names and the five approved short labels", () => {
@@ -57,11 +57,19 @@ test("characterName uses canonical names and the five approved short labels", ()
 });
 
 test("attribute markup and specialty text share attribute names and preserve plain and rich forms", () => {
-  assert.match(attributeMarkup("wild", "<특화>"), /class="attribute-label"/);
-  assert.match(attributeMarkup("wild", "<특화>"), />야생&lt;특화&gt;<\/strong>$/);
-  assert.match(attributeMarkup("unknown"), /무속성<\/strong>$/);
+  assert.match(attributeMarkup("wild", "<특화>"), /class="ui-tag attribute-label"/);
+  assert.match(attributeMarkup("wild", "<특화>"), />야생&lt;특화&gt;<\/strong><\/span>$/);
+  assert.match(attributeMarkup("unknown"), /무속성<\/strong><\/span>$/);
   assert.equal(specialtyText({ specialties: [] }), "범용 · 모든 속성에 동일한 기본 성능");
   assert.equal(specialtyText({ specialties: ["wild", "spirit"] }), "야생특화 · 정령특화");
   assert.match(specialtyText({ specialties: ["wild"] }, true), /야생특화<\/strong>/);
   assert.equal(specialtyText({ specialties: ["unknown"] }), "무속성특화");
+});
+
+test('shared tags escape their label and metadata', () => {
+  const markup = uiTag('<strong>test</strong>', {tone: '" onclick="bad', className: 'sample', keyword: '<key>'});
+  assert.match(markup, /class="ui-tag sample"/);
+  assert.match(markup, /&lt;strong&gt;test&lt;\/strong&gt;/);
+  assert.doesNotMatch(markup, / onclick="bad|<key>/);
+  assert.match(rarityBadge({rarity:'epic'}), /data-tone="epic"/);
 });

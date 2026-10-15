@@ -5,13 +5,11 @@ import { UNITS, battleDuration, stageLabel } from './data.js';
 import { gameUiState, MODES } from './navigation-ui.js';
 import { combatPower, isOnboarding, sequenceUnlocked, ownsUnit, effectiveUnitLevel, levelCost, speedrunStageRecord, currentMission } from './account.js';
 import { battlefieldLayout } from './combat-visuals.js';
-import { effectLines } from './effects.js';
 
 const unitById = Object.fromEntries(UNITS.map(unit => [unit.id, unit]));
 const names = Object.fromEntries(UNITS.map(unit => [unit.id, characterName(unit.id, { short: true })]));
 const fmt = value => Math.floor(value).toLocaleString('ko-KR');
 const clock = seconds => `${String(Math.floor(Math.max(0, seconds) / 60)).padStart(2, '0')}:${String(Math.floor(Math.max(0, seconds) % 60)).padStart(2, '0')}`;
-const unitAbilityLines = effectLines;
 
 export function summonHandMarkup(sequence) {
   return sequence
@@ -21,7 +19,6 @@ export function summonHandMarkup(sequence) {
       const tip = [
         unit.description,
         specialtyText(unit),
-        ...unitAbilityLines(unit),
       ]
         .filter(Boolean)
         .join(" · ");

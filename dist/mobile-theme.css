@@ -206,7 +206,6 @@ button:focus-visible, a:focus-visible { outline-color: #ffb91e; }
 .companion-tile { border-color: var(--rarity, #75a1c1); border-bottom-width: 4px; }
 .companion-tile:hover, .growth-card:hover, .gem-card:hover, .stage-tile:hover { background: linear-gradient(155deg, #fff 30%, #b9e6ff); }
 .companion-tile small, .gem-card small, .collection-state { color: #59718b; }
-.rarity-badge { border: 1px solid var(--rarity); background: #fff; border-radius: 5px; font-weight: 800; }
 .stage-tile.selected,
 .gem-card.equipped,
 .gem-option-slot.is-filled,
@@ -280,7 +279,6 @@ input, select { accent-color: #219d49; }
 .growth-card .stats [data-icon="heart"] { color: #ec6357; }
 .growth-card .stats [data-icon="swords"] { color: #df9429; }
 .growth-card h3 { color: #194c79; }
-.growth-card .rarity-badge { padding: 2px 8px; background: #eaf6ff; }
 .gem-type-card .gem-type-instance { color: #fff; }
 .content-menu-item[data-content="growth"] > span { color: #9fe775; }
 .content-menu-item[data-content="recruit"] > span { color: #ffd653; }
@@ -295,7 +293,6 @@ input, select { accent-color: #219d49; }
   .growth-card h3 { font-size: 11px; margin: 3px 0; }
   .growth-card .stats { margin: 5px 0 7px; }
   .growth-card .primary-button { padding: 6px 4px; min-height: 30px; }
-  .growth-card .rarity-badge { font-size: 8px; }
   .companion-detail { gap: 12px; }
   .companion-heading h3 { font-size: 17px; }
   .companion-heading p { margin: 5px 0; font-size: 10px; }
@@ -320,4 +317,25 @@ input, select { accent-color: #219d49; }
 }
 @media (max-width: 740px) and (orientation: landscape) {
   .game { --profile-size: 39px; }
+}
+
+/* One tag style across collection, recruitment, companion panels and tooltips. */
+.ui-tag, .ui-tag.rarity-badge, .ui-tag.attribute-label, .ui-tag.role-label {
+  display: inline-flex; align-items: center; justify-content: center;
+  vertical-align: middle; gap: 0; width: auto; margin: 0;
+  padding: 5px 9px; border: 0; border-radius: 6px; box-shadow: none;
+  background: var(--tag-bg, #4e6055); color: var(--tag-ink, #e8f2e7);
+  font-size: 11px; font-weight: 700; line-height: 1.2; letter-spacing: 0;
+  white-space: nowrap; text-shadow: none; -webkit-text-stroke: 0;
+}
+.ui-tag > strong { color: inherit; font: inherit; }
+.ui-tag[data-tone="rare"], .ui-tag[data-tone="spirit"] { --tag-bg: #285c73; --tag-ink: #d5f2ff; }
+.ui-tag[data-tone="epic"], .ui-tag[data-tone="shadow"] { --tag-bg: #4a366b; --tag-ink: #e5d6ff; }
+.ui-tag[data-tone="legendary"], .ui-tag[data-tone="machine"] { --tag-bg: #79551f; --tag-ink: #fff0bd; }
+.ui-tag[data-tone="wild"] { --tag-bg: #375f35; --tag-ink: #e0f4cf; }
+.ui-tag[data-tone="effect"], .ui-tag[data-tone="role"] { --tag-bg: #35536d; --tag-ink: #deefff; }
+.effect-summary { line-height: 2.4; }
+.effect-keywords dt .ui-tag { margin-bottom: 2px; }
+@media (max-height: 560px) and (orientation: landscape) {
+  .ui-tag, .ui-tag.rarity-badge, .ui-tag.attribute-label, .ui-tag.role-label { padding: 4px 7px; font-size: 10px; }
 }

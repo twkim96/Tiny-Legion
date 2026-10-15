@@ -73,7 +73,7 @@
 - `EFFECT_KEYWORDS`가 버프·디버프·특수기믹의 표시명을 관리하고 `EFFECTS[type].keyword`로 연결합니다. `knockback` 타격과 `repelPulse` 주기 효과는 모두 **밀쳐내기**입니다. 실행 종류·타격/주기·출처·갱신 규칙은 각각 유지합니다. 속성(야생·기계 등)과 효과 키워드는 별개입니다.
 - `effectInfo(spec)`는 실행 `type`, 공통 `keyword`, 표시 `label`, 수치 설명 `details`, 검증된 독립 수치 사본 `values`를 반환합니다. `effectKeywords(character)`로 원본/생성 스냅샷의 기본 효과를 조회하고 `hasEffectKeyword(character, keyword)`는 기본 효과와 아직 만료되지 않은 버프/디버프를 함께 조회합니다. 수치를 바꿀 때는 `effect(type, values)`를 공통으로 사용합니다.
 - 공격 무효는 **공격 무효(원거리)**, 면역은 **면역(중독)**처럼 대상을 표시합니다. 능력치 버프/디버프는 **공격력 증가(근거리)** 등으로 표시합니다. 범위·주기·지속시간·강도는 개별 효과 값으로 생성합니다. 곰의 밀쳐내기는 대상 근거리·범위 165·주기 2.8초·거리 120입니다.
-- `dist/src/effects-ui.js`의 `effectMarkup`이 동료 상세와 아군/적 도감에 같은 키워드 제목·수치 설명을 렌더링합니다. 툴팁·강화 설명은 동일 descriptor의 `effectText`/`effectLines`를 사용합니다. 키워드 정리로 전투 수치·저장·출처별 중첩은 변경하지 않습니다.
+- `dist/src/effects-ui.js`의 `effectMarkup(character, { detail })`이 효과 표시를 공통으로 관리합니다. `summary`는 소환 툴팁·동료 상세에 키워드 태그만, `full`(기본값)은 도감에 키워드 태그와 수치 설명을 표시합니다. 태그는 `ui-components.js`의 `uiTag`를 사용하며 등급·속성 특화·역할과 표시 양식을 공유합니다. 상세 표시에서 캐릭터의 특화 목록과 정확히 같은 속성 대상은 중복 생략하고 다른 대상 조건은 유지합니다. 강화·적 구성 설명은 동일 descriptor의 `effectText`/`effectLines`를 사용합니다. 키워드 정리로 전투 수치·저장·출처별 중첩은 변경하지 않습니다.
 
 ### 효과 대상 조건
 

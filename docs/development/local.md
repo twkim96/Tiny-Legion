@@ -38,7 +38,7 @@ npm run dev
 | `dist/src/character-art.js`, `dist/src/art.js`, `dist/src/renderer.js` | 계열별 캐릭터 SVG·아이콘과 Canvas 렌더링 |
 | `dist/src/sequence-ui.js` | 순서 끼워넣기·마우스/터치 포인터 입력 |
 | `dist/src/hud-ui.js`, `dist/src/navigation-ui.js` | 전 모드 공통 HUD·소환 카드·메뉴 정의·표시/잠금 상태 |
-| `dist/src/ui-components.js` | 재화/보상·능력치 행·등급·속성·동료명 공통 표현 |
+| `dist/src/ui-components.js` | 재화/보상·능력치 행·공통 태그·등급·속성·동료명 표현 |
 | `dist/src/modal-ui.js` | 종류별 모달 크기 선택과 공통 안내·확인 본문 |
 | `dist/src/modal-controller.js` | 모달 이력·뒤로가기·스크롤/포커스 복원·공통 닫기 입력 |
 | `dist/src/gems.js`, `dist/src/gem-ui.js` | 보석 개체·보유 기본 효과·추가옵션 3개 장착·강화·재설정·페이지 |
