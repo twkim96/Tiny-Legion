@@ -895,7 +895,8 @@ function showGemUpgrade(uid) {
   openModal("강화 재료", "gem-upgrade",()=>{
     const candidates=gemUpgradeMaterials(account,uid);
     const reserves=account.gemReserves[item.type]??0;
-    $("modal-content").innerHTML=`<p class="settings-note">같은 보석 ${cost.copies}개와 도토리 ${fmt(cost.gold)}개가 필요합니다. 선택한 보석은 소모됩니다. 장착 중이거나 강화한 보석은 재료에서 제외합니다.</p><p>이전 보석 재료 ${fmt(reserves)}개</p><div class="gem-grid">${candidates.map(candidate=>gemCard(candidate,"gem-material")).join("")}</div><p id="gem-material-count">선택 0 / ${cost.copies}</p><div class="modal-footer"><button class="secondary-button" id="gem-upgrade-cancel">취소</button><button class="primary-button" id="gem-upgrade-confirm">강화</button></div>`;
+    const chance=cost.successChance===1?"확정":`${Math.round(cost.successChance*100)}%`;
+    $("modal-content").innerHTML=`<p class="settings-note">Lv. ${item.level} → Lv. ${item.level+1} 강화 · 성공 확률 ${chance}<br>같은 보석 ${cost.copies}개와 도토리 ${fmt(cost.gold)}개가 필요합니다. 실패해도 대상 보석의 레벨·옵션·장착은 유지됩니다. 실패 시에도 선택한 재료와 도토리를 소모합니다.<br>장착 중이거나 강화한 보석은 재료에서 제외합니다.</p><p>이전 보석 재료 ${fmt(reserves)}개</p><div class="gem-grid">${candidates.map(candidate=>gemCard(candidate,"gem-material")).join("")}</div><p id="gem-material-count">선택 0 / ${cost.copies}</p><div class="modal-footer"><button class="secondary-button" id="gem-upgrade-cancel">취소</button><button class="primary-button" id="gem-upgrade-confirm">강화 시도</button></div>`;
     $("modal-content").querySelectorAll("[data-gem-material]").forEach(button=>button.onclick=()=>{
       const id=button.dataset.gemMaterial;
       if(selected.has(id)) selected.delete(id); else if(selected.size<cost.copies) selected.add(id);
@@ -909,14 +910,25 @@ function showGemUpgrade(uid) {
         applied = true;
         void sendCommand("gem.upgrade", { uid, materialUids: [...selected] }).then((envelope) => {
           if (!envelope) { applied = false; return; }
-          updateUi();returnModal("보석","gem-detail",()=>renderGemDetail(uid));chirp();
+          const result=envelope.result;
+          if (!result || typeof result.success!=="boolean" || !Number.isInteger(result.level)) {
+            updateUi();returnModal("보석","gems",renderGems);
+            toast("강화 응답을 확인할 수 없어 보석 정보를 갱신했습니다.");
+            return;
+          }
+          updateUi();returnModal("보석","gems",renderGems);
+          toast(result.success?`강화 성공 · Lv. ${result.level}`:`강화 실패 · Lv. ${result.level} 유지`);
+          if(result.success) chirp();
         });
         return;
       }
       settleProduction();
-      if(!upgradeGem(account,uid,[...selected])){toast("선택한 재료와 도토리를 확인해 주세요.");return;}
+      const result=upgradeGem(account,uid,[...selected]);
+      if(!result){toast("선택한 재료와 도토리를 확인해 주세요.");return;}
       applied=true;
-      persist();updateUi();returnModal("보석","gem-detail",()=>renderGemDetail(uid));chirp();
+      persist();updateUi();returnModal("보석","gems",renderGems);
+      toast(result.success?`강화 성공 · Lv. ${result.level}`:`강화 실패 · Lv. ${result.level} 유지`);
+      if(result.success) chirp();
     };
   });
 }

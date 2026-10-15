@@ -674,6 +674,11 @@ test('gem page shows every current type, hides unowned legacy types, and uses ea
  assert.match(markup,/data-gem-uid="legacy-hp-best"/);
  assert.equal((markup.match(/class="gem-option-slot is-empty"/g)||[]).length,GEM_OPTION_LIMIT);
  assert.match(gemDetail(account,'legacy-hp'),/보유 기본 효과 · 최고 Lv\. 4/);
+ assert.match(gemDetail({...account,gemItems:[{uid:'rate-five',type:'income',level:5,options:[]}]},'rate-five'),/강화 Lv\. 6 · 같은 보석 5개 .*7,500.*50%/);
+ const rates=gemRateMarkup();
+ assert.match(rates,/Lv\. 1 → Lv\. 2 · 같은 보석 3개 · 300 · 확정/);
+ assert.match(rates,/Lv\. 5 → Lv\. 6 · 같은 보석 5개 · 7,500 · 50%/);
+ assert.match(rates,/Lv\. 9 → Lv\. 10 · 같은 보석 5개 · 24,300 · 5%/);
  assert.match(gemRateMarkup(),/일반 · 1줄 · 재설정 100 · 승급 10%/);
  assert.match(gemRateMarkup(),/레전더리 · 3줄 · 재설정 10,000 · 승급 0%/);
 });
@@ -758,11 +763,61 @@ test('hosted gem swap and reroll use the authoritative command routes without ch
 test('gem material picker shows options and consumes only the chosen eligible copy',()=>{
  const c=harness(['showGemUpgrade','openGemDetail','renderGemDetail','settleProduction']);
  c.account.earlyGuide.phase='complete';c.account.highestCleared=11;c.account.gold=5000;
- c.account.gemItems=[{uid:'target',type:'income',level:1,options:[]},{uid:'poor',type:'income',level:1,options:[{id:'hp',value:.01}]},{uid:'keep',type:'income',level:1,options:[{id:'attack',value:.03}]}];
+ c.account.gemItems=[{uid:'target',type:'income',level:1,options:[]},{uid:'poor',type:'income',level:1,options:[{id:'hp',value:.01}]},{uid:'keep',type:'income',level:1,options:[{id:'attack',value:.03}]},{uid:'extra',type:'income',level:1,options:[]}];
  c.showGemUpgrade('target');assert.match(c.$('modal-content').innerHTML,/공격력 \+3%/);
- c.$('modal-content:data-gem-material:poor').onclick();c.$('gem-upgrade-confirm').onclick();
- assert.equal(gemByUid(c.account,'poor'),null);assert.ok(gemByUid(c.account,'keep'));
+ assert.match(c.$('modal-content').innerHTML,/Lv\. 1 → Lv\. 2 강화 · 성공 확률 확정/);
+ assert.match(c.$('modal-content').innerHTML,/실패 시에도 선택한 재료와 도토리를 소모/);
+ c.$('modal-content:data-gem-material:poor').onclick();c.$('modal-content:data-gem-material:keep').onclick();c.$('modal-content:data-gem-material:extra').onclick();c.$('gem-upgrade-confirm').onclick();
+ assert.equal(gemByUid(c.account,'poor'),null);assert.equal(gemByUid(c.account,'extra'),null);assert.equal(gemByUid(c.account,'keep'),null);
  assert.equal(gemByUid(c.account,'target').level,2);assert.equal(c.account.gold,4700);
+});
+test('local and hosted failed gem upgrades consume costs once, preserve target state, and leave no detail history',async()=>{
+ const makeAccount=()=>{
+  const account=newAccount();account.onboarding.phase='complete';account.earlyGuide.phase='complete';account.highestCleared=11;account.gold=10000;
+  account.gemItems=[{uid:'target',type:'income',level:5,options:[{id:'attack',value:.03}]},...Array.from({length:5},(_,i)=>({uid:`material-${i}`,type:'income',level:1,options:[{id:'hp',value:.01}]}))];
+  account.gemEquipment={income:'target'};
+  return account;
+ };
+ for(const hostedMode of [false,true]){
+  const c=harness(['openModal','openGems','renderGems','openGemDetail','renderGemDetail','showGemUpgrade','settleProduction']);
+  c.account=makeAccount();c.hostedMode=hostedMode;c.settleProduction=()=>{};
+  c.upgradeGem=(account,uid,ids)=>upgradeGem(account,uid,ids,{random:()=>.99});
+  c.chirp=type=>c.calls.push(`chirp:${type}`);
+  if(hostedMode)c.sendCommand=async(type,args)=>{
+   c.calls.push({type,args});
+   return {result:upgradeGem(c.account,args.uid,args.materialUids,{random:()=>.99})};
+  };
+  c.openGems();c.openGemDetail('target');c.$('gem-upgrade').onclick();
+  assert.match(c.$('modal-content').innerHTML,/Lv\. 5 → Lv\. 6 강화 · 성공 확률 50%/);
+  assert.match(c.$('modal-content').innerHTML,/같은 보석 5개와 도토리 7500개/);
+  for(let i=0;i<5;i++)c.$(`modal-content:data-gem-material:material-${i}`).onclick();
+  assert.match(c.$('modal-content').innerHTML,/실패해도 대상 보석의 레벨·옵션·장착은 유지됩니다/);
+  const confirm=c.$('gem-upgrade-confirm');confirm.onclick();confirm.onclick();
+  if(hostedMode)await Promise.resolve();
+  assert.equal(c.calls.filter(call=>typeof call==='object'&&call.type==='gem.upgrade').length,hostedMode?1:0);
+  assert.equal(gemByUid(c.account,'target').level,5);
+  assert.deepEqual(gemByUid(c.account,'target').options,[{id:'attack',value:.03}]);
+  assert.equal(c.account.gemEquipment.income,'target');
+  assert.equal(c.account.gemItems.length,1);
+  assert.equal(c.account.gold,2500);
+  assert.ok(c.calls.includes('강화 실패 · Lv. 5 유지'));
+  assert.equal(c.calls.some(call=>typeof call==='string'&&call.startsWith('chirp:')),false);
+  assert.equal(c.modalHistory.length,1);assert.equal(c.modalKind,'gems');
+  assert.equal(c.backModal(),false);
+  assert.equal(c.account.gold,2500);
+ }
+});
+test('malformed hosted gem upgrade result refreshes to the list and releases the confirmation state',async()=>{
+ const c=harness(['openGems','renderGems','openGemDetail','renderGemDetail','showGemUpgrade','settleProduction']);
+ c.hostedMode=true;c.account.onboarding.phase='complete';c.account.earlyGuide.phase='complete';c.account.highestCleared=11;
+ c.account.gemItems=[{uid:'target',type:'income',level:1,options:[]},...Array.from({length:3},(_,i)=>({uid:`material-${i}`,type:'income',level:1,options:[]}))];
+ c.openGems();c.openGemDetail('target');c.$('gem-upgrade').onclick();
+ for(let i=0;i<3;i++)c.$(`modal-content:data-gem-material:material-${i}`).onclick();
+ c.sendCommand=async()=>({result:true});
+ const confirm=c.$('gem-upgrade-confirm');confirm.onclick();confirm.onclick();await Promise.resolve();
+ assert.equal(c.modalKind,'gems');assert.equal(c.modalHistory.length,1);
+ assert.ok(c.calls.includes('강화 응답을 확인할 수 없어 보석 정보를 갱신했습니다.'));
+ confirm.onclick();assert.equal(c.modalKind,'gems');
 });
 test('return summary is informational, clears its pending receipt and leaves idle simulation running',()=>{
  const c=harness(['openModal','showReturnIncome','closeIdleResult','frame']);

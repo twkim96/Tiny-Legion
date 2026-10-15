@@ -515,3 +515,32 @@ test('server reroll retries return one saved gem mutation and charge once', asyn
   assert.equal((await h.command(b,'gem.reroll',{uid:'missing'},'reroll-once')).error,'request_id_reused');
   assert.equal((await h.command(b,'settle')).account.gold,900);
 });
+
+test('server gem upgrade success and paid failure are saved once and ignore supplied client outcomes', async t => {
+  let rolls=0, roll=.99;
+  t.mock.method(globalThis.crypto,'getRandomValues',array=>{
+    rolls++;array.fill(Math.floor(roll*4294967296));return array;
+  });
+  for(const success of [false,true]) {
+    roll=success?0:.99;
+    const h=harness(),b=h.browser();await h.call(b,'session/start');
+    const target={uid:'target',type:'income',level:5,optionTier:'normal',options:[{id:'attack',value:.02}]};
+    h.seed({onboarding:{phase:'complete'},earlyGuide:{phase:'complete'},highestCleared:11,gold:10000,
+      gemItems:[target,...Array.from({length:5},(_,i)=>({uid:`mat${i}`,type:'income',level:1,optionTier:'normal',options:[]}))],
+      gemEquipment:{income:'target'}});
+    const args={uid:'target',materialUids:['mat0','mat1','mat2','mat3','mat4'],success:!success,random:success?.99:0};
+    const beforeRolls=rolls;
+    const [first,retry]=await Promise.all([
+      h.command(b,'gem.upgrade',args,'upgrade-once'),h.command(b,'gem.upgrade',args,'upgrade-once')]);
+    assert.equal(first.status,200);assert.equal(retry.status,200);
+    assert.deepEqual(first.result,{success,level:success?6:5});
+    assert.deepEqual(retry.result,first.result);
+    assert.equal(first.account.gold,2500);assert.equal(retry.account.gold,2500);
+    assert.deepEqual(first.account.gemItems,[{...target,level:success?6:5}]);
+    assert.equal(first.account.gemEquipment.income,'target');
+    const savedRolls=rolls;assert.equal(savedRolls-beforeRolls,1);
+    assert.deepEqual((await h.command(b,'gem.upgrade',args,'upgrade-once')).result,first.result);
+    assert.equal(rolls,savedRolls);
+    assert.equal((await h.command(b,'settle')).account.gold,2500);
+  }
+});

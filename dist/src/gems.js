@@ -115,7 +115,9 @@ export function gemDescription(item) {
   return def && rank(item.level) ? `${def.description} +${Number((def.base * (1 + .25 * (item.level - 1)) * 100).toFixed(2))}%` : '';
 }
 export function gemUpgradeCost(item) {
-  return rank(item?.level) && item.level < 10 ? { copies: 2 ** (item.level - 1), gold: 300 * item.level ** 2 } : null;
+  if (!rank(item?.level) || item.level >= 10) return null;
+  const successChance = item.level < 5 ? 1 : [0.5, 0.35, 0.2, 0.1, 0.05][item.level - 5];
+  return { copies: item.level < 5 ? item.level + 2 : 5, gold: 300 * item.level ** 2, successChance };
 }
 export function drawGem(a, { payment = 'diamonds', free = false, random = Math.random, banner = 'treasure' } = {}) {
   const pool = GEM_BANNERS.find(b => b.id === banner);
@@ -144,7 +146,7 @@ export function gemUpgradeMaterials(a, uid) {
   const target = gemByUid(a, uid);
   return target ? a.gemItems.filter(g => g.uid !== uid && g.type === target.type && g.level === 1 && !isGemEquipped(a, g.uid)) : [];
 }
-export function upgradeGem(a, uid, materialUids = []) {
+export function upgradeGem(a, uid, materialUids = [], { random = Math.random } = {}) {
   const target = gemByUid(a, uid), cost = gemUpgradeCost(target);
   if (!unlocked(a) || !cost || !affordable(a, 'gold', cost.gold) || !Array.isArray(materialUids)) return false;
   const selected = new Set(materialUids), eligible = new Set(gemUpgradeMaterials(a, uid).map(g => g.uid));
@@ -152,11 +154,15 @@ export function upgradeGem(a, uid, materialUids = []) {
   const gap = cost.copies - selected.size;
   const reserve = count(a.gemReserves?.[target.type]);
   if (reserve < gap) return false;
+  let success;
+  try {
+    success = cost.successChance === 1 || checkedRoll(random) < cost.successChance;
+  } catch { return false; }
   a.gemItems = a.gemItems.filter(g => !selected.has(g.uid));
   if (gap) a.gemReserves[target.type] -= gap;
   a.gold -= cost.gold;
-  target.level++;
-  return true;
+  if (success) target.level++;
+  return { success, level: target.level };
 }
 export function rerollGem(a, uid, { random = Math.random } = {}) {
   const item = gemByUid(a, uid), cost = gemRerollCost(item);

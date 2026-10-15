@@ -22,7 +22,7 @@ test('fresh state is independent and definitions describe scaled legacy and new 
   assert.equal(gemDefinition('invalid'), null);
   assert.match(gemDescription(item('x', 'attack', 10)), /32.5%/);
   assert.match(gemOptionText({ id: 'wildAttack', value: .1 }), /10%/);
-  assert.deepEqual(gemUpgradeCost(item('x', 'hp', 9)), { copies: 256, gold: 24300 });
+  assert.deepEqual(gemUpgradeCost(item('x', 'hp', 9)), { copies: 5, gold: 24300, successChance: .05 });
   assert.equal(gemOptionTier(item('old', 'hp', 1, [{ id: 'attack', value: .01 }, { id: 'hp', value: .02 }])).id, 'epic');
   assert.equal(gemRerollCost(item('x', 'hp', 9)), 100);
   assert.equal(gemRerollCost({ ...item('x', 'hp'), optionTier: 'legendary' }), 10000);
@@ -45,8 +45,8 @@ test('legacy migration preserves owned counts and equipped effect, occurs once w
   assert.equal(normalizeGemState({ ...raw, gemItems: [] }).gemItems.length, 0);
   const old = account();
   Object.assign(old, state);
-  assert.equal(upgradeGem(old, state.gemItems.find(g => g.type === 'attack').uid), true);
-  assert.equal(old.gemReserves.attack, 5);
+  assert.deepEqual(upgradeGem(old, state.gemItems.find(g => g.type === 'attack').uid), {success:true,level:2});
+  assert.equal(old.gemReserves.attack, 3);
 });
 
 test('normalization repairs duplicate IDs, caps ranks and preserves repeated valid options and ranks', () => {
@@ -228,13 +228,13 @@ test('reroll promotion threshold is exclusive and a failed promotion never downg
 test('upgrade consumes exact explicit candidates plus reserve gap, preserves options and unrelated items', () => {
   const a = account(), options = [{ id: 'speed', value: .03 }];
   a.gemItems = [item('t', 'attack', 3, options), item('m', 'attack'), item('extra', 'attack'), item('equipped', 'attack'), item('ranked', 'attack', 2), item('other', 'hp')];
-  a.gemReserves.attack = 3;
+  a.gemReserves.attack = 4;
   a.gemEquipment.attack = 'equipped';
   assert.deepEqual(gemUpgradeMaterials(a, 't').map(g => g.uid), ['m', 'extra']);
   for (const ids of [['missing'], ['m', 'm'], ['t'], ['other'], ['ranked'], ['equipped'], [], ['m', 'extra', 'missing']]) {
     unchanged(a, () => upgradeGem(a, 't', ids), false);
   }
-  assert.equal(upgradeGem(a, 't', ['m']), true);
+  assert.deepEqual(upgradeGem(a, 't', ['m']), {success:true,level:4});
   assert.equal(gemByUid(a, 't').level, 4);
   assert.deepEqual(gemByUid(a, 't').options, options);
   assert.equal(a.gemReserves.attack, 0);
@@ -245,15 +245,15 @@ test('upgrade consumes exact explicit candidates plus reserve gap, preserves opt
 });
 
 test('reserve-only, instance-only, excessive materials, insufficient acorns and max-rank guards', () => {
-  const a = account(); a.gemItems = [item('t', 'hp'), item('m', 'hp'), item('extra', 'hp')];
-  unchanged(a, () => upgradeGem(a, 't', ['m', 'extra']), false);
+  const a = account(); a.gemItems = [item('t', 'hp'), item('m', 'hp'), item('m2', 'hp'), item('m3', 'hp'), item('extra', 'hp')];
+  unchanged(a, () => upgradeGem(a, 't', ['m', 'm2', 'm3', 'extra']), false);
   a.gold = 299;
-  unchanged(a, () => upgradeGem(a, 't', ['m']), false);
+  unchanged(a, () => upgradeGem(a, 't', ['m', 'm2', 'm3']), false);
   a.gold = 300;
-  assert.equal(upgradeGem(a, 't', ['m']), true);
+  assert.deepEqual(upgradeGem(a, 't', ['m', 'm2', 'm3']), {success:true,level:2});
   assert.equal(a.gold, 0);
-  a.gold = 1200; a.gemReserves.hp = 2;
-  assert.equal(upgradeGem(a, 't'), true);
+  a.gold = 1200; a.gemReserves.hp = 4;
+  assert.deepEqual(upgradeGem(a, 't'), {success:true,level:3});
   assert.equal(gemByUid(a, 't').level, 3);
   assert.equal(a.gemReserves.hp, 0);
   a.gold = 1e7; gemByUid(a, 't').level = 10; a.gemReserves.hp = 1e6;
@@ -262,13 +262,53 @@ test('reserve-only, instance-only, excessive materials, insufficient acorns and 
 });
 
 test('upgrade material consumption keeps the strongest owned basic effect and increases it with target level', () => {
-  const a = account(); a.gemItems = [item('target', 'income'), item('material', 'income')];
+  const a = account(); a.gemItems = [item('target', 'income'), ...['material','m2','m3'].map(uid=>item(uid,'income'))];
   close(gemEffects(a).goldIncome, 1.1);
-  assert.equal(upgradeGem(a, 'target', ['material']), true);
+  assert.deepEqual(upgradeGem(a, 'target', ['material','m2','m3']), {success:true,level:2});
   assert.equal(gemByUid(a, 'material'), null);
   assert.equal(gemByUid(a, 'target').level, 2);
   assert.deepEqual(ownedGemBasics(a).map(g => g.uid), ['target']);
   close(gemEffects(a).goldIncome, 1.125);
+});
+
+test('upgrades are certain through level five, then use target-level odds and consume costs on failure', () => {
+  const odds=[1,1,1,1,.5,.35,.2,.1,.05];
+  for(let level=1;level<10;level++) for(const success of [true,false]) {
+    if(level<5&&!success)continue;
+    const a=account(),options=[{id:'attack',value:.02},{id:'hp',value:.03}];
+    const copies=level<5?level+2:5;
+    a.gemItems=[item('target','income',level,options,'epic'),...Array.from({length:copies},(_,n)=>item(`m${n}`))];
+    a.gemEquipment={income:'target'};
+    const materials=a.gemItems.slice(1).map(g=>g.uid),before=a.gold;
+    let rolls=0;
+    const result=upgradeGem(a,'target',materials,{random:()=>{
+      rolls++;
+      assert.ok(level>=5,'guaranteed upgrades do not roll');
+      return success?odds[level-1]-1e-8:odds[level-1];
+    }});
+    assert.deepEqual(result,{success,level:level+(success?1:0)});
+    assert.equal(rolls,level<5?0:1);
+    assert.equal(a.gold,before-300*level**2);
+    assert.deepEqual(a.gemItems,[item('target','income',result.level,options,'epic')]);
+    assert.deepEqual(a.gemEquipment,{income:'target'});
+    assert.equal(gemUpgradeCost(item('cost','income',level)).successChance,odds[level-1]);
+  }
+});
+
+test('invalid gem upgrade inputs and random failures preserve all resources before a paid attempt',()=>{
+  const a=account();a.gemItems=[item('target','income',5),item('material')];a.gemReserves.income=4;
+  for(const value of [-.1,1,NaN,Infinity,undefined]) {
+    unchanged(a,()=>upgradeGem(a,'target',['material'],{random:()=>value}),false);
+  }
+  unchanged(a,()=>upgradeGem(a,'target',['material'],{random:()=>{throw Error('RNG unavailable');}}),false);
+  let rolls=0;
+  unchanged(a,()=>upgradeGem(a,'target',['missing'],{random:()=>{rolls++;return 0;}}),false);
+  assert.equal(rolls,0);
+  const gold=a.gold;
+  assert.deepEqual(upgradeGem(a,'target',['material'],{random:()=>.99}),{success:false,level:5});
+  assert.equal(a.gold,gold-7500);
+  assert.equal(a.gemReserves.income,0);
+  assert.equal(gemByUid(a,'material'),null);
 });
 
 test('equipment selects at most three option sets, supports atomic replacement and unregisters one type', () => {

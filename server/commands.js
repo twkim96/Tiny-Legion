@@ -31,7 +31,7 @@ export function applyCommand(a, activeBattle, type, args, now) {
     case 'lineup.set': result = required(account.setSequence(a, args.sequence, args.mode, args.index)); break;
     case 'gem.equip': result = required(equipGem(a, args.uid, args.replaceType ?? null)); break;
     case 'gem.unequip': result = required(unequipGem(a, args.type)); break;
-    case 'gem.upgrade': result = required(upgradeGem(a, args.uid, args.materialUids)); break;
+    case 'gem.upgrade': result = required(upgradeGem(a, args.uid, args.materialUids, { random: secureRandom })); break;
     case 'gem.reroll': result = required(rerollGem(a, args.uid, { random: secureRandom })); break;
     case 'speedrun.claim': result = required(account.claimSpeedrun(a, args.stageId ?? 1, now) || null); break;
     case 'idle.select':
