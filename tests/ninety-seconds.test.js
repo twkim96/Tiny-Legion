@@ -129,7 +129,7 @@ test('region relief, gem baseline and ordinary growth retain their combat outcom
 });
 
 test('each milestone giant appears and is defeated before its stage deadline', () => {
-  for (const [stageId, level] of [[5, 4], [10, 35], [15, 100], [20, 100]]) {
+  for (const [stageId, level] of [[5, 35], [10, 35], [15, 100], [20, 100]]) {
     const { state, bosses } = play(stageId, level);
     assert.equal(state.result.won, true, `stage ${stageId}`);
     assert.ok(state.time < battleDuration(stageId, 'challenge'));

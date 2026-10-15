@@ -40,6 +40,7 @@ npm run dev
 | `dist/src/modal-controller.js` | 모달 이력·뒤로가기·스크롤/포커스 복원·공통 닫기 입력 |
 | `dist/src/gems.js`, `dist/src/gem-ui.js` | 보석 개체·보유 기본 효과·추가옵션 3개 장착·강화·재설정·페이지 |
 | `dist/src/abilities.js`, `dist/src/companion-ui.js` | 동료 특수능력·상세 성장 |
+| `dist/src/mailbox-ui.js` | 미션 동료 우편·수령 상태 표시 |
 | `dist/src/recruitment-ui.js` | 동료 모집·확률·카드 공개 연출 |
 | `dist/src/cloud-session-ui.js`, `dist/src/idle-result-ui.js` | 온라인 연결/인증 안내·일시 정지와 생산 기록 비교 표시 |
 | `dist/src/main.js` | UI·입력·전투/계정 연결 |
@@ -93,6 +94,8 @@ npm run check
 전투 계산·밸런스 규칙 변경 시 `dist/src/data.js`의 `BALANCE_VERSION`도 갱신합니다. 이전 버전 전투 완료를 거절하는 계약은 [서버 사양](../SPEC/server-account.md#검증과-저장)을 따릅니다.
 
 문서 변경만으로 전체 제품 테스트나 새 문서 검사 도구를 추가하지 않습니다. 관련 링크·완료된 diff를 확인하고, 동작 변경에는 해당 기존 테스트부터 실행합니다.
+
+1지역 예산·개별 투자·정밀 공략과 추가 방치 대안의 재현은 [밸런스 검증](balance.md)을 따릅니다.
 
 ## 수동 확인
 

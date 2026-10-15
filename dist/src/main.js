@@ -1,3 +1,4 @@
+import { mailboxPanel } from "./mailbox-ui.js";
 import { bindGameVisibility } from "./app-visibility.js";
 import { familyName, attributeLabel } from './character-tags.js';
 import { CloudSessionUI } from "./cloud-session-ui.js";
@@ -78,6 +79,8 @@ import {
   currentMission,
   recordMissionBattle,
   claimMission,
+  mailboxEntries,
+  claimMail,
   growthUnlocked,
   sequenceUnlocked,
   recruitEarlyRabbit,
@@ -718,7 +721,7 @@ function updateMission() {
   button.setAttribute("aria-label", `${mission.title} · ${mission.completed ? "보상 받기" : "전투로 이동"}`);
   if (button.dataset.mission !== mission.id) {
     button.dataset.mission = mission.id;
-    $("mission-rewards").innerHTML = `<span>${icon("acorn")}${fmt(mission.gold)}</span><span>${icon("gem")}${mission.diamonds}</span>`;
+    $("mission-rewards").innerHTML = `<span>${icon("acorn")}${fmt(mission.gold)}</span><span>${icon("gem")}${mission.diamonds}</span>${mission.unitReward ? `<span>${icon("envelope")}${names[mission.unitReward]}</span>` : ""}`;
   }
 }
 function actOnMission() {
@@ -730,7 +733,7 @@ function actOnMission() {
         if (!envelope) return;
         const reward = envelope.result;
         updateUi();
-        toast(`도토리 +${fmt(reward.gold)} · 다이아 +${reward.diamonds}`);
+        notifyMissionReward(reward);
       });
       return;
     }
@@ -738,7 +741,7 @@ function actOnMission() {
     if (reward) {
       persist();
       updateUi();
-      toast(`도토리 +${fmt(reward.gold)} · 다이아 +${reward.diamonds}`);
+      notifyMissionReward(reward);
     }
   } else if (mission.kind === "challenge") startChallenge(mission.stageId);
   else if (mission.kind === "gem") openGemGuide();
@@ -953,11 +956,32 @@ function showReturnIncome() {
     $("return-income-confirm").onclick=()=>closeModal();
   });
 }
+function notifyMissionReward(reward) {
+  const arrived = mailboxEntries(account).some(entry => !entry.claimed && entry.id.startsWith(`mission:${reward.id}:`));
+  toast(`도토리 +${fmt(reward.gold)} · 다이아 +${reward.diamonds}${arrived ? " · 동료 보상이 우편함에 도착했어요." : ""}`);
+}
+function renderMailbox() {
+  $("modal-content").innerHTML = mailboxPanel(account);
+  $("modal-content").querySelectorAll("[data-mail-claim]").forEach(button => {
+    button.onclick = async () => {
+      button.disabled = true;
+      const reward = hostedMode
+        ? (await sendCommand("mail.claim", { id: button.dataset.mailClaim }))?.result
+        : claimMail(account, button.dataset.mailClaim);
+      if (!reward) { if (modalKind === "mailbox") renderMailbox(); return; }
+      if (!hostedMode) persist();
+      updateUi();
+      toast(reward.isNew ? `${reward.unit.name} 합류` : `${reward.unit.name} · 징표 +${reward.marks}`);
+      if (modalKind === "mailbox") renderMailbox();
+    };
+  });
+}
 function renderMenu() {
   const tutorial = isOnboarding(account);
   const unlocked = advancedContentUnlocked(account);
   const items = mode !== "idle" ? [["settings", "설정", "settings", true]] : [
     ["mission", "미션", "flag", !tutorial && !!currentMission(account)],
+    ["mailbox", `우편함${mailboxEntries(account).some(entry => !entry.claimed) ? " · 새 우편" : ""}`, "envelope", !tutorial],
     ["growth", "동료", "units", !tutorial],
     ["recruit", "모집", "envelope", !tutorial],
     ["codex", "도감", "book", !tutorial],
@@ -973,6 +997,7 @@ function renderMenu() {
     button.onclick = () => {
       const id = button.dataset.contentMenu;
       if (id === "mission") { closeModal(); actOnMission(); }
+      else if (id === "mailbox") openModal("우편함", "mailbox", renderMailbox);
       else if (id === "growth") openModal("동료", "growth", renderGrowth);
       else if (id === "recruit") openModal("모집", "recruit", renderRecruit);
       else if (id === "codex") openCodex();
@@ -1390,7 +1415,7 @@ function showResult(r, rewards) {
           if (!envelope) return;
           const reward = envelope.result;
           updateUi();
-          toast(`도토리 +${fmt(reward.gold)} · 다이아 +${reward.diamonds}`);
+          notifyMissionReward(reward);
           showResult(r, rewards);
         });
         return;
@@ -1399,7 +1424,7 @@ function showResult(r, rewards) {
       if (!reward) return;
       persist();
       updateUi();
-      toast(`도토리 +${fmt(reward.gold)} · 다이아 +${reward.diamonds}`);
+      notifyMissionReward(reward);
       showResult(r, rewards);
     };
   }
@@ -1430,6 +1455,9 @@ function updateUi() {
   $("challenge-start").hidden = mode !== "idle" || isOnboarding(account);
   $("challenge-start").disabled = firstIdleMissionPending();
   updateMission();
+  const unreadMail = mode === "idle" && mailboxEntries(account).some(entry => !entry.claimed);
+  $("menu").dataset.unread = String(unreadMail);
+  $("menu").setAttribute("aria-label", unreadMail ? "메뉴 · 새 우편" : "메뉴");
   $("speed").hidden = !manualCombat;
   $("skill").hidden = mode === "idle";
   $("pause").hidden = !manualCombat;

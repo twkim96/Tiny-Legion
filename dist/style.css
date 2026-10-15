@@ -3852,3 +3852,13 @@ html:fullscreen .game {
 .effect-keywords { margin: 8px 0; display: grid; gap: 7px; font-size: 12px; line-height: 1.5; }
 .effect-keywords dt { margin: 0; color: #424938; font-weight: 700; }
 .effect-keywords dd { margin: 2px 0 0; color: #6c745d; overflow-wrap: anywhere; }
+
+.mail-list { display: grid; gap: 10px; }
+.mail-item { display: grid; grid-template-columns: 58px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 12px; background: #fff8e7; border-radius: 14px; }
+.mail-item > svg, .mail-item > img { width: 58px; height: 58px; }
+.mail-item p { margin: 4px 0; font-size: .85rem; }
+.mail-item small { font-size: .75rem; }
+.mail-item button { white-space: nowrap; }
+
+.menu-settings .menu-medallion { position: relative; }
+.menu-settings[data-unread="true"] .menu-medallion::after { content: ""; position: absolute; top: 1px; right: 1px; width: 9px; height: 9px; border-radius: 50%; background: #c65b44; border: 2px solid #fff8e7; }

@@ -158,7 +158,7 @@ test('one-time castle skill increases castle damage rather than damage to every 
     state.units[0].x=1073;state.units[0].speed=0;
     const hp=state.enemyHp;runFor(state,.3);damages.push(hp-state.enemyHp);
   }
-  assert.deepEqual(damages,[190,209]);
+  assert.deepEqual(damages,[114,133]);
 });
 test('poison causes timed non-stacking damage and the purchased immunity blocks poison but not the hit',()=>{
   const outcomes=[];

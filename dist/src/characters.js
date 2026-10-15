@@ -43,7 +43,7 @@ export const UNITS = [
     specialties: ["wild"],
     hp: 155,
     attack: 38,
-    effects: { devastating: effect("devastating", { attribute: ["wild"] }), castleDamage: effect("castleDamage", { bonus: 4 }) },
+    effects: { devastating: effect("devastating", { attribute: ["wild"] }), castleDamage: effect("castleDamage", { bonus: 2 }) },
     range: 48,
     speed: 115,
     cost: 270,

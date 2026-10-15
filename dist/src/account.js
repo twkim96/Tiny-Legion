@@ -24,7 +24,27 @@ const MISSION_IDS = new Set([
   "gem-intro",
   ...STAGES.slice(1).map((stage) => `challenge-${stage.id}`),
 ]);
+const MISSION_MAIL = new Map([
+  ["challenge-3", { id: "mission:challenge-3:fox", missionId: "challenge-3", unitId: "fox" }],
+  ["challenge-4", { id: "mission:challenge-4:chick", missionId: "challenge-4", unitId: "chick" }],
+]);
+const MAIL_BY_ID = new Map([...MISSION_MAIL.values()].map((mail) => [mail.id, mail]));
 const cap = (v, a, b) => Math.max(a, Math.min(b, Number(v) || 0));
+function normalizeMailbox(raw, claimedMissions) {
+  const claimed = new Set(Array.isArray(claimedMissions) ? claimedMissions : []);
+  const saved = new Map();
+  if (Array.isArray(raw)) {
+    for (const item of raw) {
+      const mail = MAIL_BY_ID.get(item?.id);
+      if (
+        !mail || item.unitId !== mail.unitId || typeof item.claimed !== "boolean" ||
+        !claimed.has(mail.missionId) || saved.has(mail.id)
+      ) continue;
+      saved.set(mail.id, { id: mail.id, unitId: mail.unitId, claimed: item.claimed });
+    }
+  }
+  return [...MAIL_BY_ID.values()].filter((mail) => saved.has(mail.id)).map((mail) => saved.get(mail.id));
+}
 export function dailyKey(now = Date.now()) {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Seoul",
@@ -52,6 +72,7 @@ export function newAccount(now = Date.now()) {
       sinceEpic: 0,
       welcomeClaimed: false,
     },
+    mailbox: [],
     sequence: ["sheep", ...Array(9).fill(null)],
     sequencePresets: {
       challenge: ["sheep", ...Array(9).fill(null)],
@@ -171,6 +192,7 @@ export function normalizeAccount(raw, now = Date.now()) {
       ? [...new Set(raw.missions.claimed.filter((id) => MISSION_IDS.has(id)))]
       : [],
   };
+  a.mailbox = normalizeMailbox(raw.mailbox, a.missions.claimed);
   const phase = raw.earlyGuide?.phase;
   a.earlyGuide = { phase: EARLY_PHASES.has(phase) ? phase : "wall-battle", legacy: raw.earlyGuide?.legacy === true };
   for (const mode of ["challenge", "speedrun"]) {
@@ -481,6 +503,7 @@ export function currentMission(account) {
     };
     const id = `challenge-${stage.id}`;
     if (claimed.has(id)) continue;
+    const mail = MISSION_MAIL.get(id);
     return {
       id,
       kind: "challenge",
@@ -488,6 +511,7 @@ export function currentMission(account) {
       title: `도전 ${stageLabel(stage.id)} 클리어`,
       gold: stage.missionReward?.gold ?? stage.baseReward,
       diamonds: stage.missionReward?.diamonds ?? 10,
+      ...(mail ? { unitReward: mail.unitId } : {}),
       completed: account.highestCleared >= stage.id,
     };
   }
@@ -535,9 +559,36 @@ export function claimMission(account) {
   if (!Array.isArray(account.missions.claimed)) account.missions.claimed = [];
   if (account.missions.claimed.includes(mission.id)) return null;
   account.missions.claimed.push(mission.id);
+  const mail = MISSION_MAIL.get(mission.id);
+  if (mail) {
+    account.mailbox = normalizeMailbox(account.mailbox, account.missions.claimed);
+    if (!account.mailbox.some((entry) => entry.id === mail.id)) {
+      account.mailbox.push({ id: mail.id, unitId: mail.unitId, claimed: false });
+    }
+  }
   account.gold += mission.gold;
   account.diamonds += mission.diamonds;
   return { gold: mission.gold, diamonds: mission.diamonds, id: mission.id };
+}
+export function mailboxEntries(account) {
+  return normalizeMailbox(account?.mailbox, account?.missions?.claimed).map((entry) => ({ ...entry }));
+}
+export function claimMail(account, id) {
+  const mail = MAIL_BY_ID.get(id);
+  const entry = account?.mailbox?.find((item) => item?.id === id);
+  if (
+    !mail || !entry || entry.unitId !== mail.unitId || entry.claimed !== false ||
+    !account.missions?.claimed?.includes(mail.missionId)
+  ) return null;
+  const unit = getUnit(mail.unitId);
+  if (!unit || unit.rarity !== "rare") return null;
+  const isNew = !ownsUnit(account, unit.id);
+  const markAttribute = markTypeFor(unit);
+  const marks = isNew ? 0 : DUPLICATE_MARKS[unit.rarity];
+  account.owned[unit.id] = true;
+  if (marks) account.marks[markAttribute] = (account.marks[markAttribute] ?? 0) + marks;
+  entry.claimed = true;
+  return { mailId: mail.id, unit, isNew, fragments: 0, marks, markAttribute, guaranteed: true };
 }
 function speedrunDayRecord(a, stageId) {
   a.daily.stages ??= {};

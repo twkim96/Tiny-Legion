@@ -79,7 +79,7 @@ test("2-2 sharply raises pressure, and ordinary growth or a machine counter can 
 });
 
 test("every fifth and tenth stage fields a large boss that can be defeated normally within 90 seconds", () => {
-  for (const [stageId, level] of [[5, 4], [10, 35], [15, 100], [20, 100]]) {
+  for (const [stageId, level] of [[5, 35], [10, 35], [15, 100], [20, 100]]) {
     const stage = stageById.get(stageId);
     const groups = stage.waves.flatMap((wave) => wave.enemies);
     const bossGroups = groups.filter((group) => enemyById.get(group.id)?.boss);

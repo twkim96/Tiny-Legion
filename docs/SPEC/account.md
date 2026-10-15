@@ -41,10 +41,17 @@
 
 - 첫 1-1 방치 미션을 완료하고 보상을 받을 때까지 전투 시작을 비활성화하며 도전 진입·다른 모드 전환·다음 스테이지 선택도 차단합니다. 보상을 받으면 도전 1-2로 이어집니다.
 
-- 첫 방치 안내 종료 뒤 1-1 방치 승리를 한 번 안내하며 완료 보상은 도토리 120·다이아 10입니다. 수령 뒤 도전 1-2 미션을 제공합니다. 새 계정은 그 보상 수령 뒤 마지막 방치 튜토리얼인 1-2 방치 미션(도토리 160·다이아 10), 동료 레벨 올리기 미션(도토리 100·다이아 10)을 거쳐 도전 1-3부터 2-10까지 순서대로 진행합니다. 이후 방치 클리어 미션은 제공하지 않습니다. 초반 도전 미션은 1-3 도토리 900, 1-4 1,200, 1-5 1,400, 1-6 1,600과 각각 다이아 30을 추가 지급합니다. 일반 레벨업이나 숲속 배너 1회 모집에 사용할 수 있습니다. 1-7 이후와 2지역은 스테이지 기본 보상만큼의 도토리·다이아 10으로 돌아갑니다. `data.js`의 `missionReward`가 예외 보상을 관리하며 2지역 복제에는 적용하지 않습니다. 수치는 플레이 승인 전 초기 조정값입니다.
+- 첫 방치 안내 종료 뒤 1-1 방치 승리를 한 번 안내하며 완료 보상은 도토리 120·다이아 10입니다. 수령 뒤 도전 1-2 미션을 제공합니다. 새 계정은 그 보상 수령 뒤 마지막 방치 튜토리얼인 1-2 방치 미션(도토리 160·다이아 10), 동료 레벨 올리기 미션(도토리 100·다이아 10)을 거쳐 도전 1-3부터 2-10까지 순서대로 진행합니다. 이후 방치 클리어 미션은 제공하지 않습니다. 1지역 도전 미션은 1-3부터 1-10까지 도토리 240 / 400 / 800 / 1,000 / 1,300 / 1,600 / 2,000 / 2,400과 각각 다이아 30을 추가 지급합니다. 첫 완료 보상은 별도이며, 직전 미션 보상으로 다음 전투의 투자 예산을 만듭니다. 2지역 미션은 스테이지 기본 보상만큼의 도토리·다이아 10을 유지합니다. `data.js`의 `missionReward`가 예외 보상을 관리하며 2지역 복제에는 적용하지 않습니다. 수치는 플레이 승인 전 초기 조정값입니다.
 - 2-1 도전 미션 보상을 수령하면 `보석 모집하고 장착하기` 미션이 도전 2-2 앞에 나옵니다. 누르면 짧은 가이드 → 보석 페이지로 이동합니다. 무료/유료 보석 모집과 장착을 각각 한 번 수행하면 도토리 600·다이아 30을 수령하고 도전 2-2 미션으로 이어집니다. `gemGuide.drawn/equipped`와 수령 ID를 저장해 새로고침으로 중복 지급하지 않습니다.
 - 미션 보상은 기존 도전 첫 완료 보상과 별도로 직접 수령하며 미션 ID별 한 번만 지급합니다. 앞 미션을 수령하기 전에 이후 도전을 완료해도 도전 진행도를 통해 완료 상태를 유지합니다. 방치 실패·다른 방치 스테이지·다른 모드는 첫 방치 미션을 완료하지 않습니다.
 - 버전 1 저장에 `missions`의 첫 방치 완료·수령 ID와 `settings.hiddenIdleResults`의 스테이지 목록을 추가합니다. 미션 필드가 없는 기존 계정에서 1-2 이상 완료한 경우 지난 미션은 수령 완료로 이주하며 재화를 소급 지급하지 않습니다. 1-1까지만 완료한 경우 기존 1-1 완주 기록으로 첫 방치 완료를 인정합니다. 기존 동료·재화·성장·진행도·기록은 보존합니다. 추가 방치·레벨업 안내는 아래 1-2 안내를 따르며, 이후 콘텐츠 안내는 이 미션 구조를 확장합니다.
+
+## 우편함의 동료 보상
+
+- 도전 1-3 서브미션 보상 수령 시 등불 여우, 1-4 서브미션 보상 수령 시 폭탄 병아리를 우편함으로 보냅니다. 미션의 도토리·다이아와 별도이며, 우편을 받기 전에는 동료 소유권·편성 가능 여부가 바뀌지 않습니다.
+- 메뉴의 우편함에서 개별 수령합니다. 새 우편은 메뉴 표시와 도착 알림으로 안내하며, 수령 완료 우편도 남깁니다. 같은 동료를 이미 모집했다면 기존 희귀 중복 규칙대로 숲의 징표 5개를 지급합니다. 우편 ID당 한 번만 처리하며 서버의 같은 요청 ID 재전송도 중복 지급하지 않습니다.
+- 계정의 `mailbox`는 미션에 대응하는 고정 ID·동료 ID·수령 여부를 저장합니다. 불러올 때 알려진 미션·동료·완료 상태를 검증합니다. 이미 해당 미션을 수령한 기존 계정에 새 우편을 소급 생성하거나 재화를 보상하지 않습니다. 기존 보유·징표·성장·생산 기록과 무료 10회 모집은 유지합니다.
+- 1지역의 무방치 기준은 우편으로 받은 희귀 2종과 무료 확정 일반 3종만 사용합니다. 영웅 이상 모집·중복 징표 강화·무료 10회 모집의 결과를 요구하지 않습니다. 레벨 배분과 전투 공략은 [전투 기준](battle.md#1지역-무방치-공략-기준)을 따릅니다.
 
 ## 1-2 안내와 성장 해금
 
@@ -96,7 +103,7 @@ Sites 배포는 [서버 계정과 보상](server-account.md)을 따릅니다. �
 
 ## 코드와 기존 검증
 
-- `dist/src/account.js`: `newAccount`, `normalizeAccount`, `isOnboarding`, `advanceOnboardingBattle`, `recruitOnboardingCompanion`, `finishOnboarding`, `growUnit`, `enhanceUnit`, `unitLevelRefund`, `refundUnitLevels`, `combatPower`, `completeChallenge`, `currentMission`, `recordMissionBattle`, `claimMission`, `growthUnlocked`, `recruitEarlyRabbit`, `applyGuideSequence`, `sequenceForMode`, `setSequence`, `playableSequence`, `recruitUnits`, `ownsUnit`, `recruitGem`.
+- `dist/src/account.js`: `newAccount`, `normalizeAccount`, `isOnboarding`, `advanceOnboardingBattle`, `recruitOnboardingCompanion`, `finishOnboarding`, `growUnit`, `enhanceUnit`, `unitLevelRefund`, `refundUnitLevels`, `combatPower`, `completeChallenge`, `currentMission`, `recordMissionBattle`, `claimMission`, `mailboxEntries`, `claimMail`, `growthUnlocked`, `recruitEarlyRabbit`, `applyGuideSequence`, `sequenceForMode`, `setSequence`, `playableSequence`, `recruitUnits`, `ownsUnit`, `recruitGem`.
 - `dist/src/account-storage.js`: `loadAccount`, `saveAccount`, `resetAccount`로 로컬 웹·Android 저장을 연결합니다. 공통 계정 규칙은 이 어댑터를 가져오지 않습니다.
 - `dist/src/main.js`: `persist`, `renderGrowth`, `renderRecruit`, `renderSettings`.
 - `tests/account.test.js`: 첫 안내 단계 전환·재접속·확정 지급·1-1 보상 중복 방지, 환급·기록 무효화, 보석 모집, 손상 입력·짧은 순서 정규화. 미션 완료·수령 중복 방지·레거시 이주·스테이지별 결과창 설정 보존도 검증합니다. 파일 다이얼로그·저장 불가 안내·실기기 수명주기 검증은 자동 테스트와 별도입니다.

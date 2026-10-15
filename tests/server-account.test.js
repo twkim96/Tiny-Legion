@@ -167,6 +167,34 @@ test('anonymous sessions stay distinct; claiming same request twice returns one 
   assert.equal((await h.call(b, 'session/resume')).error, 'session_replaced');
 });
 
+test('mission mail grants are claimed atomically and same request retries return one receipt', async () => {
+  const h = harness(), b = h.browser(); await h.call(b, 'session/start');
+  h.seed({
+    onboarding: { phase: 'complete' },
+    earlyGuide: { phase: 'complete', legacy: true },
+    highestCleared: 3,
+    missions: { idleCompleted: true, claimed: ['idle-intro', 'challenge-2'] },
+  });
+  const mission = await h.command(b, 'mission.claim', {}, 'fox-mission');
+  assert.equal(mission.result.id, 'challenge-3');
+  assert.equal(mission.account.owned.fox, false);
+  assert.deepEqual(mission.account.mailbox, [
+    { id: 'mission:challenge-3:fox', unitId: 'fox', claimed: false },
+  ]);
+
+  const args = { id: 'mission:challenge-3:fox' };
+  const first = await h.command(b, 'mail.claim', args, 'fox-mail');
+  const retry = await h.command(b, 'mail.claim', args, 'fox-mail');
+  assert.equal(first.status, 200);
+  assert.deepEqual(retry.result, first.result);
+  assert.equal(first.result.unit.id, 'fox');
+  assert.equal(first.account.owned.fox, true);
+  assert.equal(first.account.mailbox[0].claimed, true);
+  const duplicate = await h.command(b, 'mail.claim', args, 'fox-mail-again');
+  assert.equal(duplicate.error, 'action_unavailable');
+  assert.equal((await h.command(b, 'settle')).account.marks.wild, 0);
+});
+
 test('random draws are server controlled, receipts survive retries, linking cannot merge existing accounts', async () => {
   const h = harness(), b = h.browser(); await h.call(b, 'session/start');
   h.seed({ onboarding: { phase: 'complete' }, earlyGuide: { phase: 'complete' }, highestCleared: 2 });

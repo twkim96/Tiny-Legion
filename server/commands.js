@@ -10,6 +10,7 @@ export function applyCommand(a, activeBattle, type, args, now) {
   switch (type) {
     case 'settle': result = account.accrue(a, now); break;
     case 'mission.claim': result = required(account.claimMission(a)); break;
+    case 'mail.claim': result = required(account.claimMail(a, args.id)); break;
     case 'onboarding.finish': result = required(account.finishOnboarding(a)); break;
     case 'recruit.units': {
       const count = args.count ?? 1, banner = args.banner ?? 'forest';

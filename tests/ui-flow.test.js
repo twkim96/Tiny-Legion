@@ -1,10 +1,11 @@
+import { mailboxPanel } from "../dist/src/mailbox-ui.js";
 import { effectMarkup } from '../dist/src/effects-ui.js';
 import { getEnemy } from '../dist/src/characters.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
-import { newAccount, normalizeAccount, currentMission, recordMissionBattle, claimMission, accrue, recordIdle, isOnboarding, recruitOnboardingCompanion, growthUnlocked, sequenceUnlocked, sequenceForMode, setSequence, playableSequence, growUnit, refundUnitLevels, unitLevelRefund, levelCost, recruitEarlyRabbit, applyGuideSequence, canUseUnit, ownsUnit, speedrunStageRecord, speedrunProgress, speedrunReward } from '../dist/src/account.js';
+import { newAccount, normalizeAccount, mailboxEntries, claimMail, currentMission, recordMissionBattle, claimMission, accrue, recordIdle, isOnboarding, recruitOnboardingCompanion, growthUnlocked, sequenceUnlocked, sequenceForMode, setSequence, playableSequence, growUnit, refundUnitLevels, unitLevelRefund, levelCost, recruitEarlyRabbit, applyGuideSequence, canUseUnit, ownsUnit, speedrunStageRecord, speedrunProgress, speedrunReward } from '../dist/src/account.js';
 import { STAGES, UNITS, stageLabel, battleDuration } from '../dist/src/data.js';
 import { SPEEDRUN_LIMIT_SECONDS, SPEEDRUN_TARGET_SECONDS, SPEEDRUN_STAGES, speedrunStageReward } from '../dist/src/speedrun.js';
 import { recruitPanel } from '../dist/src/recruitment-ui.js';
@@ -58,6 +59,7 @@ function harness(names) {
   account.highestCleared = 1;
   const calls = [];
   const context = {
+    mailboxPanel, mailboxEntries, claimMail, renderMailbox(){},
     $, account, calls, idleRecordMarkup, hostedMode:false, testLoginEnabled:false, testLoginRequested:false, cloudIdentity:null, adminPanel, accountClient:null, sendCommand:async()=>null, updatePreference:async()=>true, STAGES, battleDuration, stageLabel, currentMission, recordMissionBattle, claimMission, accrue, recordIdle, isOnboarding, recruitOnboardingCompanion, growthUnlocked, sequenceUnlocked, sequenceForMode, setSequence, playableSequence, growUnit, refundUnitLevels, unitLevelRefund, levelCost, recruitEarlyRabbit, applyGuideSequence, canUseUnit, ownsUnit, UNITS, speedrunStageRecord, speedrunProgress, speedrunReward, speedrunStageReward, SPEEDRUN_LIMIT_SECONDS, SPEEDRUN_TARGET_SECONDS, SPEEDRUN_STAGES,
     bindSequenceDrag(){}, moveSequenceItem, modalLayout, messagePanel, hideTooltip(){},
     readyBattle(){calls.push("ready");}, openCodex(){},
@@ -94,7 +96,7 @@ function harness(names) {
     modalKind: { get: () => context.modals.kind },
   });
   vm.createContext(context);
-  vm.runInContext([...new Set(['firstIdleMissionPending', 'levelBasisMarkup', 'canOpenModal', 'backModal', 'returnModal', 'selectIdleStage', 'finishOnboardingRecruit', 'revealEarlyRabbit', ...names])].map(functionSource).join('\n'), context);
+  vm.runInContext([...new Set(['notifyMissionReward', 'firstIdleMissionPending', 'levelBasisMarkup', 'canOpenModal', 'backModal', 'returnModal', 'selectIdleStage', 'finishOnboardingRecruit', 'revealEarlyRabbit', ...names])].map(functionSource).join('\n'), context);
   return context;
 }
 test('idle result dialog leaves simulation and automatic restart running', () => {
@@ -1238,4 +1240,41 @@ test('native export write failure keeps progress and offers retry without a brow
   assert.equal(c.account,before);
   assert.ok(c.calls.includes('저장 파일을 내보내지 못했습니다. 다시 시도해 주세요.'));
   assert.ok(c.calls.includes('save'));
+});
+
+test('mission character mail is visible and the local claim button unlocks the companion once', async () => {
+  const c = harness(['renderMenu', 'renderMailbox', 'notifyMissionReward']);
+  c.account.onboarding.phase = 'complete';
+  c.account.earlyGuide.phase = 'complete';
+  c.account.highestCleared = 3;
+  c.account.missions = {idleCompleted: true, claimed: ['idle-intro', 'challenge-2', 'idle-second', 'growth-intro']};
+  const reward = claimMission(c.account);
+  c.notifyMissionReward(reward);
+  assert.match(c.calls.at(-1), /우편함에 도착/);
+  c.renderMenu();
+  assert.match(c.$('modal-content').innerHTML, /우편함 · 새 우편/);
+  c.renderMailbox();
+  assert.match(c.$('modal-content').innerHTML, /등불 여우/);
+  const id = mailboxEntries(c.account)[0].id;
+  const button = c.$(`modal-content:data-mail-claim:${id}`);
+  assert.equal(c.account.owned.fox, false);
+  await button.onclick();
+  assert.equal(c.account.owned.fox, true);
+  assert.equal(mailboxEntries(c.account)[0].claimed, true);
+  assert.ok(c.calls.includes('save'));
+});
+
+test('hosted mail claim uses the account command and leaves a failed claim retryable', async () => {
+  const c = harness(['renderMailbox']);
+  c.account.onboarding.phase='complete'; c.account.highestCleared=3;
+  c.account.missions.claimed=['idle-intro','challenge-2','challenge-3'];
+  const id='mission:challenge-3:fox'; c.account.mailbox=[{id,unitId:'fox',claimed:false}];
+  const calls=[]; c.hostedMode=true;
+  c.sendCommand=async (type,args)=>{calls.push([type,args.id]);return null;};
+  c.openModal('우편함','mailbox',c.renderMailbox);
+  await c.$(`modal-content:data-mail-claim:${id}`).onclick();
+  assert.deepEqual(calls,[['mail.claim',id]]);
+  assert.equal(c.account.owned.fox,false);
+  assert.equal(mailboxEntries(c.account)[0].claimed,false);
+  assert.match(c.$('modal-content').innerHTML,/data-mail-claim/);
 });

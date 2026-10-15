@@ -449,7 +449,7 @@ test("missions claim sequentially once, survive reload, and remain separate from
   completeChallenge(restored, 3);
   assert.deepEqual(claimMission(restored), {
     id: "challenge-3",
-    gold: 900,
+    gold: 240,
     diamonds: 30,
   });
   saveAccount(restored, storage);
@@ -486,7 +486,7 @@ test("legacy mission migration avoids retroactive rewards and respects onboardin
     kind: "challenge",
     stageId: 6,
     title: "도전 1-6 클리어",
-    gold: 1600,
+    gold: 1000,
     diamonds: 30,
     completed: false,
   });

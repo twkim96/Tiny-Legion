@@ -12,6 +12,7 @@ const layouts = {
   "test-login": "message",
   admin: "panel",
   income: "panel",
+  mailbox: "panel",
   "return-income": "message",
   "leave-battle": "message",
   "gem-guide": "message",

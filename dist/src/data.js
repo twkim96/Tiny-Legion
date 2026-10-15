@@ -1,7 +1,7 @@
 import { UNITS, getEnemy } from "./characters.js";
 export { UNITS, ENEMIES, ATTRIBUTES, NEUTRAL_ATTRIBUTE, SHIELD_BONUS_CAP, stageLabel } from "./characters.js";
 // Initial tuning, subject to play acceptance. Permanent equipment/specialty bonuses add.
-export const BALANCE_VERSION = "combat-traits-20";
+export const BALANCE_VERSION = "region-one-tactics-21";
 export const RARITIES = [
   { id: "common", name: "일반", color: "#7b8974", rate: 0.6 },
   { id: "rare", name: "희귀", color: "#6094a4", rate: 0.28 },
@@ -425,8 +425,8 @@ export const STAGES = [
   },
 ];
 
-// Early milestones fund growth; later missions return to the normal reward pace.
-for (const [id, gold] of [[3, 900], [4, 1200], [5, 1400], [6, 1600]]) {
+// First-region mission income funds the next fight; region two keeps its normal rewards.
+for (const [id, gold] of [[3, 240], [4, 400], [5, 800], [6, 1000], [7, 1300], [8, 1600], [9, 2000], [10, 2400]]) {
   STAGES.find((stage) => stage.id === id).missionReward = { gold, diamonds: 30 };
 }
 // Introduce each silhouette separately, then mix the familiar threats.
@@ -574,9 +574,31 @@ for (const wave of STAGES[1].waves) for (const group of wave.enemies) {
   group.effects = { shield: false, regeneration: false };
 }
 
-// Keep the early growth and gem lessons meaningful with the generic starters.
-STAGES.find(stage => stage.id === 6).enemyAttack = 1.125;
+// Keep the gem lesson meaningful with the generic starters.
 STAGES.find(stage => stage.id === 12).enemyAttack = 9.1;
+
+// Region-one encounter strength is tuned after region two has copied its waves.
+// Ordinary enemy stats and roles are unchanged outside these authored encounters.
+const regionOneTactics = [
+  [5, .75, 3, 2800], [6, 1.25, 2.5, 2000], [7, 1, 1.2, 2000],
+  [8, .5, 2.5, 4000], [9, .4, 1.5, 2200], [10, .5, 2.5, 4000],
+];
+for (const [id, hp, attack, castleHp] of regionOneTactics) {
+  const stage = STAGES.find(stage => stage.id === id);
+  stage.enemyModifiers.hp = hp;
+  stage.enemyAttack = attack;
+  stage.enemyHp = castleHp;
+  if (id >= 8) for (const wave of stage.waves) for (const group of wave.enemies) {
+    if (group.id === "porcupine") group.count = id === 9 ? 3 : 2;
+  }
+}
+// The bear can break an unprotected raider even after a one-unit investment.
+STAGES[4].waves[0].enemies.find(group => group.id === "grove-bear").statMultipliers = { hp: 1.4, attack: 1.4 };
+STAGES[4].description = "큰 곰이 원거리 공격을 튕겨내요. 버틸 근거리와 성을 공략할 동료를 나누어 키워 보세요.";
+STAGES[6].description = "모여 오는 무리를 범위 공격으로 정리하고 성을 공략할 골드를 남겨 보세요.";
+STAGES[7].description = "호저 증원이 모일 때 대포를 쓰고 앞줄 뒤로 돌파할 동료를 보내 보세요.";
+STAGES[8].description = "전선 유지와 성 공략에 필요한 레벨을 나누어 투자해 보세요.";
+STAGES[9].description = "앞줄을 지키며 원거리 화력을 모으고 마지막 성 공략까지 준비해 보세요.";
 
 export const RECRUIT_BANNERS = [
   { id: "forest", name: "숲속 친구들", attribute: "wild", unlock: 0,
