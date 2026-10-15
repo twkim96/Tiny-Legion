@@ -16,6 +16,7 @@
 | 동료 상세, 적용 효과, 특수능력·징표·이전 조각 이주 | [동료 특수능력](SPEC/abilities.md) |
 | 모바일·PC 화면, 입력, 접근성, 오리지널 아트 | [화면과 아트](SPEC/interface.md) |
 | 현재 구현과 구분하는 확정 확장 방향 | [확장 설계](SPEC/expansion.md) |
+| 1~5지역의 주민·배경·대표 캐릭터 디자인 제안 | [지역 콘셉트 초안](SPEC/region-concepts.md) · 스테이지 미구현 |
 
 - [미완료 작업과 수용 검증](TODO.md)
 - [개발·자동 검증](development/local.md)

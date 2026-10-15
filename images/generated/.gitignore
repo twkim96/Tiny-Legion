@@ -1,0 +1,7 @@
+# Immutable selected sheets are tracked in by-id/. Local archive copies and
+# per-thread pointers remain available without duplicating the binary history.
+.state/
+archive/
+threads/
+latest.png
+manifest.tsv
