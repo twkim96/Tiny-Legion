@@ -281,6 +281,44 @@ test('clearing a regional finale opens its next idle stage without allowing arbi
   assert.equal((await h.command(b, 'idle.select', { stageId: 12 })).error, 'stage_locked');
   assert.equal((await h.command(b, 'idle.select', { stageId: 11 })).status, 200);
   assert.equal((await h.command(b, 'battle.start', { mode: 'idle', stageId: 11 })).status, 200);
+  for (const [highestCleared, nextStage, allowed] of [[1, 2, false], [2, 3, false], [9, 10, false], [10, 11, true], [11, 12, false], [19, 20, false]]) {
+    h.seed({ highestCleared });
+    const selected = await h.command(b, 'idle.select', { stageId: nextStage });
+    const started = await h.command(b, 'battle.start', { mode: 'idle', stageId: nextStage });
+    assert.equal(selected.status === 200, allowed);
+    assert.equal(started.status === 200, allowed);
+  }
+  h.sqlite.close();
+});
+
+test('a level refund invalidates the old battle before it can restore production from refunded growth', async () => {
+  const h = harness(), b = h.browser(); await h.call(b, 'session/start');
+  h.seed({ onboarding: { phase: 'complete' }, earlyGuide: { phase: 'complete' },
+    highestCleared: 2, levels: { sheep: 2 }, levelSpent: { sheep: 100 }, gold: 1000 });
+  const started = await h.command(b, 'battle.start', { mode: 'idle', stageId: 1 });
+  assert.equal(started.status, 200);
+  assert.equal(started.result.options.levels.sheep, 2);
+  const originalBattle = h.sqlite.prepare('SELECT battle_json FROM game_accounts').get().battle_json;
+  const noRefund = await h.command(b, 'unit.refund', { id: 'squirrel' });
+  assert.equal(noRefund.result, 0);
+  assert.equal(h.sqlite.prepare('SELECT battle_json FROM game_accounts').get().battle_json, originalBattle);
+  const refunded = await h.command(b, 'unit.refund', { id: 'sheep' }, 'refund-once');
+  assert.equal(refunded.result, 100);
+  assert.equal(refunded.account.levels.sheep, 1);
+  assert.deepEqual(refunded.account.records, {});
+  h.advance(90000);
+  const stale = await h.command(b, 'battle.finish', { battleId: started.result.battleId, actions: [] });
+  assert.equal(stale.error, 'battle_not_found');
+  const fresh = await h.command(b, 'battle.start', { mode: 'idle', stageId: 1 });
+  assert.equal(fresh.result.options.levels.sheep, 1);
+  const retry = await h.command(b, 'unit.refund', { id: 'sheep' }, 'refund-once');
+  assert.equal(retry.result, 100);
+  assert.equal(retry.account.gold, refunded.account.gold);
+  h.advance(90000);
+  const finished = await h.command(b, 'battle.finish', { battleId: fresh.result.battleId, actions: [] });
+  assert.equal(finished.status, 200);
+  assert.equal(finished.account.records[1].snapshot.levels.sheep, 1);
+  h.sqlite.close();
 });
 
 test('server preferences accept presentation fields without granting arbitrary account changes', async () => {

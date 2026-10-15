@@ -22,7 +22,11 @@ export function applyCommand(a, activeBattle, type, args, now) {
     case 'recruit.gem': result = required(drawGem(a, { payment: args.payment ?? 'diamonds', free: args.free === true, banner: args.banner ?? 'treasure', random: secureRandom })); break;
     case 'unit.grow': result = required(account.growUnit(a, args.id)); break;
     case 'unit.ability': result = required(account.upgradeUnitAbility(a, args.id, args.abilityId)); break;
-    case 'unit.refund': result = required(account.refundUnitLevels(a, args.id, now)); break;
+    case 'unit.refund':
+      result = required(account.refundUnitLevels(a, args.id, now));
+      // Refunds discard production records; the pre-refund snapshot must not restore them.
+      if (result > 0) battle = null;
+      break;
     case 'lineup.set': result = required(account.setSequence(a, args.sequence, args.mode, args.index)); break;
     case 'gem.equip': result = required(equipGem(a, args.uid, args.replaceType ?? null)); break;
     case 'gem.unequip': result = required(unequipGem(a, args.type)); break;

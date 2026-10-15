@@ -17,6 +17,28 @@ function deferred() {
   return { promise, resolve, reject };
 }
 
+test('definitive command conflicts reject once with the original code and do not retry or block later commands', async () => {
+  for (const code of ['battle_not_found', 'battle_version_mismatch', 'battle_too_early', 'request_id_reused', 'command_expired', 'state_changed']) {
+    const calls = [];
+    const client = new AccountClient({ sessionStorage: null, fetchImpl: async (path, init) => {
+      const body = JSON.parse(init.body);
+      calls.push({ path, body });
+      if (path.endsWith('/start')) return response(sessionEnvelope());
+      if (body.type === 'battle.finish') return response({ error: code }, 409);
+      return response({ account: { gold: 5 }, revision: 2, serverNow: Date.now(), result: true });
+    } });
+    await client.startNewSession();
+    const rejected = assert.rejects(client.command('battle.finish', { battleId: 'old', actions: [] }), error =>
+      error.status === 409 && error.payload.error === code);
+    const next = client.command('settings', { speed: 1 });
+    await rejected;
+    assert.equal((await next).result, true);
+    assert.deepEqual(calls.map(call => call.path), ['/api/game/session/start', '/api/game/command', '/api/game/command']);
+    assert.equal(await client.retry(), false);
+    assert.equal(client.status, 'connected');
+  }
+});
+
 test("a revoked resume stops and only an explicit start creates a replacement session", async () => {
   const calls = [];
   const client = new AccountClient({
