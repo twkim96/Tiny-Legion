@@ -60,7 +60,7 @@ test("attribute markup and specialty text share attribute names and preserve pla
   assert.match(attributeMarkup("wild", "<특화>"), /class="ui-tag attribute-label"/);
   assert.match(attributeMarkup("wild", "<특화>"), />야생&lt;특화&gt;<\/strong><\/span>$/);
   assert.match(attributeMarkup("unknown"), /무속성<\/strong><\/span>$/);
-  assert.equal(specialtyText({ specialties: [] }), "범용 · 모든 속성에 동일한 기본 성능");
+  assert.equal(specialtyText({ specialties: [] }), "");
   assert.equal(specialtyText({ specialties: ["wild", "spirit"] }), "야생특화 · 정령특화");
   assert.match(specialtyText({ specialties: ["wild"] }, true), /야생특화<\/strong>/);
   assert.equal(specialtyText({ specialties: ["unknown"] }), "무속성특화");

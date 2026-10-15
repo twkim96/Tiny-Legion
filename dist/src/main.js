@@ -1771,7 +1771,7 @@ function renderCodexDetail(id, enemy) {
           u.attribute ? `속성 · ${attributeName(u.attribute)}` : "",
           ...(u.boss ? ["거대 적"] : []),
         ].filter(Boolean)
-      : [unitSpecialtyText(u, true)];
+      : [unitSpecialtyText(u, true)].filter(Boolean);
   $("modal-content").innerHTML =
     `<div class="codex-layout"><div class="codex-art ${!enemy && !ownsUnit(account, id) ? "unowned" : ""}">${portrait(id)}</div><div class="codex-info">${enemy ? "" : rarityBadge(u)}<h3>${u.name}</h3>${!enemy ? `<span class="collection-state">${ownsUnit(account, id) ? `보유 · Lv. ${effectiveUnitLevel(account, id)}` : "미보유 · 모집에서 획득"} · ${u.theme || "숲"}</span>` : ""}${uiTag(roles[u.role], { tone: "role", className: "role-label" })}<p>${u.description || "전투 특성을 살펴보세요."}</p>${detailLines.length ? `<p class="settings-note"><strong>${enemy ? "속성과 특성" : "속성 특성"}</strong><br>${detailLines.join("<br>")}</p>` : ""}${effectMarkup(u, { detail: "full" })}<div class="stat-list">${[
       ["종족", familyName(u.family)],

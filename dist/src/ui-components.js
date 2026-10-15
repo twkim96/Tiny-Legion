@@ -49,7 +49,7 @@ export function attributeMarkup(id, suffix = "") {
 
 export function specialtyText(unit, rich = false) {
   const specialties = Array.isArray(unit?.specialties) ? unit.specialties : [];
-  if (!specialties.length) return "범용 · 모든 속성에 동일한 기본 성능";
+  if (!specialties.length) return "";
   return specialties.map((id) => {
     const attribute = attributesById.get(id);
     return rich
