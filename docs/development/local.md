@@ -31,11 +31,13 @@ npm run dev
 | `dist/src/economy.js` | 제한 시간에 비례하는 회차 방치 보상·다섯 동료 기준 일반 레벨 비용 |
 | `dist/src/battlefield.js` | 엔진·화면이 공유하는 전장·기지 문·생성 좌표 |
 | `dist/src/onboarding.js` | 신규 0스테이지·1-1·1-2 성 공략과 방치 편성 전투 구성 |
-| `dist/src/account.js` | 성장·재화·진행·기록·저장 |
+| `dist/src/account.js` | 브라우저 API 없는 성장·재화·진행·기록·저장값 정규화 |
+| `dist/src/account-storage.js` | 로컬 웹·Android 저장 읽기/쓰기·초기화 |
 | `dist/src/save-compat.js` | 이전 테스트 저장의 임시 변환; 아래 제거 지침 참조 |
 | `dist/src/character-art.js`, `dist/src/art.js`, `dist/src/renderer.js` | 계열별 캐릭터 SVG·아이콘과 Canvas 렌더링 |
 | `dist/src/sequence-ui.js` | 순서 끼워넣기·마우스/터치 포인터 입력 |
 | `dist/src/modal-ui.js` | 종류별 모달 크기 선택과 공통 안내·확인 본문 |
+| `dist/src/modal-controller.js` | 모달 이력·뒤로가기·스크롤/포커스 복원·공통 닫기 입력 |
 | `dist/src/gems.js`, `dist/src/gem-ui.js` | 보석 개체·보유 기본 효과·추가옵션 3개 장착·강화·재설정·페이지 |
 | `dist/src/abilities.js`, `dist/src/companion-ui.js` | 동료 특수능력·상세 성장 |
 | `dist/src/recruitment-ui.js` | 동료 모집·확률·카드 공개 연출 |
@@ -43,12 +45,15 @@ npm run dev
 | `dist/src/main.js` | UI·입력·전투/계정 연결 |
 | `dist/src/native-app.js`, `dist/src/app-visibility.js` | 네이티브 저장·뒤로가기·웹/앱 활성 상태 통합 |
 | `android/`, `capacitor.config.json`, `scripts/prepare-android-web.mjs` | Android QA 네이티브 연결과 번들 웹 준비 |
-| `dist/src/audio.js`, `dist/assets/music/` | 채널별 소리 설정·입력 후 재생·스테이지 곡과 CC0 라이선스 |
+| `dist/src/audio-settings.js` | 서버·클라이언트 공통 소리 기본값·저장 설정 정규화 |
+| `dist/src/audio.js`, `dist/assets/music/` | 브라우저 소리 재생·스테이지 곡과 CC0 라이선스 |
 | `tests/` | Node 기본 테스트 러너로 검증하는 동작 |
 
 캐릭터를 추가·변경할 때는 [캐릭터 관리 계약](../SPEC/characters.md)을 따릅니다. 도감이나 엔진에 별도 속성/스탯 정의를 넣지 않습니다.
 
 `dist/`는 실제 게임 소스입니다. 서버 빌드는 게임 소스를 읽어 `dist/server/`·`dist/.openai/`만 생성하며 이 두 경로는 Git에서 제외합니다. `server/`는 API·명령·전투 재생, `db/schema.ts`·`drizzle/`는 서버 스키마, `dist/src/account-client.js`는 서버 요청을 담당합니다. 정적 개발의 로컬 저장을 서버로 업로드하지 않습니다.
+
+공통 계정 규칙은 `account-storage.js`나 브라우저 오디오 플레이어를 가져오지 않습니다. `main.js`가 저장 어댑터를 선택하고 `ModalController`에 화면 조회·진입 허용·모집 연출 정리·툴팁 콜백을 전달합니다. 모달 컨트롤러는 계정·전투 상태를 직접 변경하지 않습니다.
 
 Android 앱 빌드와 기기 수용 범위는 [Android 웹 검증 앱](android.md)을 따릅니다.
 

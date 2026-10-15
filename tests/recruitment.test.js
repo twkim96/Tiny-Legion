@@ -16,9 +16,8 @@ import {
   refundUnitLevels,
   recruitOnboardingCompanion,
   advanceOnboardingBattle,
-  saveAccount,
-  loadAccount,
 } from "../dist/src/account.js";
+import { saveAccount, loadAccount } from "../dist/src/account-storage.js";
 import { UNITS, STARTER_UNIT_IDS, RECRUIT_BANNERS, bannerPool, bannerRarities, stageLabel } from "../dist/src/data.js";
 import { createBattle, summonUnit, stepBattle } from "../dist/src/engine.js";
 const now = Date.UTC(2026, 9, 11, 3);

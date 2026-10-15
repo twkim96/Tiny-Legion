@@ -1,4 +1,4 @@
-import { normalizeAudioSettings } from "./audio.js";
+import { normalizeAudioSettings } from "./audio-settings.js";
 import { idleFullReward, idleDiamondReward, levelUpgradeCost } from "./economy.js";
 import { UNITS, getUnit } from "./characters.js";
 import { unitCombatStats } from "./character-stats.js";
@@ -710,28 +710,7 @@ export function collectReturnIncome(a, now = Date.now()) {
     ? {...income,from,to:now,awaySeconds,capped:awaySeconds > 8*3600}
     : null;
 }
-export function loadAccount(storage = localStorage, now = Date.now()) {
-  try {
-    return {
-      account: normalizeAccount(JSON.parse(storage.getItem(SAVE_KEY)), now),
-      error: false,
-    };
-  } catch {
-    return { account: newAccount(now), error: true };
-  }
-}
-export function saveAccount(a, storage = localStorage) {
-  try {
-    storage.setItem(SAVE_KEY, JSON.stringify(a));
-    return true;
-  } catch {
-    return false;
-  }
-}
-export function resetAccount(storage = localStorage, now = Date.now()) {
-  const fresh = newAccount(now);
-  return saveAccount(fresh, storage) ? fresh : null;
-}
+
 
 export function canUseUnit(account, id) {
   return ownsUnit(account, id) && (account.highestCleared >= 10 || bannerPool("forest").some((unit) => unit.id === id));

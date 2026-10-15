@@ -1,15 +1,10 @@
-export const AUDIO_DEFAULTS = Object.freeze({ musicEnabled: true, sfxEnabled: true, musicVolume: 0.3, sfxVolume: 0.6 });
+import { normalizeAudioSettings } from "./audio-settings.js";
+export { AUDIO_DEFAULTS, normalizeAudioSettings } from "./audio-settings.js";
+
 export const AUDIO_CUES = Object.freeze(Object.fromEntries([
   ['tap', 720, 440], ['summon', 600, 440], ['win', 880, 1100],
 ].map(([id, from, to]) => [id, Object.freeze({ from, to, frequencyRampSeconds: 0.12,
   gain: 0.18, endGain: 0.0001, gainRampSeconds: 0.21, durationSeconds: 0.22 })])));
-export function normalizeAudioSettings(value = {}) {
-  const volume = (key) => typeof value?.[key] === 'number' && Number.isFinite(value[key])
-    ? Math.max(0, Math.min(1, value[key])) : AUDIO_DEFAULTS[key];
-  return { musicEnabled: typeof value?.musicEnabled === 'boolean' ? value.musicEnabled : AUDIO_DEFAULTS.musicEnabled,
-    sfxEnabled: typeof value?.sfxEnabled === 'boolean' ? value.sfxEnabled : AUDIO_DEFAULTS.sfxEnabled,
-    musicVolume: volume('musicVolume'), sfxVolume: volume('sfxVolume') };
-}
 export function stageMusic(stageId) {
   if (stageId === 0) return 'journey';
   if (stageId % 5 === 0) return 'boss';

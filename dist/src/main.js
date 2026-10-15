@@ -22,7 +22,9 @@ import {
 } from "./data.js";
 import { createBattle, fireCannon, stepBattle, summonUnit } from "./engine.js";
 import { icon, portrait } from "./art.js";
-import { modalLayout, messagePanel } from "./modal-ui.js";
+import { messagePanel } from "./modal-ui.js";
+import { ModalController } from "./modal-controller.js";
+import { loadAccount, saveAccount, resetAccount } from "./account-storage.js";
 import { drawGem, gemByUid, gemDefinition, gemUpgradeCost, gemRerollCost, gemOptionTier, gemUpgradeMaterials, upgradeGem, rerollGem, equipGem, unequipGem, equippedGemItems, GEM_OPTION_LIMIT } from "./gems.js";
 import { gemPage, gemPicker, gemDetail, gemCard, gemRateMarkup } from "./gem-ui.js";
 import { bindSequenceDrag, moveSequenceItem } from "./sequence-ui.js";
@@ -45,9 +47,6 @@ import {
   playableSequence,
   sequenceForMode,
   setSequence,
-  resetAccount,
-  loadAccount,
-  saveAccount,
   normalizeAccount,
   accrue,
   levelCost,
@@ -309,7 +308,6 @@ let sequenceDraftMode = "idle";
 let sequenceDrafts = null;
 let sequenceDraftIndex = 0;
 let sequenceDraftChoices = null;
-const modalHistory = [];
 let recruitCleanup = null;
 let recruitReceipt = null;
 let recruitBanner = "forest";
@@ -326,9 +324,6 @@ let mode = isOnboarding(account) ? "challenge" : "idle",
   waiting = false,
   resultHandled = false,
   skillRemaining = 0,
-  modalKind = null,
-  modalRender = null,
-  lastFocused = null,
   restartAt = 0;
 let idleResultStage = null;
 let idleIncome = { gold: 0, diamonds: 0 };
@@ -344,6 +339,10 @@ const gameAudio = new GameAudio();
 const gameHidden = bindGameVisibility(handleGameVisibility);
 let audioPreview = null;
 let storageWarning = false;
+const modals = new ModalController({
+  getElement: $, document, canOpen: canOpenModal, hideTooltip,
+  cleanup() { recruitCleanup?.(); recruitCleanup = null; },
+});
 function persist() {
   if (hostedMode) return true;
   if (!saveAccount(account) && !storageWarning) {
@@ -1557,78 +1556,26 @@ function updateUi() {
       account.gold >= levelCost(effectiveUnitLevel(account, u.id)),
   );
 }
-function rememberModalPosition() {
-  const frame = modalHistory.at(-1);
-  if (!frame) return;
-  frame.scroll = ["modal-content", "companion-summary", "companion-abilities"].map(id => [id, $(id)?.scrollTop ?? 0]);
-  frame.focusId = document.activeElement?.id;
-}
-function displayModalFrame(frame) {
-  recruitCleanup?.();
-  recruitCleanup = null;
-  hideTooltip();
-  modalKind = frame.kind;
-  modalRender = frame.render;
-  $("modal-backdrop").dataset.kind = frame.kind;
-  $("modal-backdrop").dataset.layout = frame.layout;
-  $("modal-title").textContent = frame.title;
-  $("modal-backdrop").hidden = false;
-  $("close-modal").hidden = frame.kind === "onboarding";
-  $("back-modal").hidden = frame.kind === "onboarding" || modalHistory.length < 2;
-  frame.render();
-  // A renderer may redirect (for example, to a required tutorial).
-  if (modalHistory.at(-1) !== frame) return;
-  for (const [id, top] of frame.scroll ?? []) if ($(id)) $(id).scrollTop = top;
-  if (frame.kind !== "onboarding") {
-    const focus = frame.focusId && $(frame.focusId);
-    (focus && !focus.disabled ? focus : $("back-modal").hidden ? $("close-modal") : $("back-modal")).focus();
-  }
-}
-function openModal(title, kind, render, { layout = modalLayout(kind), navigation = "push" } = {}) {
+function canOpenModal(kind) {
   if (["sequence", "sequence-pick"].includes(kind) && !sequenceUnlocked(account)) {
     toast("1-2 방치에서 처음 실패하면 편성 교체가 열립니다.");
-    return;
+    return false;
   }
-  if (isOnboarding(account) && !["onboarding", "menu", "settings", "import", "codex", "reset-account", "battle-update", "leave-battle", "guest-choice", "account-choice", "test-login", "admin"].includes(kind)) return;
-  if (modalKind === "onboarding" && !["onboarding", "battle-update"].includes(kind)) return;
-  const root = $("modal-backdrop").hidden || navigation === "root";
-  if (root) {
-    if ($("modal-backdrop").hidden) lastFocused = document.activeElement;
-    modalHistory.length = 0;
-  } else rememberModalPosition();
-  if (kind === "onboarding") modalHistory.length = 0;
-  else if (!root && navigation === "replace") modalHistory.pop();
-  const frame = { title, kind, render, layout };
-  modalHistory.push(frame);
-  displayModalFrame(frame);
-}
-function backModal() {
-  if (modalKind === "onboarding" || modalHistory.length < 2) return false;
-  modalHistory.pop();
-  displayModalFrame(modalHistory.at(-1));
+  if (isOnboarding(account) && !["onboarding", "menu", "settings", "import", "codex", "reset-account", "battle-update", "leave-battle", "guest-choice", "account-choice", "test-login", "admin"].includes(kind)) return false;
+  if (modals.kind === "onboarding" && !["onboarding", "battle-update"].includes(kind)) return false;
   return true;
 }
+function openModal(title, kind, render, options) {
+  return modals.open(title, kind, render, options);
+}
+function backModal() {
+  return modals.back();
+}
 function returnModal(title, kind, render) {
-  // Return actions reuse an existing ancestor instead of adding a second copy.
-  const index = modalHistory.slice(0, -1).findLastIndex(frame => frame.kind === kind && (frame.render === render || !["codex", "gems"].includes(kind)));
-  if (index >= 0) {
-    modalHistory.length = index + 1;
-    displayModalFrame(modalHistory[index]);
-  } else openModal(title, kind, render, { navigation: "root" });
+  return modals.returnTo(title, kind, render);
 }
 function closeModal(force = false) {
-  if (modalKind === "onboarding" && force !== true) return;
-  if ($("modal-backdrop").hidden) return;
-  $("modal-backdrop").hidden = true;
-  recruitCleanup?.();
-  recruitCleanup = null;
-  modalHistory.length = 0;
-  modalKind = null;
-  $("close-modal").hidden = false;
-  $("back-modal").hidden = true;
-  modalRender = null;
-  lastFocused?.focus?.();
-  hideTooltip();
+  return modals.close(force);
 }
 function handleAndroidBack() {
   if (!$("modal-backdrop").hidden) {
@@ -2175,7 +2122,7 @@ function renderAdmin() {
       });
       if (envelope) {
         updateUi();
-        if (modalKind === "admin") renderAdmin();
+        if (modals.kind === "admin") renderAdmin();
       } else button.disabled = false;
     };
   });
@@ -2191,7 +2138,7 @@ function bindAudioSettings() {
     if (hostedMode) {
       const ok = await updatePreference({ audio: patch });
       audioPreview = null;
-      syncAudio(); if (ok && modalKind === 'settings') renderSettings();
+      syncAudio(); if (ok && modals.kind === 'settings') renderSettings();
       return;
     }
     Object.assign(account.settings.audio, patch); audioPreview = null; persist(); syncAudio(); renderSettings();
@@ -2445,23 +2392,7 @@ document.addEventListener("keydown", (e) => {
     return;
   }
   if (!$("modal-backdrop").hidden) {
-    if (e.key === "Tab") {
-      const focusables = [
-        ...$("modal").querySelectorAll(
-          "button:not(:disabled),a[href],input:not([hidden]),select:not(:disabled),[tabindex=\"0\"]",
-        ),
-      ].filter((element) => element.getClientRects().length > 0);
-      if (!focusables.length) return;
-      const first = focusables[0],
-        last = focusables.at(-1);
-      if (e.shiftKey && document.activeElement === first) {
-        e.preventDefault();
-        last.focus();
-      } else if (!e.shiftKey && document.activeElement === last) {
-        e.preventDefault();
-        first.focus();
-      }
-    }
+    modals.trapFocus(e);
     return;
   }
   if (e.code === "Space") {
@@ -2471,11 +2402,7 @@ document.addEventListener("keydown", (e) => {
   if (/^[0-9]$/.test(e.key) && !e.repeat)
     manualSummon(handUnits()[e.key === "0" ? 9 : Number(e.key) - 1]);
 });
-$("back-modal").onclick = backModal;
-$("close-modal").onclick = () => closeModal();
-$("modal-backdrop").onclick = (e) => {
-  if (e.target === $("modal-backdrop")) closeModal();
-};
+modals.bindControls();
 $("stage-select").onclick = () =>
   mode === "speedrun"
     ? openModal("속공", "daily", renderDaily)

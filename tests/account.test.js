@@ -29,11 +29,9 @@ import {
   recruitOnboardingCompanion,
   finishOnboarding,
   isOnboarding,
-  saveAccount,
-  loadAccount,
-  resetAccount,
   SAVE_KEY,
 } from "../dist/src/account.js";
+import { saveAccount, loadAccount, resetAccount } from "../dist/src/account-storage.js";
 import { calculateIdleReward, createBattle, summonUnit } from "../dist/src/engine.js";
 import { STARTER_UNIT_IDS, STAGES, UNITS, battleDuration } from "../dist/src/data.js";
 const now = Date.UTC(2026, 9, 11, 3);

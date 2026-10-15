@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {newAccount,normalizeAccount,collectReturnIncome,saveAccount,loadAccount,sequenceForMode,setSequence,gemModifiers,currentMission,claimMission,recordIdle,advancedContentUnlocked} from '../dist/src/account.js';
+import {newAccount,normalizeAccount,collectReturnIncome,sequenceForMode,setSequence,gemModifiers,currentMission,claimMission,recordIdle,advancedContentUnlocked} from '../dist/src/account.js';
+import { saveAccount, loadAccount } from '../dist/src/account-storage.js';
 import {drawGem,equipGem} from '../dist/src/gems.js';
 import {createBattle,summonUnit,stepBattle,fireCannon} from '../dist/src/engine.js';
 import {STAGES} from '../dist/src/data.js';

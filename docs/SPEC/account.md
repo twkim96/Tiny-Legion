@@ -94,7 +94,8 @@ Sites 배포는 [서버 계정과 보상](server-account.md)을 따릅니다. �
 
 ## 코드와 기존 검증
 
-- `dist/src/account.js`: `newAccount`, `normalizeAccount`, `isOnboarding`, `advanceOnboardingBattle`, `recruitOnboardingCompanion`, `finishOnboarding`, `growUnit`, `enhanceUnit`, `unitLevelRefund`, `refundUnitLevels`, `combatPower`, `completeChallenge`, `currentMission`, `recordMissionBattle`, `claimMission`, `growthUnlocked`, `recruitEarlyRabbit`, `applyGuideSequence`, `sequenceForMode`, `setSequence`, `playableSequence`, `recruitUnits`, `ownsUnit`, `recruitGem`, `loadAccount`, `saveAccount`.
+- `dist/src/account.js`: `newAccount`, `normalizeAccount`, `isOnboarding`, `advanceOnboardingBattle`, `recruitOnboardingCompanion`, `finishOnboarding`, `growUnit`, `enhanceUnit`, `unitLevelRefund`, `refundUnitLevels`, `combatPower`, `completeChallenge`, `currentMission`, `recordMissionBattle`, `claimMission`, `growthUnlocked`, `recruitEarlyRabbit`, `applyGuideSequence`, `sequenceForMode`, `setSequence`, `playableSequence`, `recruitUnits`, `ownsUnit`, `recruitGem`.
+- `dist/src/account-storage.js`: `loadAccount`, `saveAccount`, `resetAccount`로 로컬 웹·Android 저장을 연결합니다. 공통 계정 규칙은 이 어댑터를 가져오지 않습니다.
 - `dist/src/main.js`: `persist`, `renderGrowth`, `renderRecruit`, `renderSettings`.
 - `tests/account.test.js`: 첫 안내 단계 전환·재접속·확정 지급·1-1 보상 중복 방지, 환급·기록 무효화, 보석 모집, 손상 입력·짧은 순서 정규화. 미션 완료·수령 중복 방지·레거시 이주·스테이지별 결과창 설정 보존도 검증합니다. 파일 다이얼로그·저장 불가 안내·실기기 수명주기 검증은 자동 테스트와 별도입니다.
 

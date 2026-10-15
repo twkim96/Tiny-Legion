@@ -86,6 +86,7 @@
 
 - `dist/index.html`, `dist/style.css`: 화면 구조, 반응형 배치, 안전 영역.
 - `dist/src/main.js`: `renderMenu`, `startChallenge`, `updateMission`, `actOnMission`, `showIdleResult`, `openModal`, `closeModal`, `showTooltip`, `unitSpecialtyText`, `getStageComposition`, 도감·스테이지 정보, 키보드/포인터 입력.
+- `dist/src/modal-controller.js`: `ModalController`가 모달 이력·뒤로가기·같은 깊이 교체·이전 화면 복귀·스크롤/포커스 복원·닫기 버튼/배경 클릭·Tab 순환을 관리합니다. 진입 해금·계정 변경과 화면별 렌더는 호출부가 담당합니다.
 - `dist/src/modal-ui.js`: `modalLayout`, `messagePanel`, 종류별 공통 모달 규격과 안내·확인 본문.
 - `dist/src/recruitment-ui.js`: `recruitPanel`, `probabilityPanel`, `revealRecruit`, 등급 표시·모집 공개 연출.
 - `dist/src/character-art.js`: `CHARACTER_ART`, 계열 공통 재질·캐릭터별 몸체와 태닝한 적군 그림.
@@ -114,7 +115,7 @@
 
 ## 배경음과 효과음
 
-- 설정에서 배경음과 효과음을 각각 켜거나 끄고 0~100% 볼륨을 조절합니다. 기본 배경음 30%·효과음 60%이며 0%는 무음입니다. 온라인에서는 서버 계정 설정, 로컬 웹·Android QA에서는 기기 저장에 보관합니다.
+- 설정에서 배경음과 효과음을 각각 켜거나 끄고 0~100% 볼륨을 조절합니다. 기본 배경음 30%·효과음 60%이며 0%는 무음입니다. 기본값과 저장 설정 정규화는 브라우저 API 없는 `audio-settings.js`, 실제 재생은 `audio.js`가 담당합니다. 온라인에서는 서버 계정 설정, 로컬 웹·Android QA에서는 기기 저장에 보관합니다.
 - 첫 클릭·터치·키 입력 이후 재생합니다. 숨긴 탭·Android 앱 백그라운드와 세션 종료에서는 소리를 멈추며 복귀하면 현재 스테이지 곡을 이어 재생합니다. 메뉴·일시 정지에는 배경음을 유지합니다.
 - 첫 안내는 Journey, 1지역 일반은 Meadow, 2지역 일반은 Workshop, 각 지역 5·10스테이지는 Boss 곡을 반복합니다. 스테이지별 선택은 `dist/src/audio.js`의 `stageMusic`, 음원은 `dist/assets/music/`에 모읍니다.
 - Juhani Junkala의 [Chiptune Adventures](https://opengameart.org/content/4-chiptunes-adventure)는 저자가 CC0으로 배포한 곡입니다. 출처·라이선스·변환 내역은 `dist/assets/music/LICENSE.txt`에 보관합니다. 효과음은 게임에서 합성합니다. 중지된 효과음 컨텍스트는 재개 완료 후 소리를 예약하며, 그 사이 숨김·음소거로 바뀌면 소리를 내지 않습니다.

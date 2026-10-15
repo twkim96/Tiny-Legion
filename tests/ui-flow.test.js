@@ -9,6 +9,7 @@ import { STAGES, UNITS, stageLabel, battleDuration } from '../dist/src/data.js';
 import { SPEEDRUN_LIMIT_SECONDS, SPEEDRUN_TARGET_SECONDS, SPEEDRUN_STAGES, speedrunStageReward } from '../dist/src/speedrun.js';
 import { recruitPanel } from '../dist/src/recruitment-ui.js';
 import { modalLayout, messagePanel } from '../dist/src/modal-ui.js';
+import { ModalController } from '../dist/src/modal-controller.js';
 import { companionStats, upgradeUnitAbility, advancedContentUnlocked, collectReturnIncome, effectiveUnitLevel, baseLevelRoster, sharedLevel } from '../dist/src/account.js';
 import { companionPanel } from '../dist/src/companion-ui.js';
 import {drawGem,gemByUid,gemDefinition,gemDescription,gemOptionText,gemOptionTier,gemRerollCost,gemUpgradeCost,gemUpgradeMaterials,upgradeGem,rerollGem,equipGem,unequipGem,equippedGemItems,ownedGemBasics,isGemEquipped,GEM_OPTION_LIMIT,GEM_OPTION_TIERS,GEM_TYPES,GEM_BANNERS,GEM_OPTIONS} from '../dist/src/gems.js';
@@ -58,7 +59,7 @@ function harness(names) {
   const calls = [];
   const context = {
     $, account, calls, idleRecordMarkup, hostedMode:false, testLoginEnabled:false, testLoginRequested:false, cloudIdentity:null, adminPanel, accountClient:null, sendCommand:async()=>null, updatePreference:async()=>true, STAGES, battleDuration, stageLabel, currentMission, recordMissionBattle, claimMission, accrue, recordIdle, isOnboarding, recruitOnboardingCompanion, growthUnlocked, sequenceUnlocked, sequenceForMode, setSequence, playableSequence, growUnit, refundUnitLevels, unitLevelRefund, levelCost, recruitEarlyRabbit, applyGuideSequence, canUseUnit, ownsUnit, UNITS, speedrunStageRecord, speedrunProgress, speedrunReward, speedrunStageReward, SPEEDRUN_LIMIT_SECONDS, SPEEDRUN_TARGET_SECONDS, SPEEDRUN_STAGES,
-    bindSequenceDrag(){}, moveSequenceItem, modalHistory:[], modalLayout, messagePanel, modalKind:null, modalRender:null, lastFocused:null, hideTooltip(){},
+    bindSequenceDrag(){}, moveSequenceItem, modalLayout, messagePanel, hideTooltip(){},
     readyBattle(){calls.push("ready");}, openCodex(){},
     drawGem,gemByUid,gemDefinition,gemDescription,gemOptionText,gemOptionTier,gemRerollCost,gemUpgradeCost,gemUpgradeMaterials,upgradeGem,rerollGem,equipGem,unequipGem,equippedGemItems,ownedGemBasics,isGemEquipped,GEM_OPTION_LIMIT,GEM_OPTION_TIERS,GEM_TYPES,GEM_BANNERS,GEM_OPTIONS,gemPage,gemPicker,gemDetail,gemCard,gemArt,gemRateMarkup,
     companionStats, upgradeUnitAbility, advancedContentUnlocked, collectReturnIncome, effectiveUnitLevel, baseLevelRoster, sharedLevel, companionPanel, unitAbilityLines:()=>[],
@@ -82,8 +83,18 @@ function harness(names) {
     openModal(title,kind,render){calls.push([title,kind]); render();},
     revealRecruit(root, results, actions){context.revealed = results; context.revealActions=actions; return ()=>{};},
   };
+  context.modals = new ModalController({
+    getElement: $, document: context.document,
+    canOpen: kind => context.canOpenModal(kind),
+    cleanup() { context.recruitCleanup?.(); context.recruitCleanup = null; },
+    hideTooltip: () => context.hideTooltip(),
+  });
+  Object.defineProperties(context, {
+    modalHistory: { get: () => context.modals.history },
+    modalKind: { get: () => context.modals.kind },
+  });
   vm.createContext(context);
-  vm.runInContext([...new Set(['firstIdleMissionPending', 'levelBasisMarkup', 'rememberModalPosition', 'displayModalFrame', 'backModal', 'returnModal', 'selectIdleStage', 'finishOnboardingRecruit', 'revealEarlyRabbit', ...names])].map(functionSource).join('\n'), context);
+  vm.runInContext([...new Set(['firstIdleMissionPending', 'levelBasisMarkup', 'canOpenModal', 'backModal', 'returnModal', 'selectIdleStage', 'finishOnboardingRecruit', 'revealEarlyRabbit', ...names])].map(functionSource).join('\n'), context);
   return context;
 }
 test('idle result dialog leaves simulation and automatic restart running', () => {
@@ -190,7 +201,7 @@ test('a stale browser refuses to simulate a newly versioned server battle and of
 test('a battle update remains actionable while a required onboarding dialog is open', () => {
   const c = harness(['openModal', 'showBattleUpdate']);
   c.account.onboarding.phase = 'intro';
-  c.modalKind = 'onboarding';
+  c.openModal('안내', 'onboarding', () => {});
   c.$('modal-backdrop').hidden = false;
   c.location = { reload() { c.calls.push('reload'); } };
   c.showBattleUpdate();
@@ -894,6 +905,53 @@ test('same-kind details and sibling replacement preserve only the actual parent'
   c.closeModal(true);
   assert.equal(c.modalHistory.length, 0);
 });
+test('a renderer redirect keeps the destination focus and scroll instead of restoring the abandoned frame', () => {
+  const c = harness(['openModal', 'closeModal']);
+  let redirect = false, staleFocus = 0;
+  c.$('old-selection').focus = () => { staleFocus++; };
+  const list = () => {
+    if (redirect) c.openModal('계정 선택', 'account-choice', () => {
+      c.$('modal-content').scrollTop = 0;
+    }, { navigation: 'root' });
+  };
+  c.openModal('도감', 'codex', list);
+  c.$('modal-content').scrollTop = 123;
+  c.document.activeElement = { id: 'old-selection' };
+  c.openModal('동료', 'codex', () => {});
+  redirect = true;
+  c.backModal();
+  assert.equal(c.modalKind, 'account-choice');
+  assert.equal(c.modalHistory.length, 1);
+  assert.equal(c.$('modal-content').scrollTop, 0);
+  assert.equal(staleFocus, 0);
+});
+test('modal controls preserve required guides and Tab wraps among visible controls', () => {
+  const c = harness(['openModal', 'closeModal']);
+  c.modals.bindControls();
+  c.openModal('설정', 'settings', () => {});
+  c.$('modal-backdrop').onclick({ target: c.$('modal-content') });
+  assert.equal(c.$('modal-backdrop').hidden, false);
+  let prevented = 0;
+  const first = { getClientRects: () => [1], focus() { c.document.activeElement = first; } };
+  const last = { getClientRects: () => [1], focus() { c.document.activeElement = last; } };
+  const hidden = { getClientRects: () => [], focus() { assert.fail('Hidden controls must not receive focus'); } };
+  c.$('modal').querySelectorAll = () => [first, hidden, last];
+  c.document.activeElement = last;
+  c.modals.trapFocus({ key: 'Tab', preventDefault() { prevented++; } });
+  assert.equal(c.document.activeElement, first);
+  c.modals.trapFocus({ key: 'Tab', shiftKey: true, preventDefault() { prevented++; } });
+  assert.equal(c.document.activeElement, last);
+  assert.equal(prevented, 2);
+  c.$('modal-backdrop').onclick({ target: c.$('modal-backdrop') });
+  assert.equal(c.$('modal-backdrop').hidden, true);
+  c.account.onboarding.phase = 'intro';
+  c.openModal('안내', 'onboarding', () => {});
+  c.$('close-modal').onclick();
+  c.$('back-modal').onclick();
+  c.$('modal-backdrop').onclick({ target: c.$('modal-backdrop') });
+  assert.equal(c.modalKind, 'onboarding');
+  assert.equal(c.$('modal-backdrop').hidden, false);
+});
 test('back from a lineup picker preserves the content, preset and unsaved draft', () => {
   const c = harness(['openModal', 'openSequence', 'renderSequence']);
   c.account.earlyGuide.phase = 'complete';
@@ -1007,7 +1065,7 @@ test('only a server-admin identity exposes the menu and dispatches repeatable gr
   c.cloudIdentity={kind:'test',isAdmin:true,displayName:'root'};
   c.renderMenu();
   assert.match(c.$('modal-content').innerHTML,/data-content-menu="admin"/);
-  c.modalKind='admin';
+  c.modals.open('관리자 기능','admin',()=>{});
   c.sendCommand=async(type,args)=>{
     c.calls.push({type,args});
     c.account[args.currency]+=args.amount;
