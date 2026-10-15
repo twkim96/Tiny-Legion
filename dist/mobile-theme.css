@@ -125,8 +125,10 @@ button:focus-visible, a:focus-visible { outline-color: #ffb91e; }
 .summon-bar .battle-wallet .icon { color: #ffc831; fill: #ffcf4655; }
 .wallet-track { background: #193b59; border: 1px solid #d6d88d; border-radius: 4px; overflow: hidden; }
 #wallet-fill { background: linear-gradient(#ffe067, #eda527); }
-.summon-bar .skill-button { border: 2px solid #e9c877; background: #fff0bd; color: #fff; box-shadow: 0 3px 0 #324959; }
-.summon-bar .skill-button .icon { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 78%; height: 78%; margin: 0; }
+.summon-bar .skill-button { border: 2px solid #e9c877; background: #fff7dc; color: #fff; box-shadow: 0 2px 0 #53676b; }
+.summon-bar .skill-button .icon { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 60%; height: 60%; margin: 0; }
+.summon-bar .skill-button:disabled { opacity: 1; }
+.summon-bar .skill-button:disabled .icon { opacity: .48; }
 .skill-cooldown:not(:empty) { background: #102d5db3; color: #fff; font-weight: 800; }
 .challenge-start,
 .primary-button,

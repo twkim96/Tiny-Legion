@@ -43,7 +43,7 @@ const iconPaths = {
   rotate:
     '<rect x="6" y="2" width="12" height="20" rx="2" transform="rotate(-35 12 12)"/><path d="M2 9a10 10 0 0 1 16-6m-1-1 2 2-3 1M22 15a10 10 0 0 1-16 6m1 1-2-2 3-1"/>',
   cannon:
-    '<g stroke="#233c51" stroke-width="1.5"><path d="m8 14 10-4 2 8H7Z" fill="#c98a3e"/><path d="m5 10 11-7 4 7-12 6Z" fill="#708ca1"/><path d="m5 10 3 6 3-2-3-6Z" fill="#9fc1d5"/><path d="m15 4 3-2 5 8-3 2Z" fill="#476477"/><path d="m18 3 3 6" stroke="#c2dbe9" stroke-width="1.1"/><path d="m9 17 10 3H5" fill="#ce934b"/><circle cx="11" cy="18" r="4" fill="#d9a74f"/><circle cx="11" cy="18" r="2.1" fill="#785127"/><path d="m11 16 0 4m-2-2h4" stroke="#eac783" stroke-width="1"/></g>',
+    '<g stroke="#293e4c" stroke-width="1.5" stroke-linejoin="round"><path d="M6 15h13l2 4H5Z" fill="#c88c47"/><path d="m4 9 13-5 3 7-13 5Z" fill="#638493"/><path d="m5 9 12-4 1 2-12 4Z" fill="#a8c4c9" stroke="none"/><path d="m16 4 3-1 3 8-3 1Z" fill="#354e60"/><path d="m18 5 2 5" stroke="#b4cbd1" stroke-width="1"/><circle cx="11" cy="18" r="4" fill="#e3b55f"/><circle cx="11" cy="18" r="1.5" fill="#77522c" stroke="none"/></g>',
   plus: '<path d="M12 5v14M5 12h14"/>',
   check: '<path d="m5 12 5 5 10-11"/>',
   up: '<path d="m6 15 6-6 6 6"/>',

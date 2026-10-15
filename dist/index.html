@@ -10,8 +10,8 @@
     <meta name="description" content="Tiny Legion" />
     <title>Tiny Legion</title>
     <link rel="icon" type="image/svg+xml" href="./assets/favicon.svg" />
-    <link rel="stylesheet" href="./style.css?v=shared-ui-3" />
-    <link rel="stylesheet" href="./mobile-theme.css?v=mobile-ui-2" />
+    <link rel="stylesheet" href="./style.css?v=compact-modals-4" />
+    <link rel="stylesheet" href="./mobile-theme.css?v=compact-ui-4" />
   </head>
   <body>
     <main class="game" id="game" aria-label="Tiny Legion">
@@ -121,7 +121,7 @@
       <button class="challenge-start" id="challenge-start" aria-label="도전 전투 시작">
         <span data-icon="swords"></span><strong>전투 시작</strong>
       </button>
-      <section class="idle-result-popup" id="idle-result-popup" role="dialog" aria-modal="false" aria-labelledby="idle-result-title" hidden>
+      <section class="idle-result-popup" id="idle-result-popup" data-layout="notice" role="dialog" aria-modal="false" aria-labelledby="idle-result-title" hidden>
         <header><h2 id="idle-result-title"></h2><button class="icon-button" id="close-idle-result" aria-label="방치 결과 닫기"><span data-icon="close"></span></button></header>
         <div id="idle-result-content"></div>
         <label class="idle-result-dismiss"><input type="checkbox" id="hide-idle-result">이 스테이지에서 다시 보지 않기</label>

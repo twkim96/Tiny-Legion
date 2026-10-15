@@ -648,7 +648,7 @@ function showIdleResult(result, previousRecord) {
   const gold = result.reward * bonus;
   const income = idleIncome;
   $("idle-result-title").textContent = result.won ? "방치 완료" : "방치 실패";
-  $("idle-result-content").innerHTML = `<p class="idle-result-stage">${stageLabel(stageId)} · ${precise(result.survival)}</p><p class="settings-note">이 전투 동안 실제 지급된 재화</p><div class="idle-earned">${resourceChip({ value: fmt(income.gold), label: "도토리 ", prefix: "+", strong: true, icon })}${resourceChip({ glyph: "gem", value: income.diamonds.toFixed(2), label: "다이아 ", prefix: "+", strong: true, icon })}</div>${idleRecordMarkup({ gold, duration: battleSnapshot.duration ?? battleDuration(stageId), previousRecord, icon, fmt })}<p class="settings-note">생산 기록은 즉시 지급되는 보상이 아닙니다.<br>최고 기록에 따라 재화가 계속 쌓이며 방치 전투도 계속 진행됩니다.</p>`;
+  $("idle-result-content").innerHTML = `<p class="idle-result-stage">${stageLabel(stageId)} · ${precise(result.survival)} · 실제 지급된 재화</p><div class="idle-earned">${resourceChip({ value: fmt(income.gold), label: "도토리 ", prefix: "+", strong: true, icon })}${resourceChip({ glyph: "gem", value: income.diamonds.toFixed(2), label: "다이아 ", prefix: "+", strong: true, icon })}</div><details class="idle-result-details"><summary>생산 기록 보기</summary>${idleRecordMarkup({ gold, duration: battleSnapshot.duration ?? battleDuration(stageId), previousRecord, icon, fmt })}<p class="settings-note">생산 기록은 즉시 지급되는 보상이 아닙니다.<br>최고 기록에 따라 재화가 계속 쌓이며 방치 전투도 계속 진행됩니다.</p></details>`;
   $("hide-idle-result").checked = false;
   $("idle-result-popup").hidden = false;
 }
@@ -1890,14 +1890,14 @@ function renderIncome() {
   $("modal-content").innerHTML =
     `<div class="income-summary"><div>${icon("acorn")}<strong>${fmt((r?.gold || 0) * 3600 / (r?.productionSeconds ?? 120))}</strong><small>도토리 / 시간</small></div><div>${icon("gem")}<strong>${((r?.diamonds || 0) * 3600 / (r?.productionSeconds ?? 120)).toFixed(2)}</strong><small>다이아 / 시간</small></div></div>${
       Object.keys(account.records).length
-        ? `<div class="income-list">${STAGES.filter(
+        ? `<details class="income-records"><summary>생산 기록 ${Object.keys(account.records).length}</summary><div class="income-list">${STAGES.filter(
             (s) => account.records[s.id],
           )
             .map(
               (s) =>
                 `<button class="income-row ${s.id === account.idleStage ? "selected" : ""}" data-idle-stage="${s.id}" style="width:100%"><strong>${stageLabel(s.id)} · ${s.name}</strong><span>${fmt(account.records[s.id].gold * 3600 / (account.records[s.id].productionSeconds ?? 120))} / 시간 ${s.id === account.idleStage ? "✓" : ""}</span></button>`,
             )
-            .join("")}</div>`
+            .join("")}</div></details>`
         : '<p class="empty-note">방치 전투가 끝나면 기록에 따라 재화가 쌓입니다.</p>'
     }<p class="settings-note">다른 전투를 하거나 게임을 닫아도 기록에 따라 쌓입니다.<br>게임을 닫은 동안에는 최대 ${OFFLINE_LIMIT_SECONDS / 3600}시간까지 쌓입니다.</p>`;
   $("modal-content")
