@@ -14,7 +14,7 @@ export { UNIT_LEVEL_GROWTH } from "./abilities.js";
 
 const MAX_ACTIVE_UNITS = 80;
 const FIXED_STEP = COMBAT_TIMING.step;
-const GOLD_PER_SECOND = 35;
+export const GOLD_PER_SECOND = 35;
 const HIT_STUN = COMBAT_TIMING.hitStun;
 const STUN_COOLDOWN = COMBAT_TIMING.stunCooldown;
 const DEFAULT_SEQUENCE = STARTER_UNIT_IDS;

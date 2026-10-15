@@ -1,7 +1,9 @@
-import { UNITS, RARITIES, RECRUIT_BANNERS, bannerById, bannerPool, bannerRarities, ATTRIBUTES } from "./data.js";
+import { UNITS, RECRUIT_BANNERS, bannerById, bannerPool, bannerRarities, ATTRIBUTES } from "./data.js";
 import { portrait, icon } from "./art.js";
 import { RECRUIT_COSTS } from "./account.js";
 import { DUPLICATE_MARKS, MARK_TYPES, markTypeFor, markName } from "./abilities.js";
+import { rarityOf, rarityBadge } from "./ui-components.js";
+export { rarityOf, rarityBadge } from "./ui-components.js";
 export const duplicateRewardText = (result) => `${markName(result.markAttribute ?? markTypeFor(result.unit))} +${result.marks ?? DUPLICATE_MARKS[result.unit.rarity]}`;
 function duplicateMarkBadge(result) {
   if (result.isNew) return "";
@@ -12,10 +14,6 @@ function duplicateMarkBadge(result) {
   const label = duplicateRewardText(result);
   return `<span class="draw-mark" style="color:${mark.color}" data-tip="${label}" title="${label}" aria-label="${label}">${icon(symbol)}<span>${amount}</span></span>`;
 }
-export const rarityOf = (unit) =>
-  RARITIES.find((rarity) => rarity.id === unit.rarity) ?? RARITIES[0];
-export const rarityBadge = (unit) =>
-  `<span class="rarity-badge" style="--rarity:${rarityOf(unit).color}">${rarityOf(unit).name}</span>`;
 export function recruitPanel(account, bannerId = "forest", { tutorial = false, tutorialText = "1회 모집으로 첫 동료를 만나 보세요." } = {}) {
   const banner = bannerById(bannerId) ?? RECRUIT_BANNERS[0];
   const attribute = ATTRIBUTES.find((item) => item.id === banner.attribute);

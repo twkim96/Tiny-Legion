@@ -86,7 +86,7 @@ button:focus-visible, a:focus-visible { outline-color: #ffb91e; }
 .guide-mission > strong { color: #ffdc57; }
 .guide-mission.completed { border-left-color: #7df044; }
 .guide-mission.completed > strong { color: #b8ff74; }
-.income-button, .game[data-mode="idle"] .income-button {
+.income-button {
   top: auto; bottom: max(16px, env(safe-area-inset-bottom)); left: 24px;
   width: 44px; height: 44px; padding: 6px; display: grid; place-items: center;
   color: #fff1b8; border: 1px solid #856633; border-radius: 10px;
@@ -252,7 +252,7 @@ input, select { accent-color: #219d49; }
   .menu-medallion { border-radius: 8px; }
   .game-menu { gap: 4px; }
   .resource { padding: 1px 0; }
-  .income-button, .game[data-mode="idle"] .income-button { left: var(--safe-left); width: 38px; height: 38px; padding: 5px; }
+  .income-button { left: var(--safe-left); width: 38px; height: 38px; padding: 5px; }
   .stage-button { padding: 3px 8px; }
   .stage-status { gap: 2px; padding: 0 3px; }
   .unit-card { border-radius: 5px; }

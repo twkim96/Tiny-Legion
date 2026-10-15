@@ -37,6 +37,8 @@ npm run dev
 | `dist/src/save-compat.js` | 이전 테스트 저장의 임시 변환; 아래 제거 지침 참조 |
 | `dist/src/character-art.js`, `dist/src/art.js`, `dist/src/renderer.js` | 계열별 캐릭터 SVG·아이콘과 Canvas 렌더링 |
 | `dist/src/sequence-ui.js` | 순서 끼워넣기·마우스/터치 포인터 입력 |
+| `dist/src/hud-ui.js`, `dist/src/navigation-ui.js` | 전 모드 공통 HUD·소환 카드·메뉴 정의·표시/잠금 상태 |
+| `dist/src/ui-components.js` | 재화/보상·능력치 행·등급·속성·동료명 공통 표현 |
 | `dist/src/modal-ui.js` | 종류별 모달 크기 선택과 공통 안내·확인 본문 |
 | `dist/src/modal-controller.js` | 모달 이력·뒤로가기·스크롤/포커스 복원·공통 닫기 입력 |
 | `dist/src/gems.js`, `dist/src/gem-ui.js` | 보석 개체·보유 기본 효과·추가옵션 3개 장착·강화·재설정·페이지 |
@@ -55,7 +57,7 @@ npm run dev
 
 `dist/`는 실제 게임 소스입니다. 서버 빌드는 게임 소스를 읽어 `dist/server/`·`dist/.openai/`만 생성하며 이 두 경로는 Git에서 제외합니다. `server/`는 API·명령·전투 재생, `db/schema.ts`·`drizzle/`는 서버 스키마, `dist/src/account-client.js`는 서버 요청을 담당합니다. 정적 개발의 로컬 저장을 서버로 업로드하지 않습니다.
 
-공통 계정 규칙은 `account-storage.js`나 브라우저 오디오 플레이어를 가져오지 않습니다. `main.js`가 저장 어댑터를 선택하고 `ModalController`에 화면 조회·진입 허용·모집 연출 정리·툴팁 콜백을 전달합니다. 모달 컨트롤러는 계정·전투 상태를 직접 변경하지 않습니다.
+공통 계정 규칙은 `account-storage.js`나 브라우저 오디오 플레이어를 가져오지 않습니다. `main.js`가 저장 어댑터를 선택하고 `ModalController`에 화면 조회·진입 허용·모집 연출 정리·툴팁 콜백을 전달합니다. 모달 컨트롤러는 계정·전투 상태를 직접 변경하지 않습니다. UI 요소별 유지 위치와 새 화면의 공통 진입 계약은 [공통 UI 구성](../SPEC/interface.md#공통-ui-구성과-변경-위치)을 따릅니다.
 
 Android 앱 빌드와 기기 수용 범위는 [Android 웹 검증 앱](android.md)을 따릅니다.
 

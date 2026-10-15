@@ -38,6 +38,7 @@ const iconPaths = {
   sound:
     '<path d="M4 9h4l5-5v16l-5-5H4V9Zm13-2a7 7 0 0 1 0 10m3-13a11 11 0 0 1 0 16"/>',
   "sound-off": '<path d="M3 9h4l5-5v16l-5-5H3V9Zm13 1 6 6m0-6-6 6"/>',
+  back: '<path d="m14 5-7 7 7 7"/>',
   close: '<path d="m6 6 12 12M6 18 18 6"/>',
   rotate:
     '<rect x="6" y="2" width="12" height="20" rx="2" transform="rotate(-35 12 12)"/><path d="M2 9a10 10 0 0 1 16-6m-1-1 2 2-3 1M22 15a10 10 0 0 1-16 6m1 1-2-2 3-1"/>',

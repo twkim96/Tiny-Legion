@@ -3,6 +3,9 @@ import { portrait } from "./art.js";
 // Each modal kind owns its presentation; callers only override for mixed flows.
 const layouts = {
   onboarding: "message",
+  "battle-update": "message",
+  "account-choice": "message",
+  "guest-choice": "message",
   "defense-guide": "message",
   "growth-guide": "notice",
   refund: "message",

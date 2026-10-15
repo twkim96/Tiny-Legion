@@ -1,3 +1,6 @@
+import { resourceChip, statRow, characterName, rarityBadge, rarityOf, attributeMarkup, specialtyText } from "./ui-components.js";
+import { updateHud, summonHandMarkup } from "./hud-ui.js";
+import { gameUiState, contentMenuMarkup, toolbarMarkup, screenAccess, screenTitle, MODES } from "./navigation-ui.js";
 import { mailboxPanel } from "./mailbox-ui.js";
 import { OFFLINE_LIMIT_SECONDS } from "./economy.js";
 import { bindGameVisibility } from "./app-visibility.js";
@@ -10,7 +13,7 @@ import { bindRotationPrompt, enterLandscapeFullscreen } from "./fullscreen.js";
 import { enemyCombatStats } from "./character-stats.js";
 import { signInPath, signInIntent, entryPanel, accountIdentityPanel } from "./sign-in.js";
 import { testLoginPanel, bindTestLogin, adminPanel } from "./test-access-ui.js";
-import { UNITS, ENEMIES, ATTRIBUTES, NEUTRAL_ATTRIBUTE, getEnemy } from "./characters.js";
+import { UNITS, ENEMIES, ATTRIBUTES, getEnemy } from "./characters.js";
 import { effectLines } from "./effects.js";
 import { effectMarkup } from "./effects-ui.js";
 import { attackTypeName } from "./attack-types.js";
@@ -36,10 +39,7 @@ import {
   recruitPanel,
   probabilityPanel,
   revealRecruit,
-  rarityBadge,
-  rarityOf,
 } from "./recruitment-ui.js";
-import { battlefieldLayout } from "./combat-visuals.js";
 import { onboardingEncounter, earlyGuideEncounter } from "./onboarding.js";
 import { AccountClient, SessionReplacedError, bootstrapAccount } from "./account-client.js";
 import {
@@ -62,7 +62,6 @@ import {
   unitLevelRefund,
   battleLevels,
   gemModifiers,
-  combatPower,
   recordIdle,
   completeChallenge,
   recordSpeedrun,
@@ -166,20 +165,12 @@ if (hostedMode) {
 if (!hostedMode || cloudBootstrapEnvelope) {
 
 const $ = (id) => document.getElementById(id);
+$("game-menus").innerHTML = toolbarMarkup();
 const fmt = (n) => Math.floor(n).toLocaleString("ko-KR");
-const clock = (n) =>
-  `${String(Math.floor(Math.max(0, n) / 60)).padStart(2, "0")}:${String(Math.floor(Math.max(0, n) % 60)).padStart(2, "0")}`;
 const precise = (n) =>
   `${Math.floor(n / 60)}:${(n % 60).toFixed(1).padStart(4, "0")}`;
 const unitById = Object.fromEntries(UNITS.map((u) => [u.id, u]));
-const names = Object.fromEntries(UNITS.map((u) => [u.id, u.name]));
-Object.assign(names, {
-  sheep: "양 방패",
-  rabbit: "속공 토끼",
-  squirrel: "다람쥐",
-  teapot: "주전자",
-  cloud: "구름",
-});
+const names = Object.fromEntries(UNITS.map((unit) => [unit.id, characterName(unit.id, { short: true })]));
 const roles = {
   tank: "방어",
   fast: "돌격",
@@ -194,18 +185,12 @@ const attributeById = Object.fromEntries(
   (ATTRIBUTES ?? []).map((attribute) => [attribute.id, attribute]),
 );
 function attributeName(id, suffix = "") {
-  const attribute = attributeById[id] ?? NEUTRAL_ATTRIBUTE;
-  return `<strong class="attribute-label" style="color:${attribute.ink ?? "#757b6a"}">${attribute.name}${suffix}</strong>`;
+  return attributeMarkup(id, suffix);
 }
 function unitSpecialtyText(unit, rich = false) {
-  const specialties = Array.isArray(unit.specialties) ? unit.specialties : [];
-  if (!specialties.length) return "범용 · 모든 속성에 동일한 기본 성능";
-  const attributes = specialties.map((id) => rich ? attributeName(id, "특화") : `${attributeById[id]?.name ?? "무속성"}특화`).join(" · ");
-  return attributes;
+  return specialtyText(unit, rich);
 }
-function unitAbilityLines(unit) {
-  return effectLines(unit);
-}
+
 function enemyGimmicks(enemy) {
   return {
     lines: [...(enemy?.boss ? ["거대 적"] : []), ...effectLines(enemy)],
@@ -451,21 +436,7 @@ function chirp(type = "tap") {
   gameAudio.chirp(type);
 }
 function createHand() {
-  const hand = handUnits()
-    .map((id, index) => {
-      const unit = unitById[id];
-      if (!unit) return `<button class="unit-card empty-slot" data-index="${index}" disabled aria-label="${index + 1}번 빈 슬롯"><span class="unit-card-number">${index + 1}</span></button>`;
-      const tip = [
-        unit.description,
-        unitSpecialtyText(unit),
-        ...unitAbilityLines(unit),
-      ]
-        .filter(Boolean)
-        .join(" · ");
-      return `<button class="unit-card" data-unit="${id}" data-index="${index}" aria-label="${unit.name} 소환" data-tip="${unit.name} · ${tip}"><span class="unit-card-number">${index + 1}</span>${portrait(id)}<span class="unit-auto" aria-hidden="true">${icon("auto")}<b>자동</b></span><span class="unit-card-text"><span class="unit-card-name">${names[id]}</span><span class="unit-cost">${icon("coin")}${unit.cost}</span></span><span class="unit-cooldown" hidden></span><span class="unit-cooldown-text"></span></button>`;
-    })
-    .join("");
-  $("unit-hand").innerHTML = hand;
+  $("unit-hand").innerHTML = summonHandMarkup(handUnits());
   $("unit-hand")
     .querySelectorAll("[data-unit]")
     .forEach((btn) => (btn.onclick = () => manualSummon(btn.dataset.unit)));
@@ -677,7 +648,7 @@ function showIdleResult(result, previousRecord) {
   const gold = result.reward * bonus;
   const income = idleIncome;
   $("idle-result-title").textContent = result.won ? "방치 완료" : "방치 실패";
-  $("idle-result-content").innerHTML = `<p class="idle-result-stage">${stageLabel(stageId)} · ${precise(result.survival)}</p><p class="settings-note">이 전투 동안 실제 지급된 재화</p><div class="idle-earned"><span>${icon("acorn")}도토리 <strong>+${fmt(income.gold)}</strong></span><span>${icon("gem")}다이아 <strong>+${income.diamonds.toFixed(2)}</strong></span></div>${idleRecordMarkup({ gold, duration: battleSnapshot.duration ?? battleDuration(stageId), previousRecord, icon, fmt })}<p class="settings-note">생산 기록은 즉시 지급되는 보상이 아닙니다.<br>최고 기록에 따라 재화가 계속 쌓이며 방치 전투도 계속 진행됩니다.</p>`;
+  $("idle-result-content").innerHTML = `<p class="idle-result-stage">${stageLabel(stageId)} · ${precise(result.survival)}</p><p class="settings-note">이 전투 동안 실제 지급된 재화</p><div class="idle-earned">${resourceChip({ value: fmt(income.gold), label: "도토리 ", prefix: "+", strong: true, icon })}${resourceChip({ glyph: "gem", value: income.diamonds.toFixed(2), label: "다이아 ", prefix: "+", strong: true, icon })}</div>${idleRecordMarkup({ gold, duration: battleSnapshot.duration ?? battleDuration(stageId), previousRecord, icon, fmt })}<p class="settings-note">생산 기록은 즉시 지급되는 보상이 아닙니다.<br>최고 기록에 따라 재화가 계속 쌓이며 방치 전투도 계속 진행됩니다.</p>`;
   $("hide-idle-result").checked = false;
   $("idle-result-popup").hidden = false;
 }
@@ -724,7 +695,7 @@ function updateMission() {
   button.setAttribute("aria-label", `${mission.title} · ${mission.completed ? "보상 받기" : "전투로 이동"}`);
   if (button.dataset.mission !== mission.id) {
     button.dataset.mission = mission.id;
-    $("mission-rewards").innerHTML = `<span>${icon("acorn")}${fmt(mission.gold)}</span><span>${icon("gem")}${mission.diamonds}</span>${mission.unitReward ? `<span>${icon("envelope")}${names[mission.unitReward]}</span>` : ""}`;
+    $("mission-rewards").innerHTML = `${resourceChip({ value: fmt(mission.gold), icon })}${resourceChip({ glyph: "gem", value: mission.diamonds, icon })}${mission.unitReward ? `<span>${icon("envelope")}${names[mission.unitReward]}</span>` : ""}`;
   }
 }
 function actOnMission() {
@@ -748,7 +719,7 @@ function actOnMission() {
     }
   } else if (mission.kind === "challenge") startChallenge(mission.stageId);
   else if (mission.kind === "gem") openGemGuide();
-  else if (mission.kind === "growth") openModal("동료", "growth", renderGrowth);
+  else if (mission.kind === "growth") openScreen("growth");
   else if (mission.stageId === 2 && account.earlyGuide?.phase === "remove-rabbit") {
     if (mode !== "idle" || stageId !== 2) enterSecondIdle();
     showDefenseGuide();
@@ -784,7 +755,7 @@ function openGemGuide() {
 }
 function openGems() {
   if (!advancedContentUnlocked(account)) { toast("2-1을 완료하면 열립니다."); return; }
-  openModal("보석", "gems", renderGems);
+  openScreen("gems");
 }
 function renderGems() {
   $("modal-content").innerHTML = gemPage(account);
@@ -795,7 +766,7 @@ function renderGems() {
   $("gem-draw-diamonds").onclick = () => drawResourceGem("diamonds");
   $("gem-rates").onclick = () => openModal("확률","probability",() => {
     $("modal-content").innerHTML = `${gemRateMarkup()}<div class="modal-footer"><button class="secondary-button" id="gem-rates-back">돌아가기</button></div>`;
-    $("gem-rates-back").onclick = () => returnModal("보석","gems",renderGems);
+    $("gem-rates-back").onclick = () => openScreen("gems", { navigation: "return" });
   });
 }
 function drawResourceGem(payment,free=false) {
@@ -818,7 +789,7 @@ function commitGemEquip(uid, replaceType = null, returnToDetail = false) {
   const finish = () => {
     toast("추가옵션을 장착했습니다. 다음 전투부터 적용됩니다.");
     if (returnToDetail) returnModal("보석","gem-detail",()=>renderGemDetail(uid));
-    else returnModal("보석","gems",renderGems);
+    else openScreen("gems", { navigation: "return" });
   };
   const args = replaceType === null ? { uid } : { uid, replaceType };
   if (hostedMode) {
@@ -842,7 +813,7 @@ function openGemPicker() {
       if (equipped.length>=GEM_OPTION_LIMIT && replaceType===null) { openGemReplacePicker(uid); return; }
       commitGemEquip(uid,replaceType);
     });
-    $("gem-picker-back").onclick=()=>returnModal("보석","gems",renderGems);
+    $("gem-picker-back").onclick=()=>openScreen("gems", { navigation: "return" });
   });
 }
 function openGemReplacePicker(uid, returnToDetail = false) {
@@ -852,7 +823,7 @@ function openGemReplacePicker(uid, returnToDetail = false) {
     $("modal-content").querySelectorAll("[data-gem-replace-type]").forEach(button=>button.onclick=()=>commitGemEquip(uid,button.dataset.gemReplaceType,returnToDetail));
     $("gem-picker-back").onclick=()=>{
       if (returnToDetail) returnModal("보석","gem-detail",()=>renderGemDetail(uid));
-      else backModal() || returnModal("보석","gems",renderGems);
+      else backModal() || openScreen("gems", { navigation: "return" });
     };
   });
 }
@@ -862,9 +833,9 @@ function openGemDetail(uid) {
 }
 function renderGemDetail(uid) {
   const item=gemByUid(account,uid);
-  if(!item) { returnModal("보석","gems",renderGems); return; }
+  if(!item) { openScreen("gems", { navigation: "return" }); return; }
   $("modal-content").innerHTML=gemDetail(account,uid);
-  $("gem-back").onclick=()=>returnModal("보석","gems",renderGems);
+  $("gem-back").onclick=()=>openScreen("gems", { navigation: "return" });
   const equipButton = $("gem-equip");
   if (equipButton) equipButton.onclick = () => {
     const item=gemByUid(account,uid),equipped=equippedGemItems(account);
@@ -914,11 +885,11 @@ function showGemUpgrade(uid) {
           if (!envelope) { applied = false; return; }
           const result=envelope.result;
           if (!result || typeof result.success!=="boolean" || !Number.isInteger(result.level)) {
-            updateUi();returnModal("보석","gems",renderGems);
+            updateUi();openScreen("gems", { navigation: "return" });
             toast("강화 응답을 확인할 수 없어 보석 정보를 갱신했습니다.");
             return;
           }
-          updateUi();returnModal("보석","gems",renderGems);
+          updateUi();openScreen("gems", { navigation: "return" });
           toast(result.success?`강화 성공 · Lv. ${result.level}`:`강화 실패 · Lv. ${result.level} 유지`);
           if(result.success) chirp();
         });
@@ -928,7 +899,7 @@ function showGemUpgrade(uid) {
       const result=upgradeGem(account,uid,[...selected]);
       if(!result){toast("선택한 재료와 도토리를 확인해 주세요.");return;}
       applied=true;
-      persist();updateUi();returnModal("보석","gems",renderGems);
+      persist();updateUi();openScreen("gems", { navigation: "return" });
       toast(result.success?`강화 성공 · Lv. ${result.level}`:`강화 실패 · Lv. ${result.level} 유지`);
       if(result.success) chirp();
     };
@@ -967,7 +938,7 @@ function showReturnIncome() {
   const duration=hours ? `${hours}시간 ${minutes%60}분` : `${minutes}분`;
   const timestamp=new Intl.DateTimeFormat("ko-KR",{timeZone:"Asia/Seoul",month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"}).format(new Date(summary.from));
   openModal("자리 비운 동안", "return-income",()=>{
-    $("modal-content").innerHTML=`<div class="return-income-summary"><p>마지막 접속 ${timestamp}</p><strong>${duration}</strong><div class="result-rewards"><span>${icon("acorn")}+${fmt(summary.gold)}</span><span>${icon("gem")}+${summary.diamonds.toFixed(2)}</span></div><p class="settings-note">재화는 이미 반영되었습니다.${summary.capped ? `<br>최대 ${OFFLINE_LIMIT_SECONDS / 3600}시간의 생산을 반영했어요.` : ""}</p><button class="primary-button" id="return-income-confirm">확인</button></div>`;
+    $("modal-content").innerHTML=`<div class="return-income-summary"><p>마지막 접속 ${timestamp}</p><strong>${duration}</strong><div class="result-rewards">${resourceChip({ value: fmt(summary.gold), prefix: "+", icon })}${resourceChip({ glyph: "gem", value: summary.diamonds.toFixed(2), prefix: "+", icon })}</div><p class="settings-note">재화는 이미 반영되었습니다.${summary.capped ? `<br>최대 ${OFFLINE_LIMIT_SECONDS / 3600}시간의 생산을 반영했어요.` : ""}</p><button class="primary-button" id="return-income-confirm">확인</button></div>`;
     $("return-income-confirm").onclick=()=>closeModal();
   });
 }
@@ -991,41 +962,55 @@ function renderMailbox() {
     };
   });
 }
+function screenRenderer(kind) {
+  switch (kind) {
+    case "growth": return renderGrowth;
+    case "recruit": return renderRecruit;
+    case "gems": return renderGems;
+    case "mailbox": return renderMailbox;
+    case "income": return renderIncome;
+    case "daily": return renderDaily;
+    case "settings": return renderSettings;
+    case "admin": return renderAdmin;
+    case "stages": return renderStages;
+    case "sequence": return renderSequence;
+    case "codex": return renderCollection;
+    case "menu": return renderMenu;
+    case "test-login": return renderTestLogin;
+    default: throw new Error(`Unknown screen renderer: ${kind}`);
+  }
+}
+
+function openScreen(kind, options = {}) {
+  const title = screenTitle(kind);
+  const render = screenRenderer(kind);
+  return options.navigation === "return" ? returnModal(title, kind, render) : openModal(title, kind, render, options);
+}
+function activateScreen(screen) {
+  const ui = gameUiState({ account, mode, battle, isAdmin: hostedMode && cloudIdentity?.isAdmin });
+  if (!["leave", "pause", "speed", "stages"].includes(screen) && !screenAccess(screen, ui).enabled) return;
+  if (screen === "mission") { closeModal(); actOnMission(); }
+  else if (screen === "sequence") openSequence();
+  else if (screen === "gems") openGems();
+  else if (screen === "codex") openCodex();
+  else if (screen === "leave") leaveBattle();
+  else if (screen === "pause") setPaused();
+  else if (screen === "speed") toggleBattleSpeed();
+  else if (screen === "stages") openScreen(mode === "speedrun" ? "daily" : "stages");
+  else openScreen(screen);
+}
+function bindHudActions() {
+  $("game-menus").querySelectorAll("[data-ui-screen]").forEach(button => {
+    button.onclick = () => activateScreen(button.dataset.uiScreen);
+  });
+  $("profile-button").onclick = () => activateScreen("growth");
+  $("income").onclick = () => activateScreen("income");
+  $("stage-select").onclick = () => activateScreen("stages");
+}
 function renderMenu() {
-  const tutorial = isOnboarding(account);
-  const unlocked = advancedContentUnlocked(account);
-  const items = mode !== "idle" ? [["settings", "설정", "settings", true]] : [
-    ["mission", "미션", "flag", !tutorial && !!currentMission(account)],
-    ["mailbox", `우편함${mailboxEntries(account).some(entry => !entry.claimed) ? " · 새 우편" : ""}`, "envelope", !tutorial],
-    ["growth", "동료", "units", !tutorial],
-    ["recruit", "모집", "envelope", !tutorial],
-    ["codex", "도감", "book", !tutorial],
-    ["income", "방치", "leaf", !tutorial],
-    ["daily", "속공", "bolt", !tutorial && unlocked],
-    ["gems", "보석", "gem", !tutorial && unlocked],
-    ["sequence", "순서", "sequence", sequenceUnlocked(account)],
-    ["settings", "설정", "settings", true],
-  ];
-  if (hostedMode && cloudIdentity?.isAdmin) items.push(["admin", "관리자 기능", "settings", true]);
-  $("modal-content").innerHTML = `<div class="content-menu-grid">${items.map(([id, title, glyph, enabled]) => `<button class="content-menu-item" data-content-menu="${id}" ${enabled ? "" : "disabled"} aria-label="${title}${enabled ? "" : " 잠김"}"><span>${icon(glyph)}</span><strong>${title}</strong>${!enabled ? `<small>${icon("lock")}${tutorial ? "" : id === "sequence" ? "1-2" : "2-2"}</small>` : ""}</button>`).join("")}</div>`;
+  $("modal-content").innerHTML = contentMenuMarkup(gameUiState({ account, mode, battle, isAdmin: hostedMode && cloudIdentity?.isAdmin }));
   $("modal-content").querySelectorAll("[data-content-menu]").forEach((button) => {
-    button.onclick = () => {
-      const id = button.dataset.contentMenu;
-      if (id === "mission") { closeModal(); actOnMission(); }
-      else if (id === "mailbox") openModal("우편함", "mailbox", renderMailbox);
-      else if (id === "growth") openModal("동료", "growth", renderGrowth);
-      else if (id === "recruit") openModal("모집", "recruit", renderRecruit);
-      else if (id === "codex") openCodex();
-      else if (id === "income") {
-        if (mode !== "idle") { closeModal(); closeIdleResult(); setMode("idle"); }
-        openModal("방치", "income", renderIncome);
-      } else if (id === "daily") openModal("속공", "daily", renderDaily);
-      else if (id === "gems") openGems();
-      else if (id === "sequence") {
-        openSequence();
-      } else if (id === "settings") openModal("설정", "settings", renderSettings);
-      else if (id === "admin") openModal("관리자 기능", "admin", renderAdmin);
-    };
+    button.onclick = () => activateScreen(button.dataset.contentMenu);
   });
 }
 function finishBattle() {
@@ -1061,7 +1046,7 @@ function finishBattle() {
         $("growth-guide-done").onclick = () => {
           if (currentMission(account)?.completed) actOnMission();
           closeIdleResult();
-          openModal("동료", "growth", renderGrowth);
+          openScreen("growth");
         };
       });
     }
@@ -1154,7 +1139,7 @@ async function finishHostedBattle() {
         $("growth-guide-done").onclick = () => {
           if (currentMission(account)?.completed) actOnMission();
           closeIdleResult();
-          openModal("동료", "growth", renderGrowth);
+          openScreen("growth");
         };
       });
     }
@@ -1413,7 +1398,7 @@ function showResult(r, rewards) {
       daily && r.won && !speedrunRecord?.claimed && speedrunRewardCount
         ? `<span>${icon("gem")}보석 조각 +${speedrunRewardCount}</span>`
         : r.won && rewards.gold
-          ? `<span>${icon("acorn")}+${fmt(rewards.gold)}</span><span>${icon("gem")}+${rewards.diamonds}</span>`
+          ? `${resourceChip({ value: fmt(rewards.gold), prefix: "+", icon })}${resourceChip({ glyph: "gem", value: rewards.diamonds, prefix: "+", icon })}`
           : "";
   $("battle-result").innerHTML =
     `<div class="result-card">${icon(r.won ? "trophy" : "shield")}<h2>${r.won ? "완료" : "다시 한 번"}</h2><div class="result-time">${precise(r.time)}</div>${rewardMarkup ? `<div class="result-rewards">${rewardMarkup}</div>` : ""}${daily ? `<p class="settings-note">${speedrunHint}</p>` : ""}<div class="result-actions"><button class="secondary-button" id="return-idle">방치로</button>${!r.won || (daily && (!targetWon || speedrunRecord?.claimed)) ? `<button class="secondary-button" id="retry-battle">${daily && speedrunRecord?.claimed ? "연습하기" : "다시 도전"}</button>` : ""}${daily && r.won && !speedrunRecord?.claimed && speedrunRewardCount ? '<button class="primary-button" id="claim-speedrun">보석 조각 받기</button>' : ""}${nextSpeedrunAvailable ? `<button class="primary-button" id="next-speedrun">${stageLabel(stageId + 1)} 속공</button>` : !daily && r.won && stageId < STAGES.length ? `<button class="primary-button" id="next-battle">${stageLabel(stageId + 1)} 도전</button>` : ""}</div>${daily && speedrunRecord?.claimed ? '<div class="new-record">오늘 보상 수령 완료 · 계속 연습할 수 있어요.</div>' : ""}${support}</div>`;
@@ -1426,8 +1411,8 @@ function showResult(r, rewards) {
       : () => setMode("idle");
   if (!r.won || (daily && !targetWon)) $("retry-battle").onclick = startBattle;
   if (growthHelp) {
-    $("result-growth").onclick = () => openModal("동료", "growth", renderGrowth);
-    $("result-recruit").onclick = () => openModal("모집", "recruit", renderRecruit);
+    $("result-growth").onclick = () => openScreen("growth");
+    $("result-recruit").onclick = () => openScreen("recruit");
     if (mission?.completed) $("result-mission").onclick = () => {
       if (currentMission(account)?.id !== mission.id) return;
       if (hostedMode) {
@@ -1469,138 +1454,12 @@ function showResult(r, rewards) {
 }
 function updateUi() {
   syncAudio();
-  const manualCombat = mode !== "idle" && !!battle && !battle.finished;
-  $("game").dataset.manualCombat = String(manualCombat);
-  $("game").dataset.mode = mode;
-  $("challenge-start").hidden = mode !== "idle" || isOnboarding(account);
-  $("challenge-start").disabled = firstIdleMissionPending();
   updateMission();
-  const unreadMail = mode === "idle" && mailboxEntries(account).some(entry => !entry.claimed);
-  $("menu").dataset.unread = String(unreadMail);
-  $("menu").setAttribute("aria-label", unreadMail ? "메뉴 · 새 우편" : "메뉴");
-  $("speed").hidden = !manualCombat;
-  $("skill").hidden = mode === "idle";
-  $("pause").hidden = !manualCombat;
-  $("edit-sequence").hidden = false;
-  $("leave-battle").hidden = !manualCombat;
-  $("gold").textContent = fmt(account.gold);
-  $("diamonds").textContent = fmt(account.diamonds);
-  $("combat-power").textContent = fmt(combatPower(account));
-  $("stage-number").textContent = stageId === 0 ? "0" : stageLabel(stageId);
-  $("stage-name").textContent = currentStage().regionName ?? "초원";
-  $("current-mode").textContent = {
-    idle: "방치",
-    challenge: "도전",
-    speedrun: "속공",
-  }[mode];
-  $("current-mode-icon").innerHTML = icon(
-    { idle: "leaf", challenge: "swords", speedrun: "bolt" }[mode],
-  );
-  $("battle-time").textContent = battle
-    ? clock(mode === "idle" ? battle.duration - battle.time : battle.time)
-    : mode !== "idle"
-      ? "00:00"
-      : clock(battleDuration(stageId, mode));
-  $("pause-icon").innerHTML = icon(paused ? "play" : "pause");
-  $("pause-text").textContent = paused ? "계속" : "정지";
-  $("pause").dataset.tip = paused ? "계속하기" : "일시 정지";
-  $("pause").setAttribute("aria-pressed", String(paused));
-  $("pause").setAttribute("aria-label", paused ? "계속하기" : "일시 정지");
-  $("pause").disabled = !battle || battle.finished;
-  const layout = battlefieldLayout(renderer.width, renderer.height);
-  const enemyMax =
-    battle?.enemyMaxHp ??
-    currentStage().enemyHp;
-  for (const [team, x, max, current] of [
-    [
-      "player",
-      layout.playerX,
-      battle?.playerMaxHp ?? 1000,
-      battle?.playerHp ?? 1000,
-    ],
-    ["enemy", layout.enemyX, enemyMax, battle?.enemyHp ?? enemyMax],
-  ]) {
-    const hp = Math.max(0, Math.min(max, current));
-    const health = $(`${team}-castle-health`);
-    health.style.left = `${x}px`;
-    health.style.top = `${layout.healthY}px`;
-    $(`${team}-health`).style.width = `${(hp / max) * 100}%`;
-    $(`${team}-health-text`).textContent = `${fmt(hp)} / ${fmt(max)}`;
-  }
-  $("wave-progress").hidden = mode !== "idle";
-  $("wave-progress").textContent =
-    `${Math.min(3, Math.floor((battle?.time || 0) / 30) + 1)} / 3`;
-  $("battle-gold").textContent = fmt(battle?.gold ?? 220);
-  $("wallet-fill").style.width = `${(battle?.gold ?? 220) / 10}%`;
-  let note = waiting
-    ? "동료를 눌러 소환하세요"
-    : paused
-      ? "일시 정지"
-      : mode === "idle"
-        ? "자동 소환 중"
-        : mode === "speedrun"
-          ? speedrunStageRecord(account, stageId).claimed
-            ? "연습 중"
-            : "최단 시간에 도전"
-          : "적 성을 향해";
-  if (mode === "idle" && battle?.waitingReason === "gold") {
-    const next = unitById[battle.sequence[battle.sequenceIndex]];
-    note = `${names[next.id]} · ${Math.ceil(Math.max(0, next.cost - battle.gold) / 35)}초`;
-  }
-  if (mode === "idle" && battle?.finished) note = "기록 저장";
-  if (isOnboarding(account) && !battle?.finished) {
-    const phase = account.onboarding.phase;
-    if (phase === "intro") note = battle?.units.some((u) => u.team === "player") ? "적 성을 무너뜨리세요" : "양 방패 카드를 눌러 소환하세요";
-    else if (phase === "first-battle") note = "양 방패로 적 성에 도전하세요";
-    else if (phase === "retry-battle") note = battle?.units.some((u) => u.id === "sheep" && u.team === "player" && !u.dead) ? "골드를 모아 다람쥐도 소환하세요" : "양 방패를 먼저 소환하세요";
-  }
-  if (!isOnboarding(account) && stageId === 2) {
-    if (mode === "challenge" && account.earlyGuide?.phase === "wall-battle") note = "증원이 몰려오기 전에 튼튼한 적 성을 공략하세요";
-    else if (mode === "challenge" && account.earlyGuide?.phase === "wall-retry") note = "속공 토끼로 적 성을 공략하세요";
-    else if (mode === "idle" && account.earlyGuide?.phase === "remove-rabbit") note = "순서에서 속공 토끼를 빼 보세요";
-  }
-  $("field-note-text").textContent = note;
-  $("unit-hand")
-    .querySelectorAll(".unit-card")
-    .forEach((btn, index) => {
-      const u = unitById[btn.dataset.unit];
-      if (!u) return;
-      btn.setAttribute("aria-label", `${u.name} ${mode === "idle" ? "자동 소환" : "소환"}`);
-      const cd = battle?.cooldowns[u.id] || 0;
-      btn.classList.toggle(
-        "current",
-        mode === "idle" && !battle?.finished && battle?.sequenceIndex === index,
-      );
-      btn.classList.toggle("unaffordable", (battle?.gold ?? 220) < u.cost);
-      const overlay = btn.querySelector(".unit-cooldown");
-      overlay.hidden = cd <= 0.01;
-      overlay.style.transform = `scaleY(${Math.max(0, Math.min(1, cd / u.cooldown))})`;
-      btn.querySelector(".unit-cooldown-text").textContent =
-        cd > 0.01 ? `${cd.toFixed(1)}` : "";
-    });
-  $("skill").disabled =
-    isOnboarding(account) || mode === "idle" ||
-    !battle ||
-    battle.finished ||
-    paused ||
-    skillRemaining > 0;
-  $("skill-cooldown").textContent =
-    skillRemaining > 0 ? Math.ceil(skillRemaining) : "";
-  $("edit-sequence").style.visibility = "visible";
-  for (const id of ["stage-select", "mode-select", "profile-button", "edit-sequence", "nav-units", "nav-recruit", "income"]) {
-    $(id).disabled = isOnboarding(account) || (manualCombat && ["stage-select", "mode-select"].includes(id));
-  }
-  $("edit-sequence").disabled = !sequenceUnlocked(account);
-  $("mode-select").disabled = true;
-  $("speed-text").textContent = `${account.settings.speed}×`;
-  $("speed").setAttribute("aria-pressed", String(account.settings.speed === 2));
-  $("upgrade-dot").hidden = !UNITS.some(
-    (u) =>
-      ownsUnit(account, u.id) &&
-      effectiveUnitLevel(account, u.id) < 100 &&
-      account.gold >= levelCost(effectiveUnitLevel(account, u.id)),
-  );
+  updateHud($, { account, mode, battle, stageId, paused, waiting, skillRemaining,
+    stage: currentStage(), width: renderer.width, height: renderer.height,
+    isAdmin: hostedMode && cloudIdentity?.isAdmin });
 }
+
 function canOpenModal(kind) {
   if (["sequence", "sequence-pick"].includes(kind) && !sequenceUnlocked(account)) {
     toast("1-2 방치에서 처음 실패하면 편성 교체가 열립니다.");
@@ -1662,7 +1521,7 @@ function renderStages() {
           openModal(stage.name, "stages", () => {
             $("modal-content").innerHTML =
               `${stageIntelMarkup(stage)}<div class="modal-footer"><button class="secondary-button" id="stage-intel-back">스테이지 목록</button></div>`;
-            $("stage-intel-back").onclick = () => returnModal("스테이지", "stages", renderStages);
+            $("stage-intel-back").onclick = () => openScreen("stages", { navigation: "return" });
           });
         }),
     );
@@ -1682,7 +1541,7 @@ function renderGrowth() {
   $("modal-content").innerHTML = levelBasisMarkup() + `<div class="unit-grid">${UNITS.filter((u) => ownsUnit(account, u.id)).map((u) => {
     const level = effectiveUnitLevel(account, u.id), stats = companionStats(account, u.id, mode);
     return `<article class="growth-card"><button class="companion-open" data-companion="${u.id}" aria-label="${u.name} 상세와 강화">${rarityBadge(u)}${portrait(u.id)}<span class="level-label">Lv. ${level}</span><h3>${u.name}</h3><div class="stats"><span>${icon("heart")}${stats.hp}</span><span>${icon("swords")}${stats.attack}</span></div></button><button class="primary-button" data-grow="${u.id}" ${account.gold < levelCost(level) || level >= 100 ? "disabled" : ""}>${icon(level >= 100 ? "check" : "acorn")}${level >= 100 ? "완료" : fmt(levelCost(level)) + " ↑"}</button></article>`;
-  }).join("")}</div><div class="modal-footer"><span class="resource-inline">${icon("acorn")}${fmt(account.gold)}</span></div>`;
+  }).join("")}</div><div class="modal-footer">${resourceChip({ value: fmt(account.gold), className: "resource-inline", icon })}</div>`;
   $("modal-content").querySelectorAll("[data-grow]").forEach((button) => {
     button.onclick = () => {
       if (hostedMode) {
@@ -1713,7 +1572,7 @@ function renderUnitDetail(id) {
   $("modal-content").innerHTML = companionPanel(account, id, mode);
   $("companion-abilities").scrollTop = abilityScroll;
   $("companion-summary").scrollTop = summaryScroll;
-  $("companions-back").onclick = () => returnModal("동료", "growth", renderGrowth);
+  $("companions-back").onclick = () => openScreen("growth", { navigation: "return" });
   $("companion-refund").onclick = () => showUnitRefund(id);
   $("companion-level").onclick = () => {
     if (hostedMode) {
@@ -1781,14 +1640,14 @@ function showUnitRefund(id) {
 function openSequence(preset = mode) {
   sequenceDraftMode = preset;
   sequenceDraftChoices = {...(account.activeLineup ?? {idle:0,challenge:0,speedrun:0})};
-  sequenceDrafts = Object.fromEntries(["idle", "challenge", "speedrun"].map(id => [id,Array.from({length:10},(_,index) => [...sequenceForMode(account,id,index)] )]));
+  sequenceDrafts = Object.fromEntries(Object.keys(MODES).map(id => [id,Array.from({length:10},(_,index) => [...sequenceForMode(account,id,index)] )]));
   sequenceDraftIndex = sequenceDraftChoices[preset] ?? 0;
   sequenceDraft = [...sequenceDrafts[preset][sequenceDraftIndex]];
-  openModal("순서", "sequence", renderSequence);
+  openScreen("sequence");
 }
 function renderSequence() {
   $("modal-content").innerHTML =
-    `<div class="sequence-presets" role="group" aria-label="콘텐츠 편성">${[["idle", "방치"], ["challenge", "도전"], ["speedrun", "속공"]].map(([id, label]) => `<button data-sequence-preset="${id}" aria-pressed="${sequenceDraftMode === id}">${label}</button>`).join("")}</div><div class="preset-numbers" role="group" aria-label="편성 프리셋">${Array.from({length:10},(_,index) => `<button data-lineup-index="${index}" aria-pressed="${sequenceDraftIndex === index}">${index+1}</button>`).join("")}</div><div class="sequence-list" id="sequence-list" role="list" aria-label="소환 순서">${sequenceDraft.map((id, i) => `<article class="sequence-slot" data-sequence-slot="${i}" tabindex="0" role="listitem" aria-label="${i+1}번 ${names[id] || "빈 슬롯"}, 끌거나 방향키로 순서 이동"><span class="slot-index">${i + 1}</span>${id ? portrait(id) : '<div class="empty-sequence-art"></div>'}<strong>${names[id] || "빈 슬롯"}</strong>${id && !canUseUnit(account, id) ? "<small>2-1에서 사용</small>" : ""}<button class="inspect-button secondary-button" data-replace="${i}" >교체</button></article>`).join("")}</div><span class="sr-only" id="sequence-status" role="status"></span><p class="sequence-hint">${sequenceDraftMode === "idle" ? "골드가 모이면 차례대로 소환합니다. 쿨타임은 건너뜁니다." : "전투에서 사용할 소환 카드의 순서를 정합니다."}</p><div class="modal-footer"><span class="hint">끌어서 순서를 바꿉니다.</span><button class="primary-button" id="apply-sequence">적용</button></div>`;
+    `<div class="sequence-presets" role="group" aria-label="콘텐츠 편성">${Object.entries(MODES).map(([id, { label }]) => `<button data-sequence-preset="${id}" aria-pressed="${sequenceDraftMode === id}">${label}</button>`).join("")}</div><div class="preset-numbers" role="group" aria-label="편성 프리셋">${Array.from({length:10},(_,index) => `<button data-lineup-index="${index}" aria-pressed="${sequenceDraftIndex === index}">${index+1}</button>`).join("")}</div><div class="sequence-list" id="sequence-list" role="list" aria-label="소환 순서">${sequenceDraft.map((id, i) => `<article class="sequence-slot" data-sequence-slot="${i}" tabindex="0" role="listitem" aria-label="${i+1}번 ${names[id] || "빈 슬롯"}, 끌거나 방향키로 순서 이동"><span class="slot-index">${i + 1}</span>${id ? portrait(id) : '<div class="empty-sequence-art"></div>'}<strong>${names[id] || "빈 슬롯"}</strong>${id && !canUseUnit(account, id) ? "<small>2-1에서 사용</small>" : ""}<button class="inspect-button secondary-button" data-replace="${i}" >교체</button></article>`).join("")}</div><span class="sr-only" id="sequence-status" role="status"></span><p class="sequence-hint">${sequenceDraftMode === "idle" ? "골드가 모이면 차례대로 소환합니다. 쿨타임은 건너뜁니다." : "전투에서 사용할 소환 카드의 순서를 정합니다."}</p><div class="modal-footer"><span class="hint">끌어서 순서를 바꿉니다.</span><button class="primary-button" id="apply-sequence">적용</button></div>`;
   bindSequenceDrag($("sequence-list"), (from, to) => {
     if (!moveSequenceItem(sequenceDraft, from, to)) return;
     renderSequence();
@@ -1812,7 +1671,7 @@ function renderSequence() {
                 .join("")}</div><div class="modal-footer"><button class="secondary-button" id="clear-sequence-slot">비우기</button></div>`;
             $("clear-sequence-slot").onclick = () => {
               sequenceDraft[i] = null;
-              returnModal("순서", "sequence", renderSequence);
+              openScreen("sequence", { navigation: "return" });
             };
             $("modal-content")
               .querySelectorAll("[data-pick]")
@@ -1820,7 +1679,7 @@ function renderSequence() {
                 (p) =>
                   (p.onclick = () => {
                     sequenceDraft[i] = p.dataset.pick;
-                    returnModal("순서", "sequence", renderSequence);
+                    openScreen("sequence", { navigation: "return" });
                   }),
               );
           });
@@ -1889,7 +1748,7 @@ function openCodex(id = null, enemy = false, replace = false) {
     openModal("도감", "codex", () => renderCodexDetail(id, enemy), { navigation: replace ? "replace" : "push" });
     return;
   }
-  openModal("도감", "codex", renderCollection);
+  openScreen("codex");
 }
 function renderCollection() {
   const owned = UNITS.filter((u) => ownsUnit(account, u.id)).length;
@@ -1943,8 +1802,7 @@ function renderCodexDetail(id, enemy) {
           ]),
     ]
       .map(
-        ([label, value]) =>
-          `<div class="stat-item">${enemy && !["공격 유형", "종족", "속성"].includes(label) ? "기본 " : ""}${label}<strong>${value}</strong></div>`,
+        ([label, value]) => statRow(`${enemy && !["공격 유형", "종족", "속성"].includes(label) ? "기본 " : ""}${label}`, value),
       )
       .join(
         "",
@@ -1954,7 +1812,7 @@ function renderCodexDetail(id, enemy) {
     .forEach(
       (b) => (b.onclick = () => openCodex(b.dataset.detail, enemy, true)),
     );
-  $("codex-back").onclick = () => returnModal("도감", "codex", renderCollection);
+  $("codex-back").onclick = () => openScreen("codex", { navigation: "return" });
 }
 function renderRecruit(tab = "units") {
   if (!growthUnlocked(account)) {
@@ -1970,7 +1828,7 @@ function renderRecruit(tab = "units") {
   }
   if (tab === "gems") { openGems(); return; }
   if (account.highestCleared < (bannerById(recruitBanner)?.unlock ?? Infinity)) recruitBanner = "forest";
-  $("modal-content").innerHTML = recruitPanel(account, recruitBanner) + `<div class="modal-footer"><span class="resource-inline">${icon("gem")}${fmt(account.diamonds)}</span><button class="secondary-button" id="draw-info">확률</button></div>`;
+  $("modal-content").innerHTML = recruitPanel(account, recruitBanner) + `<div class="modal-footer">${resourceChip({ glyph: "gem", value: fmt(account.diamonds), className: "resource-inline", icon })}<button class="secondary-button" id="draw-info">확률</button></div>`;
   $("modal-content").querySelectorAll("[data-banner]").forEach((button) => {
     button.onclick = () => { recruitBanner = button.dataset.banner; renderRecruit(); };
   });
@@ -1978,7 +1836,7 @@ function renderRecruit(tab = "units") {
   if ($("welcome-draw")) $("welcome-draw").onclick = () => drawCompanions(10,true);
   $("draw-info").onclick = () => openModal("확률", "probability", () => {
     $("modal-content").innerHTML = probabilityPanel(account,recruitBanner);
-    $("rates-back").onclick = () => returnModal("모집","recruit",renderRecruit);
+    $("rates-back").onclick = () => openScreen("recruit", { navigation: "return" });
   });
 }
 
@@ -2141,7 +1999,7 @@ async function linkGuestAccount() {
           text: "이 로그인에는 이미 게임 계정이 있습니다. 게스트 진행도는 남겨 두고 기존 계정을 여기서 엽니다.",
           actions: '<button class="secondary-button" id="cancel-account-choice">취소</button><button class="primary-button" id="use-existing-account">기존 계정으로</button>',
         });
-        $("cancel-account-choice").onclick = () => returnModal("설정", "settings", renderSettings);
+        $("cancel-account-choice").onclick = () => openScreen("settings", { navigation: "return" });
         $("use-existing-account").onclick = () => switchToExistingAccount();
       }, { layout: "message" });
     } else if (!(error instanceof SessionReplacedError)) {
@@ -2207,7 +2065,7 @@ function renderSettings() {
   $("modal-content").innerHTML =
     `${audioSettingsMarkup()}<div class="settings-row"><span>화면</span><button class="secondary-button" id="fullscreen">${icon("fullscreen")}전체 화면</button></div><div class="settings-row"><span>${hostedMode ? "진행도 기록" : "저장 파일"}</span><div><button class="secondary-button" id="export-save">내려받기</button>${hostedMode ? "" : ' <button class="secondary-button" id="import-save">불러오기</button><input type="file" id="save-file" accept="application/json,.json" hidden>'}</div></div>${hostedMode ? '<p class="settings-note">내려받은 파일은 기록 보관용입니다. 이 파일로 온라인 진행도를 복원할 수 없습니다.</p>' : ''}<div class="settings-row"><span>방치 결과</span><button class="secondary-button" id="restore-idle-results" ${account.settings.hiddenIdleResults.length ? "" : "disabled"}>다시 표시</button></div>${hostedAccountRows}<div class="settings-row"><span>계정</span><button class="secondary-button" id="reset-account">계정 초기화</button></div>${hostedMode && cloudBootstrapEnvelope.created ? '<p class="settings-note">새 온라인 계정을 만들었습니다. 기존 브라우저 저장 기록은 그대로 보존됩니다.</p>' : hostedMode ? '<p class="settings-note">진행도는 온라인 계정에 저장됩니다.</p>' : '<p class="settings-note">진행도는 이 브라우저에 저장됩니다.<br>다른 기기로 옮기려면 저장 파일을 사용하세요.</p>'}<p class="settings-note">키보드: 1–9·0 소환 · Space 일시 정지 · Esc 뒤로 / 닫기</p>`;
   if ($("link-account")) $("link-account").onclick = () => linkGuestAccount();
-  if (testLoginEnabled) $("test-login").onclick = () => openModal("테스트 로그인", "test-login", renderTestLogin);
+  if (testLoginEnabled) $("test-login").onclick = () => openScreen("test-login");
   if (hostedMode && $("login-account") && sitesSignedIn) $("login-account").onclick = (event) => {
     event.preventDefault();
     void switchToExistingAccount();
@@ -2218,7 +2076,7 @@ function renderSettings() {
         text: "현재 계정은 보존됩니다. 게스트 진행도는 별도로 저장됩니다.",
         actions: '<button class="secondary-button" id="cancel-guest-choice">취소</button><button class="primary-button" id="confirm-guest-choice">게스트로</button>',
       });
-      $("cancel-guest-choice").onclick = () => returnModal("설정", "settings", renderSettings);
+      $("cancel-guest-choice").onclick = () => openScreen("settings", { navigation: "return" });
       $("confirm-guest-choice").onclick = () => switchToGuestAccount();
     }, { layout: "message" });
   };
@@ -2270,7 +2128,7 @@ function renderSettings() {
   $("reset-account").onclick = () => {
     openModal("계정 초기화", "reset-account", () => {
       $("modal-content").innerHTML = messagePanel({ text: `동료·재화·성장·전투 기록을 모두 지우고 0스테이지부터 다시 시작합니다.<br>${hostedMode ? "온라인 진행도는 초기화 후 복구할 수 없습니다. 내려받은 파일로도 온라인 진행도를 복원할 수 없습니다." : "복구하려면 초기화 전에 저장 파일을 내려받아 두세요."}`, actions: '<button class="secondary-button" id="cancel-reset-account">취소</button><button class="primary-button" id="confirm-reset-account">초기화하고 시작</button>' });
-      $("cancel-reset-account").onclick = () => returnModal("설정", "settings", renderSettings);
+      $("cancel-reset-account").onclick = () => openScreen("settings", { navigation: "return" });
       $("confirm-reset-account").onclick = () => {
         if (hostedMode) {
           void sendCommand("account.reset", {}).then((envelope) => {
@@ -2327,7 +2185,7 @@ function renderSettings() {
         $("modal-content").innerHTML =
           messagePanel({ text: "현재 진행도가 저장 파일의 진행도로 바뀝니다.", actions: '<button class="secondary-button" id="cancel-import">취소</button><button class="primary-button" id="confirm-import">불러오기</button>' });
         $("cancel-import").onclick = () =>
-          returnModal("설정", "settings", renderSettings);
+          openScreen("settings", { navigation: "return" });
         $("confirm-import").onclick = () => {
           accrue(imported);
           if (!saveAccount(imported)) {
@@ -2448,27 +2306,13 @@ document.addEventListener("keydown", (e) => {
     manualSummon(handUnits()[e.key === "0" ? 9 : Number(e.key) - 1]);
 });
 modals.bindControls();
-$("stage-select").onclick = () =>
-  mode === "speedrun"
-    ? openModal("속공", "daily", renderDaily)
-    : openModal("스테이지", "stages", renderStages);
-
-$("profile-button").onclick = () => openModal("동료", "growth", renderGrowth);
+bindHudActions();
 $("start-battle").onclick = () => {
   startBattle();
   chirp();
 };
-$("pause").onclick = setPaused;
-$("leave-battle").onclick = leaveBattle;
-$("edit-sequence").onclick = () => {
-  openSequence();
-};
 $("challenge-start").onclick = () => startChallenge();
 $("guide-mission").onclick = actOnMission;
-$("nav-units").onclick = () => openModal("동료", "growth", renderGrowth);
-$("nav-recruit").onclick = () => openModal("모집", "recruit", renderRecruit);
-$("nav-codex").onclick = () => openCodex();
-$("menu").onclick = () => openModal("메뉴", "menu", renderMenu);
 $("close-idle-result").onclick = closeIdleResult;
 $("confirm-idle-result").onclick = closeIdleResult;
 $("hide-idle-result").onchange = () => {
@@ -2478,12 +2322,11 @@ $("hide-idle-result").onchange = () => {
   else hidden.delete(idleResultStage);
   void updatePreference({ hiddenIdleResults: [...hidden] });
 };
-$("income").onclick = () => openModal("방치", "income", renderIncome);
-$("speed").onclick = () => {
+function toggleBattleSpeed() {
   if (mode === "idle" || !battle || battle.finished) return;
   const speed = account.settings.speed === 1 ? 2 : 1;
   void updatePreference({ speed }).then((ok) => { if (ok) updateUi(); });
-};
+}
 $("skill").onclick = () => {
   if (
     isOnboarding(account) || !battle ||

@@ -3249,7 +3249,7 @@ html:fullscreen .game {
   position: absolute;
   inset: 0;
   z-index: 3;
-  display: none;
+  display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
@@ -3258,7 +3258,6 @@ html:fullscreen .game {
   background: #f9f8ef66;
   pointer-events: none;
 }
-.game[data-mode="idle"] .unit-auto { display: flex; }
 .unit-auto .icon { width: 30px; height: 30px; opacity: .65; animation: idle-auto-spin 4s linear infinite; }
 .unit-auto b { font-size: 9px; opacity: .85; }
 @keyframes idle-auto-spin { to { transform: rotate(360deg); } }
@@ -3287,7 +3286,7 @@ html:fullscreen .game {
 .mission-rewards { display: flex; gap: 12px; }
 .mission-rewards > span { display: inline-flex; align-items: center; gap: 3px; }
 .mission-rewards .icon { width: 16px; height: 16px; }
-.game[data-mode="idle"] .income-button { top: 263px; }
+
 .challenge-start {
   position: absolute;
   right: 22px;
@@ -3307,7 +3306,6 @@ html:fullscreen .game {
 }
 .challenge-start strong { white-space: nowrap; }
 .challenge-start .icon { width: 23px; height: 23px; flex-shrink: 0; }
-.game[data-mode="idle"] .sequence-button { top: 6px; transform: none; }
 .idle-result-popup {
   position: absolute;
   left: 50%;
@@ -3373,7 +3371,7 @@ html:fullscreen .game {
   #mission-progress { font-size: 9px; grid-column: 1; grid-row: 3; }
   .mission-rewards { grid-column: 2; grid-row: 3; align-items: center; font-size: 9px; gap: 8px; }
   .mission-rewards .icon { width: 13px; height: 13px; }
-  .game[data-mode="idle"] .income-button { top: 190px; }
+
   .unit-auto .icon { width: 22px; height: 22px; }
   .unit-auto b { font-size: 7px; }
   .challenge-start { right: var(--safe-right); bottom: max(12px, env(safe-area-inset-bottom)); width: 88px; height: 42px; border-radius: 10px; font-size: 10px; gap: 4px; }
@@ -3433,12 +3431,6 @@ html:fullscreen .game {
 .menu-speed .menu-medallion,
 .menu-pause .menu-medallion {
   color: #78816b;
-}
-.game[data-manual-combat="true"] .game-menus > :not(#menu):not(#speed):not(#pause):not(#leave-battle):not(#edit-sequence),
-.game[data-manual-combat="true"] #profile-button,
-.game[data-manual-combat="true"] #income,
-.game[data-manual-combat="true"] .stage-button .chevron {
-  display: none;
 }
 .game[data-manual-combat="true"] .stage-button:disabled,
 .game[data-manual-combat="true"] .mode-indicator:disabled {

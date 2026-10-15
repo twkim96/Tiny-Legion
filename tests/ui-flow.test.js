@@ -1,3 +1,5 @@
+import { resourceChip, statRow, characterName, attributeMarkup, specialtyText } from "../dist/src/ui-components.js";
+import { gameUiState, contentMenuMarkup, screenAccess, screenTitle, MODES } from "../dist/src/navigation-ui.js";
 import { mailboxPanel } from "../dist/src/mailbox-ui.js";
 import { effectMarkup } from '../dist/src/effects-ui.js';
 import { getEnemy } from '../dist/src/characters.js';
@@ -59,6 +61,7 @@ function harness(names) {
   account.highestCleared = 1;
   const calls = [];
   const context = {
+    resourceChip, statRow, characterName, attributeMarkup, specialtyText, gameUiState, contentMenuMarkup, screenAccess, screenTitle, MODES,
     mailboxPanel, mailboxEntries, claimMail, renderMailbox(){},
     $, account, calls, idleRecordMarkup, hostedMode:false, testLoginEnabled:false, testLoginRequested:false, cloudIdentity:null, adminPanel, accountClient:null, sendCommand:async()=>null, updatePreference:async()=>true, STAGES, battleDuration, stageLabel, currentMission, recordMissionBattle, claimMission, accrue, recordIdle, isOnboarding, recruitOnboardingCompanion, growthUnlocked, sequenceUnlocked, sequenceForMode, setSequence, playableSequence, growUnit, refundUnitLevels, unitLevelRefund, levelCost, recruitEarlyRabbit, applyGuideSequence, canUseUnit, ownsUnit, UNITS, speedrunStageRecord, speedrunProgress, speedrunReward, speedrunStageReward, SPEEDRUN_LIMIT_SECONDS, SPEEDRUN_TARGET_SECONDS, SPEEDRUN_STAGES,
     bindSequenceDrag(){}, moveSequenceItem, modalLayout, messagePanel, hideTooltip(){},
@@ -96,7 +99,7 @@ function harness(names) {
     modalKind: { get: () => context.modals.kind },
   });
   vm.createContext(context);
-  vm.runInContext([...new Set(['notifyMissionReward', 'firstIdleMissionPending', 'levelBasisMarkup', 'canOpenModal', 'backModal', 'returnModal', 'selectIdleStage', 'finishOnboardingRecruit', 'revealEarlyRabbit', ...names])].map(functionSource).join('\n'), context);
+  vm.runInContext([...new Set(['screenRenderer', 'openScreen', 'activateScreen', 'notifyMissionReward', 'firstIdleMissionPending', 'levelBasisMarkup', 'canOpenModal', 'backModal', 'returnModal', 'selectIdleStage', 'finishOnboardingRecruit', 'revealEarlyRabbit', ...names])].map(functionSource).join('\n'), context);
   return context;
 }
 test('idle result dialog leaves simulation and automatic restart running', () => {
@@ -883,7 +886,7 @@ test('first idle mission blocks challenge until its reward is claimed', () => {
 });
 test('manual battle menu contains only settings, idle retains its content menu', () => {
   const c = harness(['renderMenu']);
-  c.mode='challenge'; c.renderMenu();
+  c.mode='challenge'; c.battle.finished=false; c.renderMenu();
   const html=c.$('modal-content').innerHTML;
   assert.deepEqual([...html.matchAll(/data-content-menu="([^"]+)"/g)].map(m=>m[1]),['settings']);
   c.mode='speedrun'; c.renderMenu();
@@ -891,6 +894,41 @@ test('manual battle menu contains only settings, idle retains its content menu',
   c.mode='idle'; c.renderMenu();
   assert.match(c.$('modal-content').innerHTML,/data-content-menu="growth"/);
 });
+test('manual result and ready screens restore the same content menu as idle', () => {
+  const c = harness(['renderMenu']);
+  for (const mode of ['idle', 'challenge', 'speedrun']) {
+    c.mode = mode;
+    c.battle = { finished: true };
+    c.renderMenu();
+    assert.match(c.$('modal-content').innerHTML, /data-content-menu="growth"/);
+    c.battle = null;
+    c.renderMenu();
+    assert.match(c.$('modal-content').innerHTML, /data-content-menu="recruit"/);
+  }
+});
+
+test('profile, toolbar and drawer destinations resolve through the same screen entry', () => {
+  const c = harness([]), renders = [];
+  c.renderGrowth = () => renders.push('growth');
+  c.openScreen('growth');
+  c.activateScreen('growth');
+  assert.deepEqual(renders, ['growth', 'growth']);
+  assert.deepEqual(c.calls.filter(Array.isArray), [['동료', 'growth'], ['동료', 'growth']]);
+  c.account.onboarding.phase = 'intro';
+  c.activateScreen('growth');
+  assert.equal(renders.length, 2, 'shared navigation preserves tutorial lock');
+});
+
+test('codex remains callable during the first tutorial while growth stays locked', () => {
+  const c = harness([]);
+  c.account.onboarding.phase = 'intro';
+  let opened = 0;
+  c.openCodex = () => { opened++; };
+  c.activateScreen('codex');
+  assert.equal(opened, 1);
+  assert.equal(c.canOpenModal('codex'), true);
+});
+
 test('leave battle confirmation cancels safely and exits without recording a victory', () => {
   const c = harness(['leaveBattle','setMode','settleProduction','closeIdleResult']);
   c.account.missions.claimed=['idle-intro']; c.account.earlyGuide.phase='complete';
